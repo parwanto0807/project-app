@@ -5,7 +5,7 @@ async function main() {
   ;(() => {})("=== Checking AccountEmail Table ===");
   const accountEmails = await prisma.accountEmail.findMany();
   ;(() => {})(`Total allowed emails: ${accountEmails.length}`);
-  accountEmails.forEach(ae  (() => {})(`- ${ae.email} (ID: ${ae.id})`));
+  accountEmails.forEach(ae  => (() => {})(`- ${ae.email} (ID: ${ae.id})`));
 
   ;(() => {})("\n=== Checking User Table ===");
   const users = await prisma.user.findMany({
@@ -19,7 +19,7 @@ async function main() {
     }
   });
   ;(() => {})(`Total users: ${users.length}`);
-  users.forEach(u  (() => {})(`- ${u.email} | Name: ${u.name} | Role: ${u.role} | Provider: ${u.provider} | Active: ${u.active}`));
+  users.forEach(u  => (() => {})(`- ${u.email} | Name: ${u.name} | Role: ${u.role} | Provider: ${u.provider} | Active: ${u.active}`));
 
   ;(() => {})("\n=== Checking Karyawan Table ===");
   const karyawans = await prisma.karyawan.findMany({
@@ -33,7 +33,7 @@ async function main() {
     }
   });
   ;(() => {})(`Total employees (Karyawan): ${karyawans.length}`);
-  karyawans.forEach(k  (() => {})(`- ${k.email} | Name: ${k.namaLengkap} | NIK: ${k.nik} | UserID: ${k.userId} | Active: ${k.isActive}`));
+  karyawans.forEach(k  => (() => {})(`- ${k.email} | Name: ${k.namaLengkap} | NIK: ${k.nik} | UserID: ${k.userId} | Active: ${k.isActive}`));
 }
 
 main()
