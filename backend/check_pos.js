@@ -10,7 +10,7 @@ async function main() {
   });
 
   ;(() => {})('Latest 20 POs (by poNumber desc):');
-  latestPOs.forEach(po => ;(() => {})(`${po.poNumber} (${po.orderDate})`));
+  latestPOs.forEach(po  (() => {})(`${po.poNumber} (${po.orderDate})`));
 
   const thisYear = new Date().getFullYear();
   const startOfYear = new Date(thisYear, 0, 1);
@@ -29,7 +29,7 @@ async function main() {
   });
 
   ;(() => {})(`\nPO numbers in ${thisYear}:`);
-  yearPOs.forEach(po => ;(() => {})(po.poNumber));
+  yearPOs.forEach(po  (() => {})(po.poNumber));
 }
 
 main()

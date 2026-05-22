@@ -140,7 +140,7 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: 
                 duration: 3000,
                 action: {
                     label: 'View',
-                    onClick: () => ;(() => {})('View invoice clicked'),
+                    onClick: ()  (() => {})('View invoice clicked'),
                 },
             });
 
