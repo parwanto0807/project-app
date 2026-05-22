@@ -4,6 +4,7 @@ import session from "express-session";
 import cors from "cors";
 import helmet from "helmet"; // Tambahkan untuk security headers
 import authRoutes from "./routes/auth/authRoutes.js";
+import iclockRoutes from "./routes/iclock/iclockRoutes.js";
 import "./config/passport.js";
 import { SESSION_SECRET, CLIENT_URL, NODE_ENV } from "./config/env.js"; // Import dari env
 import customerRoutes from "./routes/master/customer/customerRoutes.js"; // Import customer routes
@@ -215,6 +216,7 @@ app.use('/api/loans', loanRoutes);
 app.use('/api/hr/leaves', leaveRoutes);
 app.use('/api/master/location', locationRoutes);
 app.use('/api/master/wifi-ssid', wifiSsidRoutes);
+app.use('/iclock', iclockRoutes);
 
 
 
