@@ -16,6 +16,7 @@ import {
   getTodayStatus,
   getMyHistory,
   getTodayAttendance,
+  reportForgottenOut,
 } from "../../controllers/absensi/attendanceSubmissionController.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 
@@ -51,5 +52,6 @@ router.post("/submit-clock-out", authenticateToken, upload.single("foto"), submi
 router.get("/my-history", authenticateToken, getMyHistory);
 router.get("/today", authenticateToken, getTodayAttendance);
 router.get("/today-status/:userId", authenticateToken, getTodayStatus);
+router.post("/report-forgotten-out", authenticateToken, reportForgottenOut);
 
 export default router;

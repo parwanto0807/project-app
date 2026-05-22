@@ -440,3 +440,63 @@ export const getTodayAttendance = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const reportForgottenOut = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId },
+    });
+
+    if (!karyawan) {
+      return res.status(404).json({ success: false, message: "Data karyawan tidak ditemukan" });
+    }
+
+    // Cari sesi terakhir yang masuk tapi belum keluar
+    const activeSession = await prisma.absensi.findFirst({
+      where: {
+        karyawanId: karyawan.id,
+        jamMasuk: { not: null },
+        jamKeluar: null,
+      },
+      orderBy: { jamMasuk: "desc" },
+    });
+
+    if (!activeSession) {
+      return res.status(400).json({ success: false, message: "Tidak ada absensi masuk yang belum ditutup." });
+    }
+
+    // Set jam keluar default ke jam 17:00 di hari yang sama dengan jamMasuk
+    const defaultKeluar = new Date(activeSession.jamMasuk);
+    defaultKeluar.setHours(17, 0, 0, 0);
+
+    // Pastikan defaultKeluar tidak berada sebelum jamMasuk (misal dia masuk jam 18:00)
+    if (defaultKeluar < activeSession.jamMasuk) {
+      defaultKeluar.setTime(activeSession.jamMasuk.getTime() + 1000 * 60 * 60); // +1 jam
+    }
+
+    const updatedAbsensi = await prisma.absensi.update({
+      where: { id: activeSession.id },
+      data: {
+        jamKeluar: defaultKeluar,
+        status: "LUPA_ABSEN_KELUAR",
+        keterangan: activeSession.keterangan 
+          ? activeSession.keterangan + " | Dilaporkan Lupa Absen Keluar" 
+          : "Dilaporkan Lupa Absen Keluar",
+      },
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      message: "Berhasil melapor lupa absen keluar.", 
+      data: updatedAbsensi 
+    });
+  } catch (error) {
+    console.error("Report Forgotten Out Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
