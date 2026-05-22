@@ -483,7 +483,6 @@ export const reportForgottenOut = async (req, res) => {
       where: { id: activeSession.id },
       data: {
         jamKeluar: defaultKeluar,
-        status: "LUPA_ABSEN_KELUAR",
         keterangan: activeSession.keterangan 
           ? activeSession.keterangan + " | Dilaporkan Lupa Absen Keluar" 
           : "Dilaporkan Lupa Absen Keluar",
