@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { NotificationService } from "../../utils/firebase/notificationService.js";
 const prisma = new PrismaClient();
 
 // Fungsi bantuan untuk menghitung selisih jam
@@ -57,7 +58,8 @@ export const cdataPost = async (req, res) => {
           }
 
           const checkTimeStr = parts[1]; 
-          const checkTime = new Date(checkTimeStr);
+          // Memaksa timezone ke +07:00 (WIB) agar tidak dianggap UTC oleh Node.js
+          const checkTime = new Date(checkTimeStr.replace(" ", "T") + "+07:00");
           
           if (isNaN(checkTime.getTime())) continue;
 
@@ -96,6 +98,22 @@ export const cdataPost = async (req, res) => {
               }
             });
             successCount++;
+
+            // Send notification for Clock In
+            try {
+              await NotificationService.broadcastToAdmins({
+                title: "👋 Absen Masuk (Clock In) via Fingerprint",
+                body: `${karyawan.namaLengkap} telah melakukan Absen Masuk pada pukul ${checkTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
+                type: "attendance_clock_in",
+                data: {
+                  karyawanId: karyawan.id,
+                  karyawanName: karyawan.namaLengkap,
+                  time: checkTime.toISOString(),
+                  click_action: "FLUTTER_NOTIFICATION_CLICK",
+                },
+              });
+            } catch (err) {}
+
           } else {
             if (absensiHariIni.jamMasuk && getHoursDiff(checkTime, absensiHariIni.jamMasuk) > 0.5) {
                await prisma.absensi.update({
@@ -105,6 +123,21 @@ export const cdataPost = async (req, res) => {
                  }
                });
                successCount++;
+
+               // Send notification for Clock Out
+               try {
+                 await NotificationService.broadcastToAdmins({
+                   title: "👋 Absen Keluar (Clock Out) via Fingerprint",
+                   body: `${karyawan.namaLengkap} telah melakukan Absen Keluar pada pukul ${checkTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
+                   type: "attendance_clock_out",
+                   data: {
+                     karyawanId: karyawan.id,
+                     karyawanName: karyawan.namaLengkap,
+                     time: checkTime.toISOString(),
+                     click_action: "FLUTTER_NOTIFICATION_CLICK",
+                   },
+                 });
+               } catch (err) {}
             }
           }
         }
