@@ -216,6 +216,62 @@ export const approveLeave = async (req, res) => {
       },
     });
 
+    // Auto update Absensi
+    try {
+      let attendanceStatus = "IZIN";
+      if (leave.jenis === "CUTI") attendanceStatus = "CUTI";
+      if (leave.jenis === "SAKIT") attendanceStatus = "SAKIT";
+
+      const startDate = new Date(leave.tanggalMulai);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(leave.tanggalSelesai);
+      endDate.setHours(0, 0, 0, 0);
+
+      const datesToProcess = [];
+      let loopDate = new Date(startDate);
+      while (loopDate <= endDate) {
+        datesToProcess.push(new Date(loopDate));
+        loopDate.setDate(loopDate.getDate() + 1);
+      }
+
+      for (const targetDate of datesToProcess) {
+        const startOfDay = new Date(targetDate);
+        const endOfDay = new Date(targetDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const existingAbsensi = await prisma.absensi.findFirst({
+          where: {
+            karyawanId: leave.karyawanId,
+            tanggal: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        });
+
+        if (existingAbsensi) {
+          await prisma.absensi.update({
+            where: { id: existingAbsensi.id },
+            data: {
+              status: attendanceStatus,
+              keterangan: `Disetujui: ${leave.jenis} - ${leave.keterangan || ''}`,
+            },
+          });
+        } else {
+          await prisma.absensi.create({
+            data: {
+              karyawanId: leave.karyawanId,
+              tanggal: targetDate,
+              status: attendanceStatus,
+              keterangan: `Disetujui: ${leave.jenis} - ${leave.keterangan || ''}`,
+            },
+          });
+        }
+      }
+    } catch (absensiError) {
+      console.error("[Absensi Sync] Failed to sync absensi for leave:", absensiError);
+    }
+
     // Send push notification to the Employee
     try {
       if (leave.karyawan?.userId) {

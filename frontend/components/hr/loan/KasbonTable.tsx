@@ -829,6 +829,43 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
                     </p>
                   </div>
                 )}
+                
+                {/* ── Action Buttons ── */}
+                <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2 justify-end">
+                  {k.status === "PENDING" && (
+                    <>
+                      <Button size="sm" variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => handleApprove(k.id)} disabled={!!loadingId}>
+                        {loadingId === k.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />} Setujui
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => setRejectTarget(k)}>
+                        <XCircle className="w-4 h-4 mr-1" /> Tolak
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-gray-600 border-gray-200 hover:bg-gray-50" onClick={() => setEditingKasbon(k)}>
+                        <Pencil className="w-4 h-4 mr-1" /> Edit
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setDeletingId(k.id); setDeletingName(selectedEmployeeDetail?.employee?.namaLengkap); }}>
+                        <Trash2 className="w-4 h-4 mr-1" /> Hapus
+                      </Button>
+                    </>
+                  )}
+                  {k.status === "APPROVED" && (
+                    <>
+                      {!k.isPosted && (
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setPostingKasbon(k)}>
+                          <SendHorizontal className="w-4 h-4 mr-1" /> Posting GL
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => setRejectTarget(k)}>
+                        <XCircle className="w-4 h-4 mr-1" /> Batalkan
+                      </Button>
+                      {k.isPosted && (
+                        <Button size="sm" variant="outline" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => setSettlingId(k.id)}>
+                          <CheckCheck className="w-4 h-4 mr-1" /> Lunaskan
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>

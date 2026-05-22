@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { CheckCircle2, UserCheck, Clock, Users, ShieldCheck } from "lucide-react";
+import { CheckCircle2, UserCheck, Clock, Users, ShieldCheck, MapPin, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ActiveEmployee {
@@ -17,6 +17,14 @@ interface ActiveEmployee {
   jamMasuk: string;
   avatar?: string;
   status: string;
+  latMasuk?: number;
+  longMasuk?: number;
+  attendanceLocation?: {
+    name: string;
+    latitude: number;
+    longitude: number;
+    radius: number;
+  };
 }
 
 export function ActiveEmployeesCard() {
@@ -70,7 +78,10 @@ export function ActiveEmployeesCard() {
             team: teamName,
             jamMasuk: record.jamMasuk,
             avatar: record.karyawan?.photoUrl,
-            status: record.status
+            status: record.status,
+            latMasuk: record.latMasuk,
+            longMasuk: record.longMasuk,
+            attendanceLocation: record.karyawan?.attendanceLocation,
           });
         });
 
@@ -193,12 +204,26 @@ export function ActiveEmployeesCard() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                    <span className="text-[9px] font-black tracking-widest text-emerald-600 bg-emerald-100 px-1 py-0.5 rounded uppercase">IN</span>
-                    <Clock className="h-3 w-3 text-cyan-600" />
-                    <span className="text-xs font-bold text-cyan-700">
-                      {formatJam(emp.jamMasuk)}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                      <span className="text-[9px] font-black tracking-widest text-emerald-600 bg-emerald-100 px-1 py-0.5 rounded uppercase">IN</span>
+                      <Clock className="h-3 w-3 text-cyan-600" />
+                      <span className="text-xs font-bold text-cyan-700">
+                        {formatJam(emp.jamMasuk)}
+                      </span>
+                    </div>
+
+                    {emp.attendanceLocation ? (
+                      <div className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                        <MapPin className="h-3 w-3" />
+                        {emp.attendanceLocation.name}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-[10px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100">
+                        <MapPin className="h-3 w-3" />
+                        Fleksibel / Lapangan
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

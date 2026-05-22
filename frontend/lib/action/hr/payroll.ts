@@ -32,7 +32,7 @@ export async function fetchPayrollSummary(periode: string) {
 export async function fetchPayrollPreview(
   karyawanId: string, 
   periode: string,
-  params: { pajak?: number; potonganDpGaji?: number; potonganLain?: number; manualPinjaman?: number; manualKasbon?: number } = {}
+  params: { pajak?: number; potonganDpGaji?: number; potonganLain?: number; manualPinjaman?: number; manualKasbon?: number; hitungLembur?: boolean } = {}
 ) {
   try {
     const q = new URLSearchParams();
@@ -42,6 +42,7 @@ export async function fetchPayrollPreview(
     if (params.potonganLain) q.append("potonganLain", params.potonganLain.toString());
     if (params.manualPinjaman !== undefined) q.append("manualPinjaman", params.manualPinjaman.toString());
     if (params.manualKasbon !== undefined) q.append("manualKasbon", params.manualKasbon.toString());
+    if (params.hitungLembur !== undefined) q.append("hitungLembur", params.hitungLembur.toString());
 
     const res = await fetch(
       `${API_URL}/api/payroll/preview/${karyawanId}?${q}`,
@@ -65,6 +66,7 @@ export async function createGaji(formData: {
   potonganLain?: number;
   manualPinjaman?: number;
   manualKasbon?: number;
+  hitungLembur?: boolean;
 }) {
   try {
     const res = await fetch(`${API_URL}/api/payroll/gaji`, {

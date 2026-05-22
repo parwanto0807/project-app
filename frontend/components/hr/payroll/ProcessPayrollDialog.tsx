@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Loader2, Calculator, CheckCircle2, AlertTriangle, User,
   CreditCard, Banknote, Clock, ChevronDown, ChevronUp,
@@ -51,6 +52,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
     potonganLain: "0",
     manualPinjaman: "",
     manualKasbon: "",
+    hitungLembur: true,
   });
 
   useEffect(() => {
@@ -64,6 +66,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
           potonganLain: (gajiToEdit.potongan || 0).toString(),
           manualPinjaman: gajiToEdit.potonganPinjaman?.toString() || "",
           manualKasbon: gajiToEdit.potonganKasbon?.toString() || "",
+          hitungLembur: true,
         });
       } else {
         setForm({
@@ -74,6 +77,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
           potonganLain: "0",
           manualPinjaman: "",
           manualKasbon: "",
+          hitungLembur: true,
         });
       }
       fetchAllEmployees().then(setEmployees);
@@ -100,6 +104,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
         potonganLain: parseFloat(form.potonganLain || "0"),
         manualPinjaman: (form.manualPinjaman !== "" && form.manualPinjaman !== undefined) ? parseFloat(form.manualPinjaman) : undefined,
         manualKasbon: (form.manualKasbon !== "" && form.manualKasbon !== undefined) ? parseFloat(form.manualKasbon) : undefined,
+        hitungLembur: form.hitungLembur,
       });
       if (res.error) { toast.error(res.error); return; }
       setPreview(res.data);
@@ -123,6 +128,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
         potonganLain: parseFloat(form.potonganLain || "0"),
         manualPinjaman: (form.manualPinjaman !== "" && form.manualPinjaman !== undefined) ? parseFloat(form.manualPinjaman) : undefined,
         manualKasbon: (form.manualKasbon !== "" && form.manualKasbon !== undefined) ? parseFloat(form.manualKasbon) : undefined,
+        hitungLembur: form.hitungLembur,
       };
 
       const res = gajiToEdit 
@@ -227,6 +233,25 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                 <Label className="text-gray-600 text-xs">Potongan Kasbon Manual (IDR)</Label>
                 <Input type="number" placeholder="Otomatis" className="rounded-xl border-gray-200"
                   value={form.manualKasbon} onChange={(e) => setForm({ ...form, manualKasbon: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 bg-gray-50 border border-gray-100 rounded-xl p-3">
+              <Checkbox 
+                id="hitungLembur" 
+                checked={form.hitungLembur}
+                onCheckedChange={(checked) => setForm({ ...form, hitungLembur: !!checked })}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <label
+                  htmlFor="hitungLembur"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Hitung Upah Lembur
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Jika dinonaktifkan, jam lembur tidak akan diakumulasi ke dalam total gaji bersih.
+                </p>
               </div>
             </div>
 

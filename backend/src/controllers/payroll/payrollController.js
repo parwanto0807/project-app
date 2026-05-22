@@ -8,6 +8,22 @@ import { NotificationService } from "../../utils/firebase/notificationService.js
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Mendapatkan rentang tanggal untuk absensi dan gaji berdasarkan bulan periode
+ */
+function getPayrollDateRanges(periode) {
+  const periodDate = new Date(periode);
+  // Rentang untuk record Gaji (misal 1 Juni - 30 Juni)
+  const gajiStart = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
+  const gajiEnd = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+  
+  // Rentang untuk cut-off Absensi, Pinjaman, Kasbon (21 bulan lalu - 20 bulan ini)
+  const cutoffStart = new Date(periodDate.getFullYear(), periodDate.getMonth() - 1, 21);
+  const cutoffEnd = new Date(periodDate.getFullYear(), periodDate.getMonth(), 20, 23, 59, 59);
+
+  return { periodDate, gajiStart, gajiEnd, cutoffStart, cutoffEnd };
+}
+
+/**
  * Hitung durasi jam kerja dari jamMasuk → jamKeluar (dalam jam, float)
  */
 function hitungJamKerja(jamMasuk, jamKeluar) {
@@ -97,7 +113,8 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     const normalHours = Math.max(0, totalJamKerja - totalJamLembur);
     
     gajiKerja = Math.round(normalHours * hourlyRate);
-    upahLembur = Math.round(totalJamLembur * lemburPerJam);
+    const useLembur = overrides.hitungLembur !== false;
+    upahLembur = useLembur ? Math.round(totalJamLembur * lemburPerJam) : 0;
     potonganTerlambat = hariTerlambat * potonganPerTerlambat;
   } else {
     // Gaji bulanan: Ambil data gaji pokok dari master karyawan (tetap)
@@ -105,7 +122,8 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     const potonganPerTerlambat = config?.potonganTerlambat || 0;
 
     gajiKerja = gajiPokok;
-    upahLembur = totalJamLembur * lemburPerJam;
+    const useLembur = overrides.hitungLembur !== false;
+    upahLembur = useLembur ? Math.round(totalJamLembur * lemburPerJam) : 0;
     potonganTerlambat = hariTerlambat * potonganPerTerlambat;
   }
 
@@ -113,14 +131,14 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
   const potonganPinjamanCalculated = loanDetails.reduce((s, d) => s + Number(d.jumlahBayar), 0);
   const potonganKasbonCalculated   = kasbonList.reduce((s, k) => s + Number(k.jumlah), 0);
   
-  const potonganPinjaman = overrides.potonganPinjaman !== undefined ? overrides.potonganPinjaman : potonganPinjamanCalculated;
-  const potonganKasbon   = overrides.potonganKasbon !== undefined ? overrides.potonganKasbon : potonganKasbonCalculated;
-  const pajak            = overrides.pajak || 0;
-  const potonganDpGaji   = overrides.potonganDpGaji || 0;
-  const potonganLain     = overrides.potonganLain || potonganDefault;
+  const potonganPinjaman = Math.round(overrides.potonganPinjaman !== undefined ? overrides.potonganPinjaman : potonganPinjamanCalculated);
+  const potonganKasbon   = Math.round(overrides.potonganKasbon !== undefined ? overrides.potonganKasbon : potonganKasbonCalculated);
+  const pajak            = Math.round(overrides.pajak || 0);
+  const potonganDpGaji   = Math.round(overrides.potonganDpGaji || 0);
+  const potonganLain     = Math.round(overrides.potonganLain !== undefined ? overrides.potonganLain : potonganDefault);
 
-  const totalPendapatan = gajiKerja + tunjangan + upahLembur;
-  const totalPotongan   = potonganLain + pajak + potonganPinjaman + potonganKasbon + potonganTerlambat + potonganDpGaji;
+  const totalPendapatan = Math.round(gajiKerja + tunjangan + upahLembur);
+  const totalPotongan   = Math.round(potonganLain + pajak + potonganPinjaman + potonganKasbon + potonganTerlambat + potonganDpGaji);
   const total           = totalPendapatan - totalPotongan;
 
   return {
@@ -243,12 +261,10 @@ export const getPayrollSummary = async (req, res) => {
     const { periode } = req.query;
     if (!periode) return res.status(400).json({ message: "periode wajib diisi" });
 
-    const periodDate = new Date(periode);
-    const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-    const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+    const { gajiStart, gajiEnd } = getPayrollDateRanges(periode);
 
     const gaji = await prisma.gaji.findMany({
-      where: { periode: { gte: startOfMonth, lte: endOfMonth } },
+      where: { periode: { gte: gajiStart, lte: gajiEnd } },
       include: { 
         karyawan: { 
           select: { 
@@ -294,12 +310,10 @@ export const getPayrollSummary = async (req, res) => {
 export const getPayrollPreview = async (req, res) => {
   try {
     const { karyawanId } = req.params;
-    const { periode, pajak, potonganDpGaji, potonganLain, manualPinjaman, manualKasbon } = req.query;
+    const { periode, pajak, potonganDpGaji, potonganLain, manualPinjaman, manualKasbon, hitungLembur } = req.query;
     if (!periode) return res.status(400).json({ message: "periode wajib diisi" });
 
-    const periodDate   = new Date(periode);
-    const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-    const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+    const { gajiStart, gajiEnd, cutoffStart, cutoffEnd } = getPayrollDateRanges(periode);
 
     const karyawan = await prisma.karyawan.findUnique({
       where: { id: karyawanId },
@@ -307,7 +321,7 @@ export const getPayrollPreview = async (req, res) => {
     });
     if (!karyawan) return res.status(404).json({ message: "Karyawan tidak ditemukan" });
 
-    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawanId, startOfMonth, endOfMonth);
+    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawanId, cutoffStart, cutoffEnd);
 
     const overrides = {
       pajak: parseFloat(pajak || 0),
@@ -315,12 +329,13 @@ export const getPayrollPreview = async (req, res) => {
       potonganLain: parseFloat(potonganLain || 0),
       potonganPinjaman: manualPinjaman !== undefined ? parseFloat(manualPinjaman) : undefined,
       potonganKasbon: manualKasbon !== undefined ? parseFloat(manualKasbon) : undefined,
+      hitungLembur: hitungLembur === "false" ? false : true,
     };
 
     const kalkulasi = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config, overrides);
 
     const existingGaji = await prisma.gaji.findFirst({
-      where: { karyawanId, periode: { gte: startOfMonth, lte: endOfMonth } },
+      where: { karyawanId, periode: { gte: gajiStart, lte: gajiEnd } },
     });
 
     res.json({
@@ -343,16 +358,14 @@ export const getPayrollPreview = async (req, res) => {
  */
 export const createGaji = async (req, res) => {
   try {
-    const { karyawanId, periode, pajak = 0, potonganDpGaji = 0, potonganLain = 0, manualPinjaman, manualKasbon } = req.body;
+    const { karyawanId, periode, pajak = 0, potonganDpGaji = 0, potonganLain = 0, manualPinjaman, manualKasbon, hitungLembur } = req.body;
     if (!karyawanId || !periode) return res.status(400).json({ message: "karyawanId dan periode wajib diisi" });
 
-    const periodDate   = new Date(periode);
-    const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-    const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+    const { periodDate, gajiStart, gajiEnd, cutoffStart, cutoffEnd } = getPayrollDateRanges(periode);
 
     // Cek duplikat
     const existing = await prisma.gaji.findFirst({
-      where: { karyawanId, periode: { gte: startOfMonth, lte: endOfMonth } },
+      where: { karyawanId, periode: { gte: gajiStart, lte: gajiEnd } },
     });
     if (existing) return res.status(400).json({ message: "Slip gaji untuk karyawan ini di periode tersebut sudah ada" });
 
@@ -362,7 +375,7 @@ export const createGaji = async (req, res) => {
     });
     if (!karyawan) return res.status(404).json({ message: "Karyawan tidak ditemukan" });
 
-    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawanId, startOfMonth, endOfMonth);
+    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawanId, cutoffStart, cutoffEnd);
 
     const k = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config, {
       pajak: parseFloat(pajak),
@@ -370,6 +383,7 @@ export const createGaji = async (req, res) => {
       potonganLain: parseFloat(potonganLain),
       potonganPinjaman: manualPinjaman !== undefined ? parseFloat(manualPinjaman) : undefined,
       potonganKasbon: manualKasbon !== undefined ? parseFloat(manualKasbon) : undefined,
+      hitungLembur: hitungLembur !== false,
     });
 
     const result = await prisma.$transaction(async (tx) => {
@@ -377,8 +391,8 @@ export const createGaji = async (req, res) => {
         data: {
           karyawanId,
           periode: periodDate,
-          periodeMulai: startOfMonth,
-          periodeSelesai: endOfMonth,
+          periodeMulai: cutoffStart,
+          periodeSelesai: cutoffEnd,
           gajiPokok: k.gajiKerja,
           tunjangan: k.tunjangan,
           potongan: k.potonganLain + k.potonganTerlambat,
@@ -424,7 +438,7 @@ export const deleteGaji = async (req, res) => {
 export const updateGaji = async (req, res) => {
   try {
     const { id } = req.params;
-    const { pajak, potonganDpGaji, potonganLain, manualPinjaman, manualKasbon } = req.body;
+    const { pajak, potonganDpGaji, potonganLain, manualPinjaman, manualKasbon, hitungLembur } = req.body;
 
     const existing = await prisma.gaji.findUnique({
       where: { id },
@@ -436,11 +450,9 @@ export const updateGaji = async (req, res) => {
       return res.status(400).json({ message: "Hanya gaji berstatus DRAFT yang dapat diedit/dihitung ulang" });
     }
 
-    const periodDate = new Date(existing.periode);
-    const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-    const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+    const { gajiStart, gajiEnd, cutoffStart, cutoffEnd } = getPayrollDateRanges(existing.periode);
 
-    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(existing.karyawanId, startOfMonth, endOfMonth);
+    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(existing.karyawanId, cutoffStart, cutoffEnd);
 
     const overrides = {
       pajak: parseFloat(pajak || 0),
@@ -448,6 +460,7 @@ export const updateGaji = async (req, res) => {
       potonganLain: parseFloat(potonganLain || 0),
       potonganPinjaman: manualPinjaman !== undefined ? parseFloat(manualPinjaman) : undefined,
       potonganKasbon: manualKasbon !== undefined ? parseFloat(manualKasbon) : undefined,
+      hitungLembur: hitungLembur !== false,
     };
 
     const k = await kalkulasiGaji(existing.karyawan, absensiList, loanDetails, kasbonList, config, overrides);
@@ -483,9 +496,7 @@ export const getBulkPayrollPreview = async (req, res) => {
     const { periode } = req.query;
     if (!periode) return res.status(400).json({ message: "periode wajib diisi" });
 
-    const periodDate   = new Date(periode);
-    const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-    const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+    const { gajiStart, gajiEnd, cutoffStart, cutoffEnd } = getPayrollDateRanges(periode);
 
     const karyawanList = await prisma.karyawan.findMany({
       where: { isActive: true, gajiPokok: { not: null } },
@@ -494,7 +505,7 @@ export const getBulkPayrollPreview = async (req, res) => {
     });
 
     const sudahDiprosesRows = await prisma.gaji.findMany({
-      where: { periode: { gte: startOfMonth, lte: endOfMonth } },
+      where: { periode: { gte: gajiStart, lte: gajiEnd } },
       select: { karyawanId: true },
     });
     const sudahDiprosesSet = new Set(sudahDiprosesRows.map((g) => g.karyawanId));
@@ -504,7 +515,7 @@ export const getBulkPayrollPreview = async (req, res) => {
     const previews = await Promise.all(
       karyawanList.map(async (karyawan) => {
         const sudah = sudahDiprosesSet.has(karyawan.id);
-        const { absensiList, loanDetails, kasbonList } = await fetchPayrollData(karyawan.id, startOfMonth, endOfMonth);
+        const { absensiList, loanDetails, kasbonList } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd);
         const k = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config);
         return { karyawan, sudahDiproses: sudah, kalkulasi: k };
       })
@@ -534,9 +545,7 @@ export const processBulkPayroll = async (req, res) => {
     const { periode } = req.body;
     if (!periode) return res.status(400).json({ message: "periode wajib diisi" });
 
-    const periodDate   = new Date(periode);
-    const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-    const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+    const { periodDate, gajiStart, gajiEnd, cutoffStart, cutoffEnd } = getPayrollDateRanges(periode);
 
     const karyawanList = await prisma.karyawan.findMany({
       where: { isActive: true, gajiPokok: { not: null } },
@@ -544,7 +553,7 @@ export const processBulkPayroll = async (req, res) => {
     });
 
     const sudahDiprosesRows = await prisma.gaji.findMany({
-      where: { periode: { gte: startOfMonth, lte: endOfMonth } },
+      where: { periode: { gte: gajiStart, lte: gajiEnd } },
       select: { karyawanId: true },
     });
     const sudahDiprosesSet = new Set(sudahDiprosesRows.map((g) => g.karyawanId));
@@ -559,7 +568,7 @@ export const processBulkPayroll = async (req, res) => {
 
     for (const karyawan of toBeProcesed) {
       try {
-        const { absensiList, loanDetails, kasbonList } = await fetchPayrollData(karyawan.id, startOfMonth, endOfMonth);
+        const { absensiList, loanDetails, kasbonList } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd);
         const k = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config);
 
         await prisma.$transaction(async (tx) => {
@@ -567,8 +576,8 @@ export const processBulkPayroll = async (req, res) => {
             data: {
               karyawanId: karyawan.id,
               periode: periodDate,
-              periodeMulai: startOfMonth,
-              periodeSelesai: endOfMonth,
+              periodeMulai: cutoffStart,
+              periodeSelesai: cutoffEnd,
               gajiPokok: k.gajiKerja,
               tunjangan: k.tunjangan,
               potongan: k.potonganLain + k.potonganTerlambat,
@@ -724,15 +733,13 @@ export const postBulkPayroll = async (req, res) => {
     const { periode } = req.body;
     if (!periode) return res.status(400).json({ message: "periode wajib diisi" });
 
-    const periodDate   = new Date(periode);
-    const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
-    const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+    const { gajiStart, gajiEnd } = getPayrollDateRanges(periode);
 
     // Ambil semua draft gaji untuk periode tersebut
     const drafts = await prisma.gaji.findMany({
       where: {
         status: "DRAFT",
-        periode: { gte: startOfMonth, lte: endOfMonth },
+        periode: { gte: gajiStart, lte: gajiEnd },
       },
       include: { karyawan: true },
     });
