@@ -284,9 +284,9 @@ export class PurchaseRequestController {
    */
   async createPurchaseRequest(req, res) {
     try {
-      (() => {})("📥 [Backend] Received req.body:", req.body);
+      ;(() => {})("📥 [Backend] Received req.body:", req.body);
       const validatedData = createPurchaseRequestSchema.parse(req.body);
-      (() => {})("✅ [Backend] Validated data:", {
+      ;(() => {})("✅ [Backend] Validated data:", {
         spkId: validatedData.spkId,
         parentPrId: validatedData.parentPrId,
         projectId: validatedData.projectId
@@ -294,7 +294,7 @@ export class PurchaseRequestController {
 
       // Generate nomor PR berdasarkan apakah ada SPK atau tidak
       const hasSPK = !!(validatedData.spkId && validatedData.spkId !== "" && validatedData.spkId !== "no-spk" && validatedData.spkId !== "null" && validatedData.spkId !== "undefined");
-      (() => {})("🔍 [Backend] hasSPK (calculated):", hasSPK);
+      ;(() => {})("🔍 [Backend] hasSPK (calculated):", hasSPK);
 
       const nomorPr = await generatePRNumber(hasSPK);
 
@@ -349,7 +349,7 @@ export class PurchaseRequestController {
       }
 
       // ✅ PENTING: Handle nullable spkId and requestedById
-    (() => {})("🔍 Backend received validatedData:", {
+    ;(() => {})("🔍 Backend received validatedData:", {
       karyawanId: validatedData.karyawanId,
       requestedById: validatedData.requestedById,
       hasRequestedById: !!validatedData.requestedById,
@@ -379,7 +379,7 @@ export class PurchaseRequestController {
       },
     };
 
-    (() => {})("💾 Backend will save prData:", {
+    ;(() => {})("💾 Backend will save prData:", {
       karyawanId: prData.karyawanId,
       requestedById: prData.requestedById,
       parentPrId: prData.parentPrId,
@@ -455,7 +455,7 @@ export class PurchaseRequestController {
           },
         });
 
-        (() => {})(
+        ;(() => {})(
           `📢 Sending Purchase Request notification to ${adminUsers.length} admin/pic users`
         );
 
@@ -505,7 +505,7 @@ export class PurchaseRequestController {
             },
           });
 
-          (() => {})(
+          ;(() => {})(
             `✅ Purchase Request notification sent to ${admin.role}: ${admin.email}`
           );
         }
@@ -621,7 +621,7 @@ export class PurchaseRequestController {
       delete updateData.details;
 
       // Debug log
-      (() => {})("🔍 Backend UPDATE received validatedData:", {
+      ;(() => {})("🔍 Backend UPDATE received validatedData:", {
         requestedById: validatedData.requestedById,
         hasRequestedById: !!validatedData.requestedById
       });
@@ -632,7 +632,7 @@ export class PurchaseRequestController {
         updateData.spkId = updateData.spkId || null;
       }
 
-      (() => {})("💾 Backend will UPDATE with data:", {
+      ;(() => {})("💾 Backend will UPDATE with data:", {
         requestedById: updateData.requestedById,
         willSave: updateData.requestedById
       });
@@ -903,7 +903,7 @@ export class PurchaseRequestController {
         // 2. Cascade status to children if parent is rejected
         if (status === "REJECTED" && pr.childPrs && pr.childPrs.length > 0) {
           const cascadedCount = await cascadeStatusToChildren(id, status, tx);
-          (() => {})(`✅ Cascaded REJECTED status to ${cascadedCount} child PRs`);
+          ;(() => {})(`✅ Cascaded REJECTED status to ${cascadedCount} child PRs`);
         }
 
         // 2. Handle Split Items (created when stock is insufficient)
@@ -1232,7 +1232,7 @@ export class PurchaseRequestController {
                 where: { id: po.id }
               });
 
-              (() => {})(`✅ Deleted PO ${po.poNumber} during cancel approve`);
+              ;(() => {})(`✅ Deleted PO ${po.poNumber} during cancel approve`);
             } else {
               // Log warning but don't block the cancel approve
               console.warn(
@@ -1301,7 +1301,7 @@ export class PurchaseRequestController {
                   where: { id: mr.id }
                 });
 
-                (() => {})(`✅ Deleted MaterialRequisition ${mr.mrNumber} during cancel approve`);
+                ;(() => {})(`✅ Deleted MaterialRequisition ${mr.mrNumber} during cancel approve`);
               }
 
               // Delete related GoodsReceipts (auto-generated for transfer)
@@ -1334,7 +1334,7 @@ export class PurchaseRequestController {
                   where: { id: gr.id }
                 });
 
-                (() => {})(`✅ Deleted GoodsReceipt ${gr.grNumber} during cancel approve`);
+                ;(() => {})(`✅ Deleted GoodsReceipt ${gr.grNumber} during cancel approve`);
               }
 
               // Delete transfer items first (foreign key constraint)
@@ -1347,7 +1347,7 @@ export class PurchaseRequestController {
                 where: { id: transfer.id }
               });
 
-              (() => {})(`✅ Deleted StockTransfer ${transfer.transferNumber} during cancel approve`);
+              ;(() => {})(`✅ Deleted StockTransfer ${transfer.transferNumber} during cancel approve`);
             }
           }
 
@@ -1396,7 +1396,7 @@ export class PurchaseRequestController {
                   }
                 });
 
-                (() => {})(`✅ Reversed StaffLedger entry for karyawan ${karyawanId}: ` +
+                ;(() => {})(`✅ Reversed StaffLedger entry for karyawan ${karyawanId}: ` +
                   `SaldoAwal: Rp ${saldoAwal.toLocaleString('id-ID')}, ` +
                   `DEBIT: Rp ${originalKredit.toLocaleString('id-ID')}, ` +
                   `SaldoAkhir: Rp ${saldoAkhir.toLocaleString('id-ID')}`);
@@ -1427,7 +1427,7 @@ export class PurchaseRequestController {
                     }
                   });
 
-                  (() => {})(`✅ Reversed StaffBalance for karyawan ${karyawanId}: ` +
+                  ;(() => {})(`✅ Reversed StaffBalance for karyawan ${karyawanId}: ` +
                     `totalOut -Rp ${originalKredit.toLocaleString('id-ID')}, ` +
                     `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
                 }
@@ -1837,7 +1837,7 @@ export class PurchaseRequestController {
                   });
                 }
 
-                (() => {})(`✅ Created StockTransfer ${transferNumber} from warehouse ${fromWarehouseId} to WIP warehouse ${wipWarehouse.id}`);
+                ;(() => {})(`✅ Created StockTransfer ${transferNumber} from warehouse ${fromWarehouseId} to WIP warehouse ${wipWarehouse.id}`);
 
                 // 5a. Create MaterialRequisition (MR) for stock withdrawal from source warehouse
                 // Generate MR Number
@@ -1884,7 +1884,7 @@ export class PurchaseRequestController {
                   });
                 }
 
-                (() => {})(`✅ Created MaterialRequisition ${mrNumber} for warehouse ${fromWarehouseId}`);
+                ;(() => {})(`✅ Created MaterialRequisition ${mrNumber} for warehouse ${fromWarehouseId}`);
 
                 // 5b. Create GoodsReceipt (GR) for receiving at WIP warehouse
                 // Generate GR Number
@@ -1950,7 +1950,7 @@ export class PurchaseRequestController {
                   });
                 }
 
-                (() => {})(`✅ Created GoodsReceipt ${grNumber} for WIP warehouse ${wipWarehouse.id}`);
+                ;(() => {})(`✅ Created GoodsReceipt ${grNumber} for WIP warehouse ${wipWarehouse.id}`);
               }
             }
           }
@@ -2025,7 +2025,7 @@ export class PurchaseRequestController {
                   }
                 });
 
-                (() => {})(`✅ Created StaffLedger entry for karyawan ${requesterId}: ` +
+                ;(() => {})(`✅ Created StaffLedger entry for karyawan ${requesterId}: ` +
                   `SaldoAwal: Rp ${saldoAwal.toLocaleString('id-ID')}, ` +
                   `KREDIT: Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
                   `SaldoAkhir: Rp ${saldoAkhir.toLocaleString('id-ID')} ` +
@@ -2058,7 +2058,7 @@ export class PurchaseRequestController {
                     }
                   });
 
-                  (() => {})(`✅ Updated StaffBalance for karyawan ${requesterId}: ` +
+                  ;(() => {})(`✅ Updated StaffBalance for karyawan ${requesterId}: ` +
                     `totalOut +Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
                     `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
                 } else {
@@ -2073,7 +2073,7 @@ export class PurchaseRequestController {
                     }
                   });
 
-                  (() => {})(`✅ Created StaffBalance for karyawan ${requesterId}: ` +
+                  ;(() => {})(`✅ Created StaffBalance for karyawan ${requesterId}: ` +
                     `totalOut = Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
                     `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
                 }

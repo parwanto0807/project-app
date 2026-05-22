@@ -5,7 +5,7 @@ async function checkSystemAccounts() {
   const accounts = await prisma.systemAccount.findMany({
     include: { coa: true }
   });
-  (() => {})(JSON.stringify(accounts, null, 2));
+  ;(() => {})(JSON.stringify(accounts, null, 2));
   await prisma.$disconnect();
 }
 

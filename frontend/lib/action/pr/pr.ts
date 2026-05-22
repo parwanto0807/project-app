@@ -171,7 +171,7 @@ export async function getPurchaseRequestsByProject(
 export async function getPurchaseRequestById(
   id: string
 ): Promise<PurchaseRequest> {
-  (() => {})("ID", id);
+  ;(() => {})("ID", id);
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/pr/getPurchaseRequestById/${id}`,

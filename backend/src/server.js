@@ -38,26 +38,26 @@ const API_URL = isProduction
   ? `https://api.${APP_DOMAIN}`
   : "http://localhost:5000";
 
-(() => {})(`🌍 Environment: ${isProduction ? "Production" : "Development"}`);
-(() => {})(`🌐 App URL: ${APP_URL}`);
-(() => {})(`🔗 API URL: ${API_URL}`);
+;(() => {})(`🌍 Environment: ${isProduction ? "Production" : "Development"}`);
+;(() => {})(`🌐 App URL: ${APP_URL}`);
+;(() => {})(`🔗 API URL: ${API_URL}`);
 
-(() => {})("ℹ️  Real-time features are currently unavailable");
-(() => {})("📡 REST API is fully operational");
+;(() => {})("ℹ️  Real-time features are currently unavailable");
+;(() => {})("📡 REST API is fully operational");
 
 // Graceful shutdown handler
 const gracefulShutdown = async () => {
-  (() => {})("🔄 Starting graceful shutdown...");
+  ;(() => {})("🔄 Starting graceful shutdown...");
 
   try {
     // Close HTTP server
     server.close(() => {
-      (() => {})("✅ HTTP server closed");
+      ;(() => {})("✅ HTTP server closed");
     });
 
     // Close database connection
     await prisma.$disconnect();
-    (() => {})("✅ Database disconnected");
+    ;(() => {})("✅ Database disconnected");
 
     process.exit(0);
   } catch (error) {
@@ -74,7 +74,7 @@ process.on("SIGINT", gracefulShutdown);
 connectDB()
   .then(() => {
     server.listen(PORT, "0.0.0.0", () => {
-      (() => {})(`
+      ;(() => {})(`
 🚀 Server is running!
 ✅ Environment: ${isProduction ? "Production" : "Development"}
 ✅ Port: ${PORT}
@@ -87,6 +87,6 @@ connectDB()
     });
   })
   .catch((err) => {
-    (() => {})("❌ Database connection failed:", err);
+    ;(() => {})("❌ Database connection failed:", err);
     process.exit(1);
   });

@@ -24,14 +24,14 @@ export async function createSupplier(
   data: CreateSupplierInput
 ): Promise<SupplierDetailResponse> {
   try {
-    (() => {})('📤 [createSupplier] Sending data:', data);
+    ;(() => {})('📤 [createSupplier] Sending data:', data);
 
     const response = await api.post<SupplierDetailResponse>(
       "/api/supplier",
       data
     );
 
-    (() => {})('✅ [createSupplier] Success:', response.data);
+    ;(() => {})('✅ [createSupplier] Success:', response.data);
     return response.data;
 
   } catch (error) {

@@ -30,10 +30,10 @@ async function main() {
     },
   });
 
-  (() => {})('✅ SystemAccount EMPLOYEE_CASH_ADVANCE upserted:');
-  (() => {})(`   Key  : ${result.key}`);
-  (() => {})(`   COA  : ${coa.code} - ${coa.name}`);
-  (() => {})(`   Type : ${coa.type}`);
+  ;(() => {})('✅ SystemAccount EMPLOYEE_CASH_ADVANCE upserted:');
+  ;(() => {})(`   Key  : ${result.key}`);
+  ;(() => {})(`   COA  : ${coa.code} - ${coa.name}`);
+  ;(() => {})(`   Type : ${coa.type}`);
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

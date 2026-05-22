@@ -1,7 +1,7 @@
 import { prisma } from '../src/config/db.js';
 
 async function main() {
-  (() => {})('Creating COA: 6-10102 - Beban Admin Bank...');
+  ;(() => {})('Creating COA: 6-10102 - Beban Admin Bank...');
 
   // Check if already exists
   const existing = await prisma.chartOfAccounts.findUnique({
@@ -9,7 +9,7 @@ async function main() {
   });
 
   if (existing) {
-    (() => {})('✓ COA 6-10102 already exists');
+    ;(() => {})('✓ COA 6-10102 already exists');
     return;
   }
 
@@ -39,7 +39,7 @@ async function main() {
     }
   });
 
-  (() => {})(`✓ Created COA: ${newCOA.code} - ${newCOA.name}`);
+  ;(() => {})(`✓ Created COA: ${newCOA.code} - ${newCOA.name}`);
 }
 
 main()

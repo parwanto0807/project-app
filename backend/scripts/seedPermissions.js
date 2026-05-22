@@ -280,24 +280,24 @@ const defaultRolePermissions = {
 };
 
 async function seedPermissions() {
-  (() => {})('🌱 Starting permission seeding...');
+  ;(() => {})('🌱 Starting permission seeding...');
 
   try {
     // 1. Create all permissions
-    (() => {})('📝 Creating permissions...');
+    ;(() => {})('📝 Creating permissions...');
     for (const perm of permissions) {
       await prisma.permission.upsert({
         where: { code: perm.code },
         update: perm,
         create: perm,
       });
-      (() => {})(`  ✅ ${perm.code}`);
+      ;(() => {})(`  ✅ ${perm.code}`);
     }
 
     // 2. Create default role permissions
-    (() => {})('\n🔐 Creating default role permissions...');
+    ;(() => {})('\n🔐 Creating default role permissions...');
     for (const [role, perms] of Object.entries(defaultRolePermissions)) {
-      (() => {})(`\n  Role: ${role.toUpperCase()}`);
+      ;(() => {})(`\n  Role: ${role.toUpperCase()}`);
       
       for (const permConfig of perms) {
         const permission = await prisma.permission.findUnique({
@@ -327,12 +327,12 @@ async function seedPermissions() {
               canDelete: permConfig.canDelete,
             }
           });
-          (() => {})(`    ✅ ${permConfig.code}`);
+          ;(() => {})(`    ✅ ${permConfig.code}`);
         }
       }
     }
 
-    (() => {})('\n✅ Permission seeding completed successfully!');
+    ;(() => {})('\n✅ Permission seeding completed successfully!');
   } catch (error) {
     console.error('❌ Error seeding permissions:', error);
     throw error;

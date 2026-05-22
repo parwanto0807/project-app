@@ -23,7 +23,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
   }, []);
 
   const comprehensiveCleanup = (): void => {
-    (() => {})("🧹 Starting comprehensive cleanup...");
+    ;(() => {})("🧹 Starting comprehensive cleanup...");
 
     // 1. Set global flag
     LOGOUT_IN_PROGRESS = true;
@@ -44,7 +44,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
       sessionStorage.removeItem(key);
 
       if (hadLocal || hadSession) {
-        (() => {})(`🗑️ Cleared ${key}:`, {
+        ;(() => {})(`🗑️ Cleared ${key}:`, {
           localStorage: !!hadLocal,
           sessionStorage: !!hadSession
         });
@@ -52,14 +52,14 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
     });
 
     // 3. Clear cookies dengan berbagai kombinasi
-    (() => {})("🍪 Clearing cookies...");
+    ;(() => {})("🍪 Clearing cookies...");
     const cookiesToRemove = [
       "accessToken", "refreshToken", "session_token", "accessTokenReadable",
       "auth_token", "token", "access_token", "refresh_token"
     ];
 
     const currentDomain = window.location.hostname;
-    (() => {})("🌐 Current domain:", currentDomain);
+    ;(() => {})("🌐 Current domain:", currentDomain);
 
     const isLocalhost = currentDomain === 'localhost' || currentDomain === '127.0.0.1';
     const domainOptions = isLocalhost ? [''] : ['', currentDomain, `.${currentDomain}`];
@@ -83,8 +83,8 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
       });
     });
 
-    (() => {})(`✅ Cookie clearance attempts: ${clearedCount}`);
-    (() => {})("🔍 Cookies after cleanup:", document.cookie);
+    ;(() => {})(`✅ Cookie clearance attempts: ${clearedCount}`);
+    ;(() => {})("🔍 Cookies after cleanup:", document.cookie);
   };
 
   const setupGlobalBlocking = (): void => {
@@ -96,7 +96,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
         (url.includes('/auth/') || url.includes('/api/auth') || url.includes('/login') ||
           url.includes('/refresh') || url.includes('/profile')) &&
         LOGOUT_IN_PROGRESS) {
-        (() => {})(`🚫 BLOCKED auth request: ${url}`);
+        ;(() => {})(`🚫 BLOCKED auth request: ${url}`);
         return Promise.reject(new Error('Auto-login blocked during logout'));
       }
       return originalFetch.apply(this, args);
@@ -117,7 +117,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
         (url.includes('/auth/') || url.includes('/api/auth') || url.includes('/login') ||
           url.includes('/refresh') || url.includes('/profile')) &&
         LOGOUT_IN_PROGRESS) {
-        (() => {})(`🚫 BLOCKED XHR request: ${url}`);
+        ;(() => {})(`🚫 BLOCKED XHR request: ${url}`);
         throw new Error('Auto-login blocked during logout');
       }
 
@@ -132,32 +132,32 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
       LOGOUT_IN_PROGRESS = false;
       localStorage.removeItem('logout_in_progress');
       sessionStorage.removeItem('logout_in_progress');
-      (() => {})("🔄 Restored normal HTTP operations");
+      ;(() => {})("🔄 Restored normal HTTP operations");
     }, BLOCK_DURATION);
   };
 
   // components/LogoutButton.tsx - PERBAIKI DENGAN LOGGING
   const onClick = async (): Promise<void> => {
     if (isLoading) {
-      (() => {})("🔄 Logout already in progress...");
+      ;(() => {})("🔄 Logout already in progress...");
       return;
     }
 
     setIsLoading(true);
-    (() => {})("🚪 ========== LOGOUT PROCESS STARTED ==========");
+    ;(() => {})("🚪 ========== LOGOUT PROCESS STARTED ==========");
 
     try {
       // ✅ 1. Log state sebelum logout
-      (() => {})("🔍 Pre-logout state:");
-      (() => {})("🍪 Cookies:", document.cookie);
-      (() => {})("📦 LocalStorage:", {
+      ;(() => {})("🔍 Pre-logout state:");
+      ;(() => {})("🍪 Cookies:", document.cookie);
+      ;(() => {})("📦 LocalStorage:", {
         token: localStorage.getItem('token'),
         user: localStorage.getItem('user')
       });
-      (() => {})("🔗 Current URL:", window.location.href);
+      ;(() => {})("🔗 Current URL:", window.location.href);
 
       // ✅ 2. Setup blocking
-      (() => {})("🛡️ Setting up request blocking...");
+      ;(() => {})("🛡️ Setting up request blocking...");
       setupGlobalBlocking();
 
       // ✅ 3. Dapatkan token untuk logout
@@ -167,17 +167,17 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
           .find(row => row.startsWith('accessTokenReadable='))
           ?.split('=')[1];
 
-        (() => {})("🔑 Token from cookie:", cookieToken ? "Found" : "Not found");
+        ;(() => {})("🔑 Token from cookie:", cookieToken ? "Found" : "Not found");
         return cookieToken || localStorage.getItem('token') || null;
       };
 
       const accessToken = getAccessToken();
 
       // ✅ 4. KIRIM LOGOUT REQUEST
-      (() => {})("📡 Sending logout request to backend...");
+      ;(() => {})("📡 Sending logout request to backend...");
 
       const logoutUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`;
-      (() => {})("🎯 Target URL:", logoutUrl);
+      ;(() => {})("🎯 Target URL:", logoutUrl);
 
       const response = await fetch(logoutUrl, {
         method: "POST",
@@ -190,13 +190,13 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
         },
       });
 
-      (() => {})("📨 Response received:");
-      (() => {})("   Status:", response.status);
-      (() => {})("   OK:", response.ok);
+      ;(() => {})("📨 Response received:");
+      ;(() => {})("   Status:", response.status);
+      ;(() => {})("   OK:", response.ok);
 
       if (response.ok) {
         const result = await response.json();
-        (() => {})("✅ Backend logout successful:", result);
+        ;(() => {})("✅ Backend logout successful:", result);
       } else {
         console.warn("⚠️ Backend logout failed with status:", response.status);
         try {
@@ -220,7 +220,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
         console.error("❌ Unknown logout error:", error);
       }
     } finally {
-      (() => {})("🧹 Starting comprehensive cleanup...");
+      ;(() => {})("🧹 Starting comprehensive cleanup...");
 
       // Perform cleanup
       comprehensiveCleanup();
@@ -228,15 +228,15 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
       // Clear user state
       if (setUser) {
         setUser(null);
-        (() => {})("👤 User state cleared");
+        ;(() => {})("👤 User state cleared");
       }
 
-      (() => {})("🔀 Preparing redirect...");
+      ;(() => {})("🔀 Preparing redirect...");
 
       // ✅ Redirect
       setTimeout(() => {
         const redirectUrl = `/auth/login?logout=${Date.now()}`;
-        (() => {})(`📍 Redirecting to: ${redirectUrl}`);
+        ;(() => {})(`📍 Redirecting to: ${redirectUrl}`);
         window.location.href = redirectUrl;
       }, 1000);
     }
@@ -245,7 +245,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
   return (
     <button
       onClick={() => {
-        (() => {})("🎯 Button clicked directly!");
+        ;(() => {})("🎯 Button clicked directly!");
         onClick();
       }}
       disabled={isLoading}

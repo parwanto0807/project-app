@@ -3,7 +3,7 @@ import fs from 'fs';
 
 async function huntForId() {
   const lookFor = 'c115cabf'; 
-  (() => {})(`Hunting for ${lookFor}...`);
+  ;(() => {})(`Hunting for ${lookFor}...`);
 
   const tables = ['stockBalance', 'trialBalance', 'ledger', 'chartOfAccounts', 'warehouse'];
   
@@ -13,15 +13,15 @@ async function huntForId() {
               where: { id: { startsWith: lookFor } }
           });
           if (res) {
-              (() => {})(`FOUND in ${table}:`);
-              (() => {})(JSON.stringify(res, null, 2));
+              ;(() => {})(`FOUND in ${table}:`);
+              ;(() => {})(JSON.stringify(res, null, 2));
           }
       } catch (e) {
-          (() => {})(`Error checking ${table}: ${e.message}`);
+          ;(() => {})(`Error checking ${table}: ${e.message}`);
       }
   }
 
-  (() => {})('--- Checking Feb StockBalance ---');
+  ;(() => {})('--- Checking Feb StockBalance ---');
   // Check StockBalance for WIP in Feb using period date
   const febDate = new Date("2026-02-01T00:00:00.000Z");
   const wh = await prisma.warehouse.findFirst({ where: { name: 'GUDANG WIP PROJECT ' } });
@@ -30,13 +30,13 @@ async function huntForId() {
       const sb = await prisma.stockBalance.findFirst({
           where: { warehouseId: wh.id, period: febDate }
       });
-      (() => {})('Feb StockBalance for WIP:', JSON.stringify(sb, null, 2));
+      ;(() => {})('Feb StockBalance for WIP:', JSON.stringify(sb, null, 2));
       
       const agg = await prisma.stockBalance.aggregate({
           where: { warehouseId: wh.id, period: febDate },
           _sum: { inventoryValue: true }
       });
-      (() => {})('Total Feb Inventory Value:', agg._sum.inventoryValue);
+      ;(() => {})('Total Feb Inventory Value:', agg._sum.inventoryValue);
   }
 }
 

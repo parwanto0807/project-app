@@ -67,7 +67,7 @@ const generateRefreshToken = (user) => {
 };
 
 async function createUserSession(user, req) {
-  (() => {})("🔄 [SESSION] Creating session for user:", user.id);
+  ;(() => {})("🔄 [SESSION] Creating session for user:", user.id);
 
   try {
     const ipAddress =
@@ -85,7 +85,7 @@ async function createUserSession(user, req) {
       throw new Error("Invalid user data for session creation");
     }
 
-    (() => {})(
+    ;(() => {})(
       `👤 User ${user.id.substring(
         0,
         8
@@ -112,7 +112,7 @@ async function createUserSession(user, req) {
         },
       });
 
-      // (() => {})(`🗑️ Deleted ${deletedSessions.count} old/expired sessions`);
+      // ;(() => {})(`🗑️ Deleted ${deletedSessions.count} old/expired sessions`);
 
       // ✅ 2. ENFORCE MAX 2 SESSIONS: Revoke OLDEST if already have 2 active
       const activeSessions = await tx.userSession.findMany({
@@ -137,7 +137,7 @@ async function createUserSession(user, req) {
             fcmToken: null,
           },
         });
-        (() => {})(`🔒 Revoked ${sessionsToRevoke.length} oldest sessions (Max 2-device policy)`);
+        ;(() => {})(`🔒 Revoked ${sessionsToRevoke.length} oldest sessions (Max 2-device policy)`);
       }
 
       // ✅ 3. UPDATE USER LAST LOGIN (Tanpa menaikkan tokenVersion)
@@ -149,7 +149,7 @@ async function createUserSession(user, req) {
         },
       });
 
-      (() => {})(`📈 Token version: ${updatedUser.tokenVersion}`);
+      ;(() => {})(`📈 Token version: ${updatedUser.tokenVersion}`);
 
       // ✅ 4. GENERATE TOKENS
       const accessToken = generateAccessToken(updatedUser);
@@ -199,7 +199,7 @@ async function createUserSession(user, req) {
         },
       });
 
-      (() => {})(`✅ New session: ${newSession.id.substring(0, 8)}...`);
+      ;(() => {})(`✅ New session: ${newSession.id.substring(0, 8)}...`);
 
       // ✅ 7. GET ALL SESSIONS untuk analytics
       const allSessions = await tx.userSession.findMany({
@@ -274,7 +274,7 @@ async function createUserSession(user, req) {
           : "revoked",
     }));
 
-    (() => {})(
+    ;(() => {})(
       `📋 Total sessions: ${formattedSessions.length}, Active: ${result.activeSessionCount}`
     );
 
@@ -919,7 +919,7 @@ export const logoutUser = async (req, res) => {
     const userId = req.user.id;
     const io = req.app.get("io"); // Dapatkan io instance
 
-    (() => {})(`[LOGOUT] User ${userId} logging out`);
+    ;(() => {})(`[LOGOUT] User ${userId} logging out`);
 
     // 1️⃣ Dapatkan session token dari cookies/socket
     const refreshToken = req.cookies[COOKIE_NAMES.REFRESH_TOKEN];
@@ -934,7 +934,7 @@ export const logoutUser = async (req, res) => {
     });
 
     if (!currentSession) {
-      (() => {})(`[LOGOUT] ❌ No active session found for user ${userId}`);
+      ;(() => {})(`[LOGOUT] ❌ No active session found for user ${userId}`);
       // Tetap clear cookies
       clearAuthCookies(res);
       return res.json({
@@ -955,7 +955,7 @@ export const logoutUser = async (req, res) => {
       },
     });
 
-    (() => {})(
+    ;(() => {})(
       `[LOGOUT] ✅ Session ${currentSession.id.substring(0, 8)} revoked`
     );
 
@@ -992,7 +992,7 @@ export const logoutUser = async (req, res) => {
           user: session.user,
         }));
 
-        (() => {})(`[SOCKET] Emitting logout event for user ${userId}`);
+        ;(() => {})(`[SOCKET] Emitting logout event for user ${userId}`);
 
         // EMIT ke user room
         io.to(`user:${userId}`).emit("session:updated", {
@@ -1028,7 +1028,7 @@ export const logoutUser = async (req, res) => {
           timestamp: new Date().toISOString(),
         });
 
-        (() => {})(`✅ [LOGOUT] Socket events emitted for user ${userId}`);
+        ;(() => {})(`✅ [LOGOUT] Socket events emitted for user ${userId}`);
       } catch (socketError) {
         console.warn("⚠️ Socket emit error during logout:", socketError);
       }
@@ -1061,7 +1061,7 @@ export const logoutUser = async (req, res) => {
 // ✅ PERBAIKAN: Fungsi untuk logout dari semua devices
 export const logoutAllDevices = async (req, res) => {
   try {
-    (() => {})("[LOGOUT] Logout all devices requested");
+    ;(() => {})("[LOGOUT] Logout all devices requested");
 
     if (!req.user) {
       return res.status(401).json({
@@ -1071,7 +1071,7 @@ export const logoutAllDevices = async (req, res) => {
     }
 
     const userId = req.user.id;
-    (() => {})(`[LOGOUT] Logout all devices for user: ${userId}`);
+    ;(() => {})(`[LOGOUT] Logout all devices for user: ${userId}`);
 
     // 1️⃣ Revoke all sessions
     const result = await prisma.userSession.updateMany({
@@ -1084,22 +1084,22 @@ export const logoutAllDevices = async (req, res) => {
         revokedAt: new Date(),
       },
     });
-    (() => {})(`[LOGOUT] Revoked ${result.count} sessions`);
+    ;(() => {})(`[LOGOUT] Revoked ${result.count} sessions`);
 
     // 2️⃣ Increment token version
     await prisma.user.update({
       where: { id: userId },
       data: { tokenVersion: { increment: 1 } },
     });
-    (() => {})(`[LOGOUT] Token version incremented`);
+    ;(() => {})(`[LOGOUT] Token version incremented`);
 
     // 3️⃣ Clear cookies dengan nama YANG SAMA
     Object.values(COOKIE_NAMES).forEach((cookieName) => {
       res.clearCookie(cookieName, COOKIE_CONFIG);
-      (() => {})(`[LOGOUT] Cleared cookie: ${cookieName}`);
+      ;(() => {})(`[LOGOUT] Cleared cookie: ${cookieName}`);
     });
 
-    (() => {})(`[LOGOUT] Logout all devices completed for user: ${userId}`);
+    ;(() => {})(`[LOGOUT] Logout all devices completed for user: ${userId}`);
 
     res.json({
       success: true,
@@ -1121,7 +1121,7 @@ export const debugCookies = async (req, res) => {
     const cookies = req.cookies || {};
     const cookieNames = Object.keys(cookies);
 
-    (() => {})("[COOKIE_DEBUG] Current cookies:", cookieNames);
+    ;(() => {})("[COOKIE_DEBUG] Current cookies:", cookieNames);
 
     res.json({
       success: true,
@@ -1204,7 +1204,7 @@ export const adminLogin = async (req, res) => {
 };
 
 export const activateMfaSetup = async (req, res) => {
-  // (() => {})("UserId for MFA Setup:", req.user);
+  // ;(() => {})("UserId for MFA Setup:", req.user);
 
   try {
     const userId = req.user.userId;
@@ -1439,7 +1439,7 @@ export const verifyMFA = async (req, res) => {
   try {
     const { tempToken, code, rememberDevice } = req.body;
 
-    // (() => {})("[MFA VERIFY BODY]", req.body);
+    // ;(() => {})("[MFA VERIFY BODY]", req.body);
 
     if (!tempToken || !code) {
       return res.status(400).json({ error: "Data tidak lengkap" });
@@ -1680,13 +1680,13 @@ export const getProfile = async (req, res) => {
 };
 
 export const refreshHandler = async (req, res) => {
-  (() => {})("🔄 [REFRESH HANDLER] Dimulai");
+  ;(() => {})("🔄 [REFRESH HANDLER] Dimulai");
   
   // Dukungan untuk Cookie (Web) dan Request Body (Flutter)
   const token = req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (!token) {
-    (() => {})("❌ Refresh token tidak ditemukan");
+    ;(() => {})("❌ Refresh token tidak ditemukan");
     return res.status(401).json({
       error: "NO_TOKEN",
       message: "Token tidak ditemukan",
@@ -1696,7 +1696,7 @@ export const refreshHandler = async (req, res) => {
   try {
     // 1️⃣ VERIFIKASI TOKEN
     const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    (() => {})("✅ Token valid, user ID:", payload.userId);
+    ;(() => {})("✅ Token valid, user ID:", payload.userId);
 
     // 2️⃣ CEK SESSION DALAM DATABASE
     const session = await prisma.userSession.findFirst({
@@ -1709,7 +1709,7 @@ export const refreshHandler = async (req, res) => {
     });
 
     if (!session) {
-      (() => {})("❌ Session sudah di-revoke atau tidak ada");
+      ;(() => {})("❌ Session sudah di-revoke atau tidak ada");
 
       clearAuthCookies(res); // ⬅️ Hapus cookie jika session tidak valid
 
@@ -1726,7 +1726,7 @@ export const refreshHandler = async (req, res) => {
     });
 
     if (!user) {
-      (() => {})("❌ User tidak ditemukan di database");
+      ;(() => {})("❌ User tidak ditemukan di database");
 
       clearAuthCookies(res); // ⬅️ Hapus cookie bila user tidak ada
 
@@ -1752,7 +1752,7 @@ export const refreshHandler = async (req, res) => {
     // 6️⃣ SET COOKIE BARU
     setTokenCookies(res, newAccessToken, newRefreshToken);
 
-    (() => {})("🔐 Token berhasil diperbarui");
+    ;(() => {})("🔐 Token berhasil diperbarui");
 
     return res.status(200).json({
       success: true,

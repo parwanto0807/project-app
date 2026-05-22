@@ -7,18 +7,18 @@ async function inspectFinal() {
             orderBy: { startDate: 'asc' }
         });
 
-        (() => {})('--- PERIODS ---');
+        ;(() => {})('--- PERIODS ---');
         for (const p of periods) {
-            (() => {})(`[${p.periodCode}] ${p.periodName}`);
-            (() => {})(`  Start : ${p.startDate.toISOString()}`);
-            (() => {})(`  End   : ${p.endDate.toISOString()}`);
-            (() => {})(`  ID    : ${p.id}`);
-            (() => {})(`  Closed: ${p.isClosed}`);
+            ;(() => {})(`[${p.periodCode}] ${p.periodName}`);
+            ;(() => {})(`  Start : ${p.startDate.toISOString()}`);
+            ;(() => {})(`  End   : ${p.endDate.toISOString()}`);
+            ;(() => {})(`  ID    : ${p.id}`);
+            ;(() => {})(`  Closed: ${p.isClosed}`);
         }
 
         const feb = periods.find(p => p.periodCode === '022026');
         if (feb) {
-            (() => {})('\n--- GL SUMMARIES FOR FEB PERIOD ---');
+            ;(() => {})('\n--- GL SUMMARIES FOR FEB PERIOD ---');
             const summaries = await prisma.generalLedgerSummary.findMany({
                 where: { periodId: feb.id },
                 include: { coa: { select: { code: true } } },
@@ -26,11 +26,11 @@ async function inspectFinal() {
                 take: 10
             });
             for (const s of summaries) {
-                (() => {})(`  Date: ${s.date.toISOString()} | COA: ${s.coa.code} | Debit: ${s.debitTotal} | Credit: ${s.creditTotal}`);
+                ;(() => {})(`  Date: ${s.date.toISOString()} | COA: ${s.coa.code} | Debit: ${s.debitTotal} | Credit: ${s.creditTotal}`);
             }
         }
 
-        (() => {})('\n--- GL SUMMARIES FOR JAN 31 (UTC START) ---');
+        ;(() => {})('\n--- GL SUMMARIES FOR JAN 31 (UTC START) ---');
         // Check if any summaries for Jan 31 (WIB) are in Feb period
         // Jan 31 00:00 WIB = Jan 30 17:00 UTC
         const targetDate = new Date('2026-01-30T17:00:00.000Z');
@@ -40,7 +40,7 @@ async function inspectFinal() {
             take: 10
         });
         for (const s of sums) {
-            (() => {})(`  COA: ${s.coa.code} | Period: ${s.period.periodCode} | Date: ${s.date.toISOString()}`);
+            ;(() => {})(`  COA: ${s.coa.code} | Period: ${s.period.periodCode} | Date: ${s.date.toISOString()}`);
         }
 
     } catch (e) {

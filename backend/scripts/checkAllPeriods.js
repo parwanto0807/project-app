@@ -3,9 +3,9 @@ const prisma = new PrismaClient();
 
 async function checkAllStockPeriods() {
     try {
-        (() => {})('='.repeat(60));
-        (() => {})('CHECKING ALL STOCK BALANCE PERIODS');
-        (() => {})('='.repeat(60));
+        ;(() => {})('='.repeat(60));
+        ;(() => {})('CHECKING ALL STOCK BALANCE PERIODS');
+        ;(() => {})('='.repeat(60));
 
         // 1. Cek semua periode yang ada di StockBalance
         const allPeriods = await prisma.$queryRaw`
@@ -20,17 +20,17 @@ async function checkAllStockPeriods() {
             LIMIT 10
         `;
 
-        (() => {})('\n📅 PERIODE YANG ADA DI STOCKBALANCE:');
+        ;(() => {})('\n📅 PERIODE YANG ADA DI STOCKBALANCE:');
         if (allPeriods.length === 0) {
-            (() => {})('   ❌ TIDAK ADA DATA STOCKBALANCE SAMA SEKALI!');
-            (() => {})('\n💡 KEMUNGKINAN PENYEBAB:');
-            (() => {})('   1. Belum ada transaksi GR/Stock yang membuat StockBalance');
-            (() => {})('   2. Database baru di-restore dan belum ada data stock');
-            (() => {})('   3. StockBalance belum di-generate dari transaksi existing');
+            ;(() => {})('   ❌ TIDAK ADA DATA STOCKBALANCE SAMA SEKALI!');
+            ;(() => {})('\n💡 KEMUNGKINAN PENYEBAB:');
+            ;(() => {})('   1. Belum ada transaksi GR/Stock yang membuat StockBalance');
+            ;(() => {})('   2. Database baru di-restore dan belum ada data stock');
+            ;(() => {})('   3. StockBalance belum di-generate dari transaksi existing');
         } else {
             allPeriods.forEach((p, i) => {
-                (() => {})(`   ${i + 1}. ${p.period_name} (${p.period_date})`);
-                (() => {})(`      Records: ${p.record_count}, Total Stock: ${p.total_stock}`);
+                ;(() => {})(`   ${i + 1}. ${p.period_name} (${p.period_date})`);
+                ;(() => {})(`      Records: ${p.record_count}, Total Stock: ${p.total_stock}`);
             });
         }
 
@@ -46,16 +46,16 @@ async function checkAllStockPeriods() {
             }
         });
 
-        (() => {})('\n📋 ACCOUNTING PERIODS:');
+        ;(() => {})('\n📋 ACCOUNTING PERIODS:');
         periods.forEach((p, i) => {
             const status = p.isClosed ? '🔒 CLOSED' : '🔓 OPEN';
-            (() => {})(`   ${i + 1}. ${p.periodCode} - ${p.periodName} ${status}`);
-            (() => {})(`      Start: ${p.startDate.toISOString().split('T')[0]}`);
+            ;(() => {})(`   ${i + 1}. ${p.periodCode} - ${p.periodName} ${status}`);
+            ;(() => {})(`      Start: ${p.startDate.toISOString().split('T')[0]}`);
         });
 
         // 3. Cek apakah ada GoodsReceipt
         const grCount = await prisma.goodsReceipt.count();
-        (() => {})(`\n📦 GOODS RECEIPTS: ${grCount} records`);
+        ;(() => {})(`\n📦 GOODS RECEIPTS: ${grCount} records`);
 
         if (grCount > 0) {
             const sampleGR = await prisma.goodsReceipt.findFirst({
@@ -65,10 +65,10 @@ async function checkAllStockPeriods() {
                     status: true
                 }
             });
-            (() => {})(`   Sample: ${sampleGR.grNumber} (${sampleGR.grDate.toISOString().split('T')[0]}) - ${sampleGR.status}`);
+            ;(() => {})(`   Sample: ${sampleGR.grNumber} (${sampleGR.grDate.toISOString().split('T')[0]}) - ${sampleGR.status}`);
         }
 
-        (() => {})('\n' + '='.repeat(60));
+        ;(() => {})('\n' + '='.repeat(60));
 
     } catch (error) {
         console.error('❌ Error:', error.message);

@@ -18,7 +18,7 @@ async function main() {
     })
   }
 
-  (() => {})('Seeded departments')
+  ;(() => {})('Seeded departments')
 }
 
 main()

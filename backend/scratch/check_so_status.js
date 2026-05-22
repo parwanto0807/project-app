@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function checkSO() {
   const soNumber = '0003/RYLIF-SO/IV/2026';
-  (() => {})(`Checking Sales Order: ${soNumber}`);
+  ;(() => {})(`Checking Sales Order: ${soNumber}`);
 
   const so = await prisma.salesOrder.findUnique({
     where: { soNumber },
@@ -15,33 +15,33 @@ async function checkSO() {
   });
 
   if (!so) {
-    (() => {})('Sales Order not found');
+    ;(() => {})('Sales Order not found');
     return;
   }
 
-  (() => {})('--- Sales Order Data ---');
-  (() => {})(`ID: ${so.id}`);
-  (() => {})(`Current Status: ${so.status}`);
+  ;(() => {})('--- Sales Order Data ---');
+  ;(() => {})(`ID: ${so.id}`);
+  ;(() => {})(`Current Status: ${so.status}`);
   
-  (() => {})('\n--- Related Invoices ---');
+  ;(() => {})('\n--- Related Invoices ---');
   if (so.invoices.length === 0) {
-    (() => {})('No invoices found');
+    ;(() => {})('No invoices found');
   } else {
     so.invoices.forEach(inv => {
-      (() => {})(`- Invoice: ${inv.invoiceNumber}`);
-      (() => {})(`  Status: ${inv.status}`);
-      (() => {})(`  Balance Due: ${inv.balanceDue}`);
+      ;(() => {})(`- Invoice: ${inv.invoiceNumber}`);
+      ;(() => {})(`  Status: ${inv.status}`);
+      ;(() => {})(`  Balance Due: ${inv.balanceDue}`);
     });
   }
 
-  (() => {})('\n--- Related SPKs ---');
+  ;(() => {})('\n--- Related SPKs ---');
   if (so.spk.length === 0) {
-    (() => {})('No SPKs found');
+    ;(() => {})('No SPKs found');
   } else {
     so.spk.forEach(s => {
-      (() => {})(`- SPK: ${s.spkNumber}`);
-      (() => {})(`  spkStatus (Finished): ${s.spkStatus}`);
-      (() => {})(`  spkStatusClose (Closed): ${s.spkStatusClose}`);
+      ;(() => {})(`- SPK: ${s.spkNumber}`);
+      ;(() => {})(`  spkStatus (Finished): ${s.spkStatus}`);
+      ;(() => {})(`  spkStatusClose (Closed): ${s.spkStatusClose}`);
     });
   }
 
@@ -60,10 +60,10 @@ async function checkSO() {
     }
   }
 
-  (() => {})('\n--- Analysis ---');
-  (() => {})(`Based on our new logic, the Sales Order status should be: ${targetStatus}`);
+  ;(() => {})('\n--- Analysis ---');
+  ;(() => {})(`Based on our new logic, the Sales Order status should be: ${targetStatus}`);
   if (targetStatus === 'PAID') {
-    (() => {})('All related SPKs should be Closed (spkStatusClose: true).');
+    ;(() => {})('All related SPKs should be Closed (spkStatusClose: true).');
   }
 }
 

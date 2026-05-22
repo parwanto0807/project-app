@@ -3,7 +3,7 @@ import { prisma } from '../src/config/db.js';
 import financialSummaryService from '../src/services/accounting/financialSummaryService.js';
 
 async function main() {
-  (() => {})('Fixing Existing Cash Opname JV-COP-202600001...');
+  ;(() => {})('Fixing Existing Cash Opname JV-COP-202600001...');
 
   const ledgerNumber = 'JV-COP-202600001';
   const oldCoaCode = '4-10303'; // Pendapatan Lain-lain
@@ -20,7 +20,7 @@ async function main() {
     process.exit(1);
   }
 
-  (() => {})(`✓ Found Ledger: ${ledgerNumber} (ID: ${ledger.id})`);
+  ;(() => {})(`✓ Found Ledger: ${ledgerNumber} (ID: ${ledger.id})`);
 
   // 2. Find the Line with old COA
   // We need to resolve COA IDs first
@@ -35,18 +35,18 @@ async function main() {
   const lineToUpdate = ledger.ledgerLines.find(line => line.coaId === oldCoa.id);
 
   if (!lineToUpdate) {
-    (() => {})(`⚠️ No LedgerLine found with COA ${oldCoaCode}. Maybe already fixed?`);
+    ;(() => {})(`⚠️ No LedgerLine found with COA ${oldCoaCode}. Maybe already fixed?`);
     // Check if new COA exists
     const alreadyFixed = ledger.ledgerLines.find(line => line.coaId === newCoa.id);
     if (alreadyFixed) {
-        (() => {})(`✅ Ledger already contains the correct COA ${newCoaCode}.`);
+        ;(() => {})(`✅ Ledger already contains the correct COA ${newCoaCode}.`);
         return;
     }
     console.error('❌ Could not identify the line to update.');
     process.exit(1);
   }
 
-  (() => {})(`✓ Found Line to Update: ID ${lineToUpdate.id}, Amount: ${lineToUpdate.creditAmount} (Credit)`);
+  ;(() => {})(`✓ Found Line to Update: ID ${lineToUpdate.id}, Amount: ${lineToUpdate.creditAmount} (Credit)`);
 
   // 3. Reverse Impact on Old COA
   // Since it was a Credit (Income), we need to DEBIT it effectively to reverse it?
@@ -55,7 +55,7 @@ async function main() {
   // `updateTrialBalance` increments balances. So to reverse a Credit increment, we pass negative Credit amount.
   
   await prisma.$transaction(async (tx) => {
-    (() => {})('Reversing OLD impact...');
+    ;(() => {})('Reversing OLD impact...');
     
     // Reverse from TB
     await financialSummaryService.updateTrialBalance({
@@ -77,7 +77,7 @@ async function main() {
     });
 
     // 4. Update LedgerLine
-    (() => {})('Updating LedgerLine...');
+    ;(() => {})('Updating LedgerLine...');
     await tx.ledgerLine.update({
       where: { id: lineToUpdate.id },
       data: {
@@ -87,7 +87,7 @@ async function main() {
     });
 
     // 5. Apply Impact on New COA
-    (() => {})('Applying NEW impact...');
+    ;(() => {})('Applying NEW impact...');
     await financialSummaryService.updateTrialBalance({
       periodId: ledger.periodId,
       coaId: newCoa.id,
@@ -106,7 +106,7 @@ async function main() {
     });
   });
 
-  (() => {})('✅ Fix applied successfully.');
+  ;(() => {})('✅ Fix applied successfully.');
 }
 
 main()

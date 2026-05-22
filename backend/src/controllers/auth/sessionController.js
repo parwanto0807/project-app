@@ -516,7 +516,7 @@ export const updateFcmToken = async (req, res) => {
       });
     }
 
-    (() => {})(`[FCM] User: ${userId.substring(0, 8)}`);
+    ;(() => {})(`[FCM] User: ${userId.substring(0, 8)}`);
 
     const now = new Date();
 
@@ -612,7 +612,7 @@ export const updateFcmToken = async (req, res) => {
     const { updatedSession, allSessions, revokedCount, didUpdate, duplicate } = txResult;
 
     if (duplicate) {
-      (() => {})(`[FCM] ⚠️ Token used by another user: ${duplicate.userId.substring(0,8)}`);
+      ;(() => {})(`[FCM] ⚠️ Token used by another user: ${duplicate.userId.substring(0,8)}`);
     }
 
     // Emit update ke client (diluar transaction)

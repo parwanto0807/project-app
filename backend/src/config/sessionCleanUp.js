@@ -5,10 +5,10 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const sessionCleanupJob = () => {
-  (() => {})('🔄 Setting up session cleanup job...');
+  ;(() => {})('🔄 Setting up session cleanup job...');
   
   const job = cron.schedule('0 2 * * *', async () => {
-    (() => {})('🔄 Running session cleanup job...');
+    ;(() => {})('🔄 Running session cleanup job...');
     
     try {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -28,14 +28,14 @@ const sessionCleanupJob = () => {
         },
       });
       
-      (() => {})(`✅ Cleanup completed: Deleted ${deleted.count} sessions`);
+      ;(() => {})(`✅ Cleanup completed: Deleted ${deleted.count} sessions`);
     } catch (error) {
       console.error('❌ Cleanup job failed:', error);
     }
   });
 
   job.start();
-  (() => {})('✅ Session cleanup job scheduled (daily at 2 AM)');
+  ;(() => {})('✅ Session cleanup job scheduled (daily at 2 AM)');
   
   return job;
 };

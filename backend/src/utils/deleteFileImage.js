@@ -16,7 +16,7 @@ export const deleteFinanceFile = async (fileUrl) => {
     
     await fs.access(filePath);
     await fs.unlink(filePath);
-    (() => {})(`✅ File berhasil dihapus: ${filePath}`);
+    ;(() => {})(`✅ File berhasil dihapus: ${filePath}`);
     return true;
   } catch (error) {
     if (error.code === 'ENOENT') {

@@ -14,8 +14,8 @@ export async function getTrialBalance(
         const cookieStore = await cookies();
         const token = cookieStore.get("accessToken")?.value;
 
-        (() => {})("[TB] Fetching trial balance for period:", periodId);
-        (() => {})("[TB] Token exists:", !!token);
+        ;(() => {})("[TB] Fetching trial balance for period:", periodId);
+        ;(() => {})("[TB] Token exists:", !!token);
 
         if (!token) {
             console.error("[TB] No access token found");
@@ -35,7 +35,7 @@ export async function getTrialBalance(
         });
 
         const url = `${API_URL}/api/accounting/trial-balance?${queryParams}`;
-        (() => {})("[TB] Fetching from:", url);
+        ;(() => {})("[TB] Fetching from:", url);
 
         const response = await fetch(url, {
             method: "GET",
@@ -46,7 +46,7 @@ export async function getTrialBalance(
             next: { revalidate: 0 }, // Disable cache for accounting data
         });
 
-        (() => {})("[TB] Response status:", response.status, response.statusText);
+        ;(() => {})("[TB] Response status:", response.status, response.statusText);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -61,7 +61,7 @@ export async function getTrialBalance(
         }
 
         const result = await response.json();
-        (() => {})("[TB] Success:", result.success, "Data count:", result.data?.length || 0);
+        ;(() => {})("[TB] Success:", result.success, "Data count:", result.data?.length || 0);
 
         return result;
     } catch (error: any) {

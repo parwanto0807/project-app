@@ -172,7 +172,7 @@ async function main() {
     }
   ]
 
-  (() => {})('Starting Inventory SOP seeding...')
+  ;(() => {})('Starting Inventory SOP seeding...')
 
   for (const sopData of inventorySOPs) {
     const existing = await prisma.document.findFirst({
@@ -180,7 +180,7 @@ async function main() {
     })
 
     if (existing) {
-      (() => {})(`SOP "${sopData.title}" already exists, skipping...`)
+      ;(() => {})(`SOP "${sopData.title}" already exists, skipping...`)
       continue
     }
 
@@ -208,10 +208,10 @@ async function main() {
         }
       }
     })
-    (() => {})(`Created SOP: ${doc.title}`)
+    ;(() => {})(`Created SOP: ${doc.title}`)
   }
 
-  (() => {})('Inventory SOP seeding completed.')
+  ;(() => {})('Inventory SOP seeding completed.')
 }
 
 main()

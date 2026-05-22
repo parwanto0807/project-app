@@ -11,7 +11,7 @@ async function main() {
     return
   }
   
-  (() => {})('Using admin:', admin.email)
+  ;(() => {})('Using admin:', admin.email)
 
   const sopTitle = 'SOP Pengelolaan Surat Perintah Kerja (SPK)'
   const existing = await prisma.document.findFirst({
@@ -19,7 +19,7 @@ async function main() {
   })
   
   if (existing) {
-    (() => {})('SOP SPK already exists')
+    ;(() => {})('SOP SPK already exists')
     // Update content if needed or return
     return
   }
@@ -106,7 +106,7 @@ async function main() {
     }
   })
 
-  (() => {})('SPK SOP Created:', document.id)
+  ;(() => {})('SPK SOP Created:', document.id)
 }
 
 main()

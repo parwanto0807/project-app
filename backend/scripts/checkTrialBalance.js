@@ -10,11 +10,11 @@ async function main() {
   });
 
   if (!period) {
-    (() => {})('❌ Period Maret 2026 tidak ditemukan!');
+    ;(() => {})('❌ Period Maret 2026 tidak ditemukan!');
     return;
   }
 
-  (() => {})(`Period: ${period.periodName} (${period.id})\n`);
+  ;(() => {})(`Period: ${period.periodName} (${period.id})\n`);
 
   // Hitung actual dari LedgerLine untuk period ini
   const ledgersInPeriod = await prisma.ledger.findMany({
@@ -42,7 +42,7 @@ async function main() {
     include: { coa: { select: { code: true, name: true } } }
   });
 
-  (() => {})('=== TRIAL BALANCE vs ACTUAL LEDGERLINES ===\n');
+  ;(() => {})('=== TRIAL BALANCE vs ACTUAL LEDGERLINES ===\n');
 
   let hasDiff = false;
   for (const tb of trialBalances) {
@@ -56,10 +56,10 @@ async function main() {
 
     if (Math.abs(diffD) > 0.01 || Math.abs(diffK) > 0.01) {
       hasDiff = true;
-      (() => {})(`❌ [${tb.coa.code}] ${tb.coa.name}`);
-      (() => {})(`   TB  : D=${tbD.toLocaleString('id-ID')} K=${tbK.toLocaleString('id-ID')}`);
-      (() => {})(`   ACTUAL: D=${actD.toLocaleString('id-ID')} K=${actK.toLocaleString('id-ID')}`);
-      (() => {})(`   DIFF  : D=${diffD.toLocaleString('id-ID')} K=${diffK.toLocaleString('id-ID')}\n`);
+      ;(() => {})(`❌ [${tb.coa.code}] ${tb.coa.name}`);
+      ;(() => {})(`   TB  : D=${tbD.toLocaleString('id-ID')} K=${tbK.toLocaleString('id-ID')}`);
+      ;(() => {})(`   ACTUAL: D=${actD.toLocaleString('id-ID')} K=${actK.toLocaleString('id-ID')}`);
+      ;(() => {})(`   DIFF  : D=${diffD.toLocaleString('id-ID')} K=${diffK.toLocaleString('id-ID')}\n`);
     }
   }
 
@@ -68,22 +68,22 @@ async function main() {
     const found = trialBalances.find(tb => tb.coaId === coaId);
     if (!found) {
       hasDiff = true;
-      (() => {})(`⚠️  [${actual.code}] ${actual.name} - Ada di Ledger tapi TIDAK di TrialBalance!`);
-      (() => {})(`   ACTUAL: D=${actual.debit.toLocaleString('id-ID')} K=${actual.credit.toLocaleString('id-ID')}\n`);
+      ;(() => {})(`⚠️  [${actual.code}] ${actual.name} - Ada di Ledger tapi TIDAK di TrialBalance!`);
+      ;(() => {})(`   ACTUAL: D=${actual.debit.toLocaleString('id-ID')} K=${actual.credit.toLocaleString('id-ID')}\n`);
     }
   }
 
   if (!hasDiff) {
-    (() => {})('✅ Semua TrialBalance cocok dengan LedgerLine actuals!\n');
+    ;(() => {})('✅ Semua TrialBalance cocok dengan LedgerLine actuals!\n');
   }
 
   // Summary TrialBalance totals
   const totD = trialBalances.reduce((s, tb) => s + Number(tb.periodDebit), 0);
   const totK = trialBalances.reduce((s, tb) => s + Number(tb.periodCredit), 0);
-  (() => {})(`\n=== TRIAL BALANCE GRAND TOTAL ===`);
-  (() => {})(`Total Debit  : ${totD.toLocaleString('id-ID')}`);
-  (() => {})(`Total Credit : ${totK.toLocaleString('id-ID')}`);
-  (() => {})(`Selisih      : ${(totD - totK).toLocaleString('id-ID')}`);
+  ;(() => {})(`\n=== TRIAL BALANCE GRAND TOTAL ===`);
+  ;(() => {})(`Total Debit  : ${totD.toLocaleString('id-ID')}`);
+  ;(() => {})(`Total Credit : ${totK.toLocaleString('id-ID')}`);
+  ;(() => {})(`Selisih      : ${(totD - totK).toLocaleString('id-ID')}`);
 }
 
 main()

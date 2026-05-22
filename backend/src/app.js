@@ -150,8 +150,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use((req, res, next) => {
-  // (() => {})('[DEBUG COOKIES]', req.cookies);
-  // (() => {})('[DEBUG SESSION]', req.session);
+  // ;(() => {})('[DEBUG COOKIES]', req.cookies);
+  // ;(() => {})('[DEBUG SESSION]', req.session);
   next();
 });
 app.use((req, res, next) => {

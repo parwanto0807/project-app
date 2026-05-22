@@ -5,10 +5,10 @@ import { prisma } from '../src/config/db.js';
  * Run this after DB Reset/Restore to ensure Closing process works automatically.
  */
 async function main() {
-  (() => {})('--- START MASTER SETUP INVENTORY ---');
+  ;(() => {})('--- START MASTER SETUP INVENTORY ---');
 
   // 1. Setup Adjustment Account & Mapping
-  (() => {})('1/2. Setting up INVENTORY_ADJUSTMENT_ACCOUNT...');
+  ;(() => {})('1/2. Setting up INVENTORY_ADJUSTMENT_ACCOUNT...');
   const adjCoaData = {
     code: '5-30001',
     name: 'Selisih Penyesuaian Stok',
@@ -33,10 +33,10 @@ async function main() {
         description: 'Akun penyeimbang untuk rekonsiliasi nilai persediaan.'
     }
   });
-  (() => {})(`✓ Adjustment Account mapped to ${adjCoa.code}`);
+  ;(() => {})(`✓ Adjustment Account mapped to ${adjCoa.code}`);
 
   // 2. Link Warehouses to COA
-  (() => {})('2/2. Linking Warehouses to COA...');
+  ;(() => {})('2/2. Linking Warehouses to COA...');
   const coaMap = {
     'GUDANG BENGKEL': '1-10202',
     'GUDANG KEBON': '1-10203',
@@ -55,17 +55,17 @@ async function main() {
         data: { inventoryAccountId: coa.id }
       });
       if (res.count > 0) {
-        (() => {})(`✓ Linked Warehouse '${whName}' to account ${coaCode}`);
+        ;(() => {})(`✓ Linked Warehouse '${whName}' to account ${coaCode}`);
       } else {
-        (() => {})(`! Warehouse '${whName}' NOT FOUND in database. Skipping.`);
+        ;(() => {})(`! Warehouse '${whName}' NOT FOUND in database. Skipping.`);
       }
     } else {
-      (() => {})(`✕ COA '${coaCode}' NOT FOUND in database. Skipping.`);
+      ;(() => {})(`✕ COA '${coaCode}' NOT FOUND in database. Skipping.`);
     }
   }
 
-  (() => {})('--- SETUP COMPLETE ---');
-  (() => {})('Closing process will now automatically synchronize Stock vs GL.');
+  ;(() => {})('--- SETUP COMPLETE ---');
+  ;(() => {})('Closing process will now automatically synchronize Stock vs GL.');
 }
 
 main()

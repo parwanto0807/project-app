@@ -85,7 +85,7 @@ export default function NotificationBell() {
                     try {
                         await navigator.serviceWorker.register('/firebase-messaging-sw.js');
                     } catch (err) {
-                        (() => {})('SW registration failed: ', err);
+                        ;(() => {})('SW registration failed: ', err);
                     }
                 }
                 if (Notification.permission === 'default') {
@@ -98,7 +98,7 @@ export default function NotificationBell() {
                     await saveFcmToken(token);
                 }
             } catch (error) {
-                (() => {})('FCM initialization skipped:', error);
+                ;(() => {})('FCM initialization skipped:', error);
             }
         };
         initializeFCM();
@@ -113,7 +113,7 @@ export default function NotificationBell() {
                 if (token) await removeFcmToken(token);
                 localStorage.removeItem('fcm-notifications');
             } catch (error) {
-                (() => {})('Cleanup during logout:', error);
+                ;(() => {})('Cleanup during logout:', error);
             }
         };
         window.addEventListener('user-logout', handleLogoutCleanup);
@@ -124,7 +124,7 @@ export default function NotificationBell() {
     useEffect(() => {
         if (!messaging) return;
         const unsubscribe = onMessage(messaging, (payload) => {
-            (() => {})("🔥 [FCM Foreground] Payload:", payload);
+            ;(() => {})("🔥 [FCM Foreground] Payload:", payload);
 
             const title =
                 payload.notification?.title || payload.data?.title || "Notification";

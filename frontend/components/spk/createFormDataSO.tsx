@@ -119,7 +119,7 @@ export default function CreateFormSPKByIdSO({
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const router = useRouter();
 
-    (() => {})("Role", role);
+    ;(() => {})("Role", role);
 
     const allKaryawanRaw: Karyawan[] = teamData?.flatMap((team) =>
         team.karyawan?.map((anggota) => anggota.karyawan) || []
@@ -245,7 +245,7 @@ export default function CreateFormSPKByIdSO({
                 })),
             };
 
-            (() => {})("Payload dikirim:", payload);
+            ;(() => {})("Payload dikirim:", payload);
 
             const res = await createSpk(payload);
 

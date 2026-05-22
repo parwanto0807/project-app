@@ -11,7 +11,7 @@ async function main() {
     },
     orderBy: { code: 'asc' }
   });
-  (() => {})(JSON.stringify(accounts, null, 2));
+  ;(() => {})(JSON.stringify(accounts, null, 2));
 }
 
 main()

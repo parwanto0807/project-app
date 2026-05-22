@@ -5,7 +5,7 @@ async function main() {
     where: { key: 'CASH_BANK' },
     include: { coa: true }
   });
-  (() => {})("CASH_BANK Mapping:", JSON.stringify(sa, null, 2));
+  ;(() => {})("CASH_BANK Mapping:", JSON.stringify(sa, null, 2));
 }
 
 main().finally(() => prisma.$disconnect());

@@ -1,7 +1,7 @@
 import { prisma } from '../src/config/db.js';
 
 async function main() {
-  (() => {})('Seeding System Accounts...');
+  ;(() => {})('Seeding System Accounts...');
 
   const mappings = [
     {
@@ -193,7 +193,7 @@ async function main() {
   ];
 
   for (const map of mappings) {
-    (() => {})(`Processing ${map.key}...`);
+    ;(() => {})(`Processing ${map.key}...`);
     
     // 1. Find COA
     let coa = null;
@@ -228,7 +228,7 @@ async function main() {
           description: map.description
         }
       });
-      (() => {})(`✓ Linked ${map.key} to COA: ${coa.code} - ${coa.name}`);
+      ;(() => {})(`✓ Linked ${map.key} to COA: ${coa.code} - ${coa.name}`);
     } else {
       console.warn(`! Could not find COA for ${map.key} (Code: ${map.fallbackCode}, Names: ${map.searchNames.join(', ')})`);
     }

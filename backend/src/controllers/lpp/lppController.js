@@ -67,7 +67,7 @@ export const lppController = {
     try {
       // Parse payload JSON
       const payload = req.body.data ? JSON.parse(req.body.data) : req.body;
-      (() => {})("📦 Data Received:", payload);
+      ;(() => {})("📦 Data Received:", payload);
 
       const {
         uangMukaId,
@@ -854,7 +854,7 @@ export const lppController = {
 
   // UPDATE - Mengupdate LPP (existing)
   updateLpp: async (req, res) => {
-    (() => {})("=== DATA YANG DITERIMA ===", req.body);
+    ;(() => {})("=== DATA YANG DITERIMA ===", req.body);
     try {
       const { id } = validateWithZod(lppIdValidation, req.params);
       const validatedData = validateWithZod(updateLppValidation, req.body);
@@ -1208,7 +1208,7 @@ export const lppController = {
             );
 
           if (isProjectOperational) {
-            (() => {})(`📋 [LPP-ACCOUNTING] Generating Project Mobilization Journal for LPP: ${existingLpp.nomor}`);
+            ;(() => {})(`📋 [LPP-ACCOUNTING] Generating Project Mobilization Journal for LPP: ${existingLpp.nomor}`);
 
             const targetKaryawanId = pr?.requestedById || existingLpp.uangMuka.karyawanId;
 

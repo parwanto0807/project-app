@@ -10,9 +10,9 @@ async function checkAllLines() {
         });
 
         if (ledger) {
-            (() => {})(`Ledger: ${ledger.ledgerNumber} | Date: ${ledger.transactionDate.toISOString()}`);
+            ;(() => {})(`Ledger: ${ledger.ledgerNumber} | Date: ${ledger.transactionDate.toISOString()}`);
             ledger.ledgerLines.forEach(l => {
-                (() => {})(`  - ${l.coa.code} (${l.coa.name}) | Dr: ${l.debitAmount} | Cr: ${l.creditAmount}`);
+                ;(() => {})(`  - ${l.coa.code} (${l.coa.name}) | Dr: ${l.debitAmount} | Cr: ${l.creditAmount}`);
             });
         }
 

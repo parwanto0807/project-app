@@ -18,9 +18,9 @@ export function useTransfers(filters?: TransferFilter) {
     return useQuery({
         queryKey: ['transfers', filters],
         queryFn: async () => {
-            (() => {})('🎣 useTransfers queryFn called');
+            ;(() => {})('🎣 useTransfers queryFn called');
             const result = await getTransfersAction(filters);
-            (() => {})('🎣 useTransfers queryFn result:', result);
+            ;(() => {})('🎣 useTransfers queryFn result:', result);
             return result;
         },
         retry: false

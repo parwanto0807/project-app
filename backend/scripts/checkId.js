@@ -7,7 +7,7 @@ async function checkId() {
   // Let's search with 'contains' if possible, or just exact if user provided full.
   // UUIDs are 36 chars. 'c115cabf' is 8 chars.
   
-  (() => {})(`Checking for ID starting with ${idToCheck}...`);
+  ;(() => {})(`Checking for ID starting with ${idToCheck}...`);
 
   const tb = await prisma.trialBalance.findFirst({
     where: { id: { startsWith: idToCheck } },
@@ -15,10 +15,10 @@ async function checkId() {
   });
 
   if (tb) {
-      (() => {})('Record Found:');
-      (() => {})(JSON.stringify(tb, null, 2));
+      ;(() => {})('Record Found:');
+      ;(() => {})(JSON.stringify(tb, null, 2));
   } else {
-      (() => {})('Record NOT Found.');
+      ;(() => {})('Record NOT Found.');
   }
 }
 

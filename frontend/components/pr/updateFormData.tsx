@@ -660,7 +660,7 @@ export function TabelUpdatePR({
 
         try {
             // Debug log
-            (() => {})("📝 UPDATE Form Data before submit:", {
+            ;(() => {})("📝 UPDATE Form Data before submit:", {
                 karyawanId: finalKaryawanId,
                 requestedById: formData.requestedById,
                 requestedByIdType: typeof formData.requestedById,

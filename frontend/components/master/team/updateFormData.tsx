@@ -60,7 +60,7 @@ export default function UpdateTeamForm({ role, teamId, returnUrl }: UpdateTeamFo
         deskripsi: ""
     });
 
-    (() => {})("role", role)
+    ;(() => {})("role", role)
 
     useEffect(() => {
         const loadData = async () => {
@@ -88,7 +88,7 @@ export default function UpdateTeamForm({ role, teamId, returnUrl }: UpdateTeamFo
                     namaTeam: teamData.namaTeam || "",
                     deskripsi: teamData.deskripsi || ""
                 });
-                (() => {})("Data All Team", teamData);
+                ;(() => {})("Data All Team", teamData);
 
                 // PERBAIKAN: Handle kemungkinan karyawan undefined atau bukan array
                 if (teamData.karyawan && Array.isArray(teamData.karyawan)) {

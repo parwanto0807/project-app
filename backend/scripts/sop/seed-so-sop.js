@@ -11,7 +11,7 @@ async function main() {
     return
   }
   
-  (() => {})('Using admin:', admin.email)
+  ;(() => {})('Using admin:', admin.email)
 
   const sopTitle = 'SOP Pengelolaan Sales Order'
   const existing = await prisma.document.findFirst({
@@ -19,7 +19,7 @@ async function main() {
   })
   
   if (existing) {
-    (() => {})('SOP already exists')
+    ;(() => {})('SOP already exists')
     // Update content just in case
     return
   }
@@ -98,7 +98,7 @@ async function main() {
     }
   })
 
-  (() => {})('SOP Created:', document.id)
+  ;(() => {})('SOP Created:', document.id)
 }
 
 main()

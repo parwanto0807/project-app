@@ -67,7 +67,7 @@ export async function createTransferAction(input: CreateTransferInput) {
  */
 export async function getTransfersAction(filters?: TransferFilter) {
     try {
-        (() => {})('🔍 getTransfersAction called with filters:', filters);
+        ;(() => {})('🔍 getTransfersAction called with filters:', filters);
 
         const params = new URLSearchParams();
         if (filters) {
@@ -79,7 +79,7 @@ export async function getTransfersAction(filters?: TransferFilter) {
         }
 
         const url = `/api/tf?${params.toString()}`;
-        (() => {})('📡 Fetching from URL:', url);
+        ;(() => {})('📡 Fetching from URL:', url);
 
         const result = await fetchAPI<{
             data: StockTransfer[];
@@ -91,7 +91,7 @@ export async function getTransfersAction(filters?: TransferFilter) {
             };
         }>(url);
 
-        (() => {})('✅ getTransfersAction result:', result);
+        ;(() => {})('✅ getTransfersAction result:', result);
         return result;
     } catch (error: any) {
         console.error('❌ getTransfersAction error:', error);

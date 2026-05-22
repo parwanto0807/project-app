@@ -4,7 +4,7 @@ import fs from 'fs';
 async function verifyReports() {
     let output = '';
     const log = (msg) => {
-        (() => {})(msg);
+        ;(() => {})(msg);
         output += msg + '\n';
     };
 

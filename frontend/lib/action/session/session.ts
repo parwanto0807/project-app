@@ -17,7 +17,7 @@ export async function getAllSessions() {
 
   const data = await res.json(); // ✅ data = array
 
-  // (() => {})("getAllSessions response:", data);
+  // ;(() => {})("getAllSessions response:", data);
 
   return data; // ✅ langsung return array
 }

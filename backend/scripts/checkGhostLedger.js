@@ -9,13 +9,13 @@ async function checkLedger() {
         });
 
         if (ledger) {
-            (() => {})(`Ledger ID: ${ledger.id}`);
-            (() => {})(`Date: ${ledger.transactionDate.toISOString()}`);
-            (() => {})(`Description: ${ledger.description}`);
-            (() => {})(`Created At: ${ledger.createdAt.toISOString()}`);
+            ;(() => {})(`Ledger ID: ${ledger.id}`);
+            ;(() => {})(`Date: ${ledger.transactionDate.toISOString()}`);
+            ;(() => {})(`Description: ${ledger.description}`);
+            ;(() => {})(`Created At: ${ledger.createdAt.toISOString()}`);
             
             ledger.ledgerLines.forEach(l => {
-                (() => {})(`  - COA ID: ${l.coaId}, Dr: ${l.debitAmount}, Cr: ${l.creditAmount}`);
+                ;(() => {})(`  - COA ID: ${l.coaId}, Dr: ${l.debitAmount}, Cr: ${l.creditAmount}`);
             });
         }
 

@@ -223,7 +223,7 @@ export const updatePRRemainingBudget = async (prId, transaction = null) => {
     data: { sisaBudget: newSisaBudget }
   });
 
-  (() => {})(`📊 Updated PR ${pr.nomorPr} sisaBudget: ${newSisaBudget}`);
+  ;(() => {})(`📊 Updated PR ${pr.nomorPr} sisaBudget: ${newSisaBudget}`);
 };
 
 /**

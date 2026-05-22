@@ -18,7 +18,7 @@ export default function MFAInputPage() {
     const tempToken = sessionStorage.getItem("mfa_temp_token");
     const deviceId = sessionStorage.getItem("mfa_device_id");
     
-    (() => {})("🔐 [OTP PAGE] Session check:", {
+    ;(() => {})("🔐 [OTP PAGE] Session check:", {
       hasTempToken: !!tempToken,
       hasDeviceId: !!deviceId,
       tempToken: tempToken ? "✓" : "✗",
@@ -62,7 +62,7 @@ export default function MFAInputPage() {
     }
 
     try {
-      (() => {})("🔐 [OTP VERIFY] Starting verification...", {
+      ;(() => {})("🔐 [OTP VERIFY] Starting verification...", {
         hasTempToken: !!tempToken,
         hasDeviceId: !!deviceId,
         otpLength: data.otp.length
@@ -90,7 +90,7 @@ export default function MFAInputPage() {
         error: "Server tidak merespon dengan benar",
       }));
 
-      (() => {})("🔐 [OTP VERIFY] Response:", {
+      ;(() => {})("🔐 [OTP VERIFY] Response:", {
         status: res.status,
         ok: res.ok,
         data: json
@@ -117,12 +117,12 @@ export default function MFAInputPage() {
         return;
       }
 
-      (() => {})("✅ [OTP VERIFY] Success! Finalizing login...");
+      ;(() => {})("✅ [OTP VERIFY] Success! Finalizing login...");
 
       // ✅ GUNAKAN initializeTokensOnLogin JIKA ADA
       // if (typeof initializeTokensOnLogin === "function") {
       //   await initializeTokensOnLogin(accessToken);
-      //   (() => {})("🔐 [OTP] Tokens initialized via initializeTokensOnLogin");
+      //   ;(() => {})("🔐 [OTP] Tokens initialized via initializeTokensOnLogin");
       // } else {
       //   // Fallback: simpan manual
       //   localStorage.setItem("accessToken", accessToken);
@@ -137,7 +137,7 @@ export default function MFAInputPage() {
       // ✅ SIMPAN DEVICE TOKEN JIKA ADA
       if (json.deviceToken) {
         localStorage.setItem("trustedDeviceToken", json.deviceToken);
-        (() => {})("🔐 [OTP] Trusted device token saved");
+        ;(() => {})("🔐 [OTP] Trusted device token saved");
       }
 
       // ✅ CLEANUP LENGKAP
@@ -147,7 +147,7 @@ export default function MFAInputPage() {
       sessionStorage.removeItem("pre_access_token");
       sessionStorage.removeItem("pre_user");
 
-      (() => {})("✅ [OTP] Cleanup completed, redirecting...");
+      ;(() => {})("✅ [OTP] Cleanup completed, redirecting...");
 
       toast.success("Verifikasi berhasil! Login sukses.");
       

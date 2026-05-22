@@ -10,7 +10,7 @@ async function main() {
       }
     }
   });
-  (() => {})(JSON.stringify(karyawan, null, 2));
+  ;(() => {})(JSON.stringify(karyawan, null, 2));
 }
 
 main()

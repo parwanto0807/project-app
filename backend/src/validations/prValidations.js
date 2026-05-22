@@ -59,7 +59,7 @@ export const createPurchaseRequestSchema = z
   // PERBAIKAN: Fix the refine logic
   // .refine(
   //   (data) => {
-  //     (() => {})("🔍 Refine check - Current values:", {
+  //     ;(() => {})("🔍 Refine check - Current values:", {
   //       projectId: data.projectId,
   //       spkId: data.spkId,
   //     });
@@ -68,7 +68,7 @@ export const createPurchaseRequestSchema = z
   //     const hasProject = data.projectId != null && data.projectId !== "";
   //     const hasSPK = data.spkId != null && data.spkId !== "";
 
-  //     (() => {})(
+  //     ;(() => {})(
   //       "🔍 Refine check - hasProject:",
   //       hasProject,
   //       "hasSPK:",
@@ -130,7 +130,7 @@ export const updatePurchaseRequestSchema = z
   // ✅ Validasi untuk update
   // .refine(
   //   (data) => {
-  //     (() => {})("🔍 Refine check - Current values:", {
+  //     ;(() => {})("🔍 Refine check - Current values:", {
   //       projectId: data.projectId,
   //       spkId: data.spkId,
   //     });
@@ -140,7 +140,7 @@ export const updatePurchaseRequestSchema = z
   //     const hasSPK = data.spkId != null && data.spkId !== "";
   //     const result = hasProject || hasSPK;
 
-  //     (() => {})("🔍 Refine result:", { hasProject, hasSPK, result });
+  //     ;(() => {})("🔍 Refine result:", { hasProject, hasSPK, result });
 
   //     return result;
   //   },

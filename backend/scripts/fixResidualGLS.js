@@ -6,7 +6,7 @@
 import { prisma } from '../src/config/db.js';
 
 async function main() {
-  (() => {})('Fixing residual GeneralLedgerSummary records...');
+  ;(() => {})('Fixing residual GeneralLedgerSummary records...');
 
   const wrongCOA = await prisma.chartOfAccounts.findUnique({ where: { code: '6-10501' } });
   const correctCOA = await prisma.chartOfAccounts.findUnique({ where: { code: '5-30001' } });
@@ -24,11 +24,11 @@ async function main() {
   });
 
   if (residualGLS.length === 0) {
-    (() => {})('✅ Tidak ada residual GeneralLedgerSummary untuk 6-10501. Semua sudah bersih!');
+    ;(() => {})('✅ Tidak ada residual GeneralLedgerSummary untuk 6-10501. Semua sudah bersih!');
     return;
   }
 
-  (() => {})(`⚠️  Ditemukan ${residualGLS.length} residual GLSummary, memperbaiki...\n`);
+  ;(() => {})(`⚠️  Ditemukan ${residualGLS.length} residual GLSummary, memperbaiki...\n`);
 
   await prisma.$transaction(async (tx) => {
     for (const gls of residualGLS) {
@@ -36,7 +36,7 @@ async function main() {
       const credit = Number(gls.creditTotal);
       const netChange = debit - credit;
       
-      (() => {})(`  🔧 ${gls.period?.periodName} / ${gls.date.toISOString().split('T')[0]}: D=${debit.toLocaleString('id-ID')}, K=${credit.toLocaleString('id-ID')}`);
+      ;(() => {})(`  🔧 ${gls.period?.periodName} / ${gls.date.toISOString().split('T')[0]}: D=${debit.toLocaleString('id-ID')}, K=${credit.toLocaleString('id-ID')}`);
 
       // 1. Nolkan record di akun salah
       await tx.generalLedgerSummary.update({
@@ -48,7 +48,7 @@ async function main() {
           transactionCount: 0
         }
       });
-      (() => {})(`     ✅ GLSummary 6-10501 di-nolkan`);
+      ;(() => {})(`     ✅ GLSummary 6-10501 di-nolkan`);
 
       // 2. Tambahkan ke akun benar
       const summaryDate = new Date(gls.date);
@@ -80,7 +80,7 @@ async function main() {
             transactionCount: { increment: residualGLS.length > 0 ? 1 : 0 }
           }
         });
-        (() => {})(`     ✅ GLSummary 5-30001 ditambahkan`);
+        ;(() => {})(`     ✅ GLSummary 5-30001 ditambahkan`);
       } else {
         // Cari opening balance dari hari sebelumnya
         const prevDay = new Date(summaryDate);
@@ -104,12 +104,12 @@ async function main() {
             currency: 'IDR'
           }
         });
-        (() => {})(`     ✅ GLSummary 5-30001 dibuat baru`);
+        ;(() => {})(`     ✅ GLSummary 5-30001 dibuat baru`);
       }
     }
   });
 
-  (() => {})('\n✅ Semua residual GLSummary berhasil diperbaiki!');
+  ;(() => {})('\n✅ Semua residual GLSummary berhasil diperbaiki!');
 }
 
 main()

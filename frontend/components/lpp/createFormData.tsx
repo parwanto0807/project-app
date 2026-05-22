@@ -127,7 +127,7 @@ export async function uploadFotoAfterCreate(
     fotoBuktiMap: FotoBuktiMap,
     lppId: string
 ): Promise<Array<{ url: string; keterangan: string }>> {
-    (() => {})("🔍 [DEBUG] uploadFotoAfterCreate called", {
+    ;(() => {})("🔍 [DEBUG] uploadFotoAfterCreate called", {
         createdDetails,
         fotoBuktiMap,
         lppId,
@@ -161,7 +161,7 @@ export async function uploadFotoAfterCreate(
                 }
 
                 try {
-                    (() => {})(
+                    ;(() => {})(
                         `📤 Uploading file ${fileIndex + 1} untuk detail ${detail.id}:`,
                         fileWithPreview.file.name
                     );
@@ -297,7 +297,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
         }));
 
         if (prItems.length > 0) {
-            (() => {})(`⭐ [LPP-PULL] Pulling ${prItems.length} items directly from PR details`);
+            ;(() => {})(`⭐ [LPP-PULL] Pulling ${prItems.length} items directly from PR details`);
             replace(prItems);
             setFotoBuktiMap({});
             toast.success(`Berhasil menarik ${prItems.length} data dari rincian PR`);
@@ -312,17 +312,17 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
         const searchNomorPr = purchaseRequest.parentPr?.nomorPr || purchaseRequest.nomorPr;
 
         if (!searchNomorPr) {
-            (() => {})("⚠️ [LPP-PULL] nomorPr is empty, pulling from PR details");
+            ;(() => {})("⚠️ [LPP-PULL] nomorPr is empty, pulling from PR details");
             pullFromPrDetails();
             return;
         }
 
         try {
-            (() => {})(`🔍 [LPP-PULL] Searching PO for: ${searchNomorPr}`);
+            ;(() => {})(`🔍 [LPP-PULL] Searching PO for: ${searchNomorPr}`);
 
             // 1. Cari semua PO yang terhubung (bisa PR asli atau Parent-nya)
             const { data: pos } = await getAllPurchaseOrders({ search: searchNomorPr });
-            (() => {})(`📊 [LPP-PULL] Found ${pos?.length || 0} PO candidates`);
+            ;(() => {})(`📊 [LPP-PULL] Found ${pos?.length || 0} PO candidates`);
 
             if (pos && pos.length > 0) {
                 const allReceiptItems: any[] = [];
@@ -331,10 +331,10 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
 
                 // 2. Untuk setiap PO, ambil detail lengkapnya
                 for (const poShort of pos) {
-                    (() => {})(`📦 [LPP-PULL] Checking PO: ${poShort.poNumber} (ID: ${poShort.id})`);
+                    ;(() => {})(`📦 [LPP-PULL] Checking PO: ${poShort.poNumber} (ID: ${poShort.id})`);
 
                     const fullPo = await getPurchaseOrderById(poShort.id);
-                    (() => {})(`📄 [LPP-PULL] Full PO loaded, Executions: ${fullPo.PurchaseExecution?.length || 0}`);
+                    ;(() => {})(`📄 [LPP-PULL] Full PO loaded, Executions: ${fullPo.PurchaseExecution?.length || 0}`);
 
                     // 3. Iterasi melalui PurchaseExecution -> PurchaseReceipt
                     fullPo.PurchaseExecution?.forEach((execution) => {
@@ -372,11 +372,11 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                     setFotoBuktiMap(initialFotoMap);
                     toast.success(`Berhasil menarik ${allReceiptItems.length} data belanja dari PO (${searchNomorPr})`);
                 } else {
-                    (() => {})("ℹ️ [LPP-PULL] No executed receipts found in these POs. Falling back to PR details.");
+                    ;(() => {})("ℹ️ [LPP-PULL] No executed receipts found in these POs. Falling back to PR details.");
                     pullFromPrDetails();
                 }
             } else {
-                (() => {})("ℹ️ [LPP-PULL] No PO found matching this PR number. Falling back to PR details.");
+                ;(() => {})("ℹ️ [LPP-PULL] No PO found matching this PR number. Falling back to PR details.");
                 pullFromPrDetails();
             }
         } catch (error) {
@@ -512,7 +512,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
     ];
 
     const onSubmitForm = async (data: FormValues) => {
-        (() => {})("📋 Raw Form Data (before mapping):", data);
+        ;(() => {})("📋 Raw Form Data (before mapping):", data);
 
         if (!uangMuka?.id) {
             alert("Purchase Request tidak memiliki Uang Muka yang valid");
@@ -531,7 +531,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                 uangMuka.id,
             );
 
-            (() => {})("📤 Final LPP Data:", lppData);
+            ;(() => {})("📤 Final LPP Data:", lppData);
 
             // Kirim data form DAN fotoBuktiMap ke parent component
             await onSubmit(lppData, fotoBuktiMap);

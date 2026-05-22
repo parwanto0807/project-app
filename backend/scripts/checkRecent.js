@@ -7,7 +7,7 @@ async function checkRecent() {
             where: { code: '4-10101' }
         });
 
-        (() => {})(`Checking COA: ${coa.code}`);
+        ;(() => {})(`Checking COA: ${coa.code}`);
 
         const transactions = await prisma.ledgerLine.findMany({
             where: {
@@ -28,9 +28,9 @@ async function checkRecent() {
             }
         });
 
-        (() => {})(`Summary of recent transactions for 4-10101:`);
+        ;(() => {})(`Summary of recent transactions for 4-10101:`);
         transactions.forEach(t => {
-            (() => {})(`[${t.ledger.transactionDate.toISOString()}] Cr: ${t.creditAmount} | Dr: ${t.debitAmount} | Ref: ${t.ledger.referenceNumber} | Desc: ${t.ledger.description}`);
+            ;(() => {})(`[${t.ledger.transactionDate.toISOString()}] Cr: ${t.creditAmount} | Dr: ${t.debitAmount} | Ref: ${t.ledger.referenceNumber} | Desc: ${t.ledger.description}`);
         });
 
     } catch (e) {

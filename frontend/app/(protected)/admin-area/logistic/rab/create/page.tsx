@@ -59,15 +59,15 @@ export default function RABCreatePageAdmin() {
                 setIsLoadingMaster(true);
                 setError(null);
 
-                (() => {})("Fetching projects and products...");
+                ;(() => {})("Fetching projects and products...");
 
                 const [projectsResponse, productsResponse] = await Promise.all([
                     fetchAllProjects(),
                     fetchAllProductsByType(undefined, "ALL") // atau "PRODUCT", "SERVICE" sesuai kebutuhan
                 ]);
 
-                (() => {})("Projects response:", projectsResponse);
-                (() => {})("Products response:", productsResponse);
+                ;(() => {})("Projects response:", projectsResponse);
+                ;(() => {})("Products response:", productsResponse);
 
                 // Cek success flag dari response
                 if (!projectsResponse.success) {
@@ -81,8 +81,8 @@ export default function RABCreatePageAdmin() {
                 setProjects(projectsResponse.data || []);
                 setProducts(productsResponse.data || []);
 
-                (() => {})("Projects loaded:", projectsResponse.data?.length);
-                (() => {})("Products loaded:", productsResponse.data?.length);
+                ;(() => {})("Projects loaded:", projectsResponse.data?.length);
+                ;(() => {})("Products loaded:", productsResponse.data?.length);
 
             } catch (err) {
                 console.error("Error fetching master data:", err);

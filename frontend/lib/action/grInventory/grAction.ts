@@ -552,7 +552,7 @@ export async function createGoodsReceiptFromPOAction(
 
 
 
-        (() => {})('Creating GR from PO:', purchaseOrderId, 'ReceivedBy:', receivedById);
+        ;(() => {})('Creating GR from PO:', purchaseOrderId, 'ReceivedBy:', receivedById);
 
         // Call backend endpoint directly (client-side fetch)
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -564,7 +564,7 @@ export async function createGoodsReceiptFromPOAction(
             body: JSON.stringify({ receivedById }),
         });
 
-        (() => {})('Response status:', response.status);
+        ;(() => {})('Response status:', response.status);
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -577,7 +577,7 @@ export async function createGoodsReceiptFromPOAction(
         }
 
         const result = await response.json();
-        (() => {})('GR creation result:', result);
+        ;(() => {})('GR creation result:', result);
 
         if (result.success && result.data) {
             return {

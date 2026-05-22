@@ -224,7 +224,7 @@ export const clearAllNotifications = async (): Promise<boolean> => {
     /* const accessToken = getAccessToken();
     if (!accessToken) return false; */
 
-    (() => {})(
+    ;(() => {})(
       "🔄 [Notifications] Clearing all notifications using individual delete..."
     );
 
@@ -233,7 +233,7 @@ export const clearAllNotifications = async (): Promise<boolean> => {
     const notifications = await getNotifications({ limit: 100 });
 
     if (notifications.length === 0) {
-      (() => {})("ℹ️ [Notifications] No notifications to clear");
+      ;(() => {})("ℹ️ [Notifications] No notifications to clear");
       return true;
     }
 
@@ -325,17 +325,17 @@ export const removeFcmToken = async (token: string): Promise<boolean> => {
 
     if (!response.ok) {
       if (response.status === 401) {
-        (() => {})("🔐 [FCM] User sudah logout - token cleanup skipped");
+        ;(() => {})("🔐 [FCM] User sudah logout - token cleanup skipped");
         return true;
       }
       return false;
     }
 
-    (() => {})("✅ [FCM] Token berhasil dihapus");
+    ;(() => {})("✅ [FCM] Token berhasil dihapus");
     return true;
   } catch (error) {
     if (error instanceof Error && error.name === "TypeError") {
-      (() => {})("🔐 [FCM] Network error selama logout - diabaikan");
+      ;(() => {})("🔐 [FCM] Network error selama logout - diabaikan");
     } else {
       console.error("❌ [FCM] Error hapus token:", error);
     }

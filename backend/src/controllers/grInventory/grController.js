@@ -2443,7 +2443,7 @@ export const approveGR = async (req, res) => {
         if (existingGR.sourceType === 'TRANSFER') {
           // Transfer journal is created AFTER this transaction commits (see below)
           // to avoid P2028 transaction timeout from long-running journal operations.
-          (() => {})(`📝 Transfer journal for GR ${existingGR.grNumber} will be created after tx commit.`);
+          ;(() => {})(`📝 Transfer journal for GR ${existingGR.grNumber} will be created after tx commit.`);
         } else {
           // Original logic for PO-based Goods Receipt
           const period = await getActivePeriod(now, tx);
@@ -2552,7 +2552,7 @@ export const approveGR = async (req, res) => {
                 tx
               });
             }
-            (() => {})(`✅ Accounting entry created for GR ${existingGR.grNumber}. Total: ${totalInventoryValue}`);
+            ;(() => {})(`✅ Accounting entry created for GR ${existingGR.grNumber}. Total: ${totalInventoryValue}`);
           }
         }
       }
@@ -2676,7 +2676,7 @@ export const approveGR = async (req, res) => {
       if (!journalResult.success) {
         console.error(`⚠️ Transfer Journal failed for GR ${existingGR.grNumber}: ${journalResult.error}`);
       } else {
-        (() => {})(`✅ Transfer Mutation Ledger created for GR ${existingGR.grNumber}`);
+        ;(() => {})(`✅ Transfer Mutation Ledger created for GR ${existingGR.grNumber}`);
       }
     }
 

@@ -10,7 +10,7 @@ async function checkCOA() {
       ]
     }
   });
-  (() => {})(JSON.stringify(coas, null, 2));
+  ;(() => {})(JSON.stringify(coas, null, 2));
   await prisma.$disconnect();
 }
 

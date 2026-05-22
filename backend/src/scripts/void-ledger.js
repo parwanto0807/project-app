@@ -12,7 +12,7 @@ const VOID_REASON = 'Data trial - dibatalkan manual oleh admin';
 const VOIDED_BY = 'ADMIN-SCRIPT';
 
 async function voidLedger() {
-  (() => {})(`\n🔍 Mencari Ledger: ${LEDGER_NUMBER} ...\n`);
+  ;(() => {})(`\n🔍 Mencari Ledger: ${LEDGER_NUMBER} ...\n`);
 
   const target = await prisma.ledger.findUnique({
     where: { ledgerNumber: LEDGER_NUMBER },
@@ -27,14 +27,14 @@ async function voidLedger() {
     process.exit(1);
   }
 
-  (() => {})(`✅ Ditemukan: ${target.ledgerNumber}`);
-  (() => {})(`   Status     : ${target.status}`);
-  (() => {})(`   Deskripsi  : ${target.description}`);
-  (() => {})(`   Tgl Transaksi: ${target.transactionDate.toISOString()}`);
-  (() => {})(`   Period     : ${target.period?.periodName}`);
-  (() => {})(`   Ref Number : ${target.referenceNumber}`);
-  (() => {})(`   Ref Type   : ${target.referenceType}`);
-  (() => {})(`   Lines      : ${target.ledgerLines.length} baris\n`);
+  ;(() => {})(`✅ Ditemukan: ${target.ledgerNumber}`);
+  ;(() => {})(`   Status     : ${target.status}`);
+  ;(() => {})(`   Deskripsi  : ${target.description}`);
+  ;(() => {})(`   Tgl Transaksi: ${target.transactionDate.toISOString()}`);
+  ;(() => {})(`   Period     : ${target.period?.periodName}`);
+  ;(() => {})(`   Ref Number : ${target.referenceNumber}`);
+  ;(() => {})(`   Ref Type   : ${target.referenceType}`);
+  ;(() => {})(`   Lines      : ${target.ledgerLines.length} baris\n`);
 
   if (target.status === 'VOID') {
     console.warn(`⚠️  Ledger ini sudah VOID sebelumnya. Tidak ada perubahan.`);
@@ -46,13 +46,13 @@ async function voidLedger() {
     process.exit(1);
   }
 
-  (() => {})('📋 Detail Baris Jurnal:');
+  ;(() => {})('📋 Detail Baris Jurnal:');
   for (const line of target.ledgerLines) {
-    (() => {})(`   Line ${line.lineNumber}: [${line.coa.code}] ${line.coa.name}`);
-    (() => {})(`            Debit: ${line.debitAmount.toLocaleString('id-ID')} | Kredit: ${line.creditAmount.toLocaleString('id-ID')}`);
+    ;(() => {})(`   Line ${line.lineNumber}: [${line.coa.code}] ${line.coa.name}`);
+    ;(() => {})(`            Debit: ${line.debitAmount.toLocaleString('id-ID')} | Kredit: ${line.creditAmount.toLocaleString('id-ID')}`);
   }
 
-  (() => {})('\n🔄 Memulai proses VOID dalam transaksi...\n');
+  ;(() => {})('\n🔄 Memulai proses VOID dalam transaksi...\n');
 
   const result = await prisma.$transaction(async (tx) => {
     // Reverse GeneralLedgerSummary & TrialBalance for each line
@@ -90,7 +90,7 @@ async function voidLedger() {
             transactionCount: { decrement: 1 },
           },
         });
-        (() => {})(`   ✅ GL Summary reversed untuk akun: [${line.coa.code}] ${line.coa.name}`);
+        ;(() => {})(`   ✅ GL Summary reversed untuk akun: [${line.coa.code}] ${line.coa.name}`);
       } else {
         console.warn(`   ⚠️  GL Summary tidak ditemukan untuk akun: [${line.coa.code}] ${line.coa.name}`);
       }
@@ -118,7 +118,7 @@ async function voidLedger() {
             calculatedAt: new Date(),
           },
         });
-        (() => {})(`   ✅ Trial Balance reversed untuk akun: [${line.coa.code}] ${line.coa.name}`);
+        ;(() => {})(`   ✅ Trial Balance reversed untuk akun: [${line.coa.code}] ${line.coa.name}`);
       } else {
         console.warn(`   ⚠️  Trial Balance tidak ditemukan untuk akun: [${line.coa.code}] ${line.coa.name}`);
       }
@@ -134,7 +134,7 @@ async function voidLedger() {
         voidReason: VOID_REASON,
       },
     });
-    (() => {})(`\n✅ Ledger ${LEDGER_NUMBER} status diubah ke: VOID`);
+    ;(() => {})(`\n✅ Ledger ${LEDGER_NUMBER} status diubah ke: VOID`);
 
     // Revert Pinjaman to DRAFT if this is a loan posting
     if (target.referenceType === 'JOURNAL' && target.referenceNumber?.startsWith('LOAN-')) {
@@ -147,20 +147,20 @@ async function voidLedger() {
           where: { id: pinjaman.id },
           data: { status: 'DRAFT' },
         });
-        (() => {})(`✅ Pinjaman ${pinjaman.id} dikembalikan ke status DRAFT`);
+        ;(() => {})(`✅ Pinjaman ${pinjaman.id} dikembalikan ke status DRAFT`);
       }
     }
 
     return voidedLedger;
   });
 
-  (() => {})('\n🎉 SELESAI! Ringkasan:');
-  (() => {})(`   Ledger Number : ${result.ledgerNumber}`);
-  (() => {})(`   Status Baru   : ${result.status}`);
-  (() => {})(`   Void By       : ${result.voidBy}`);
-  (() => {})(`   Void At       : ${result.voidAt?.toISOString()}`);
-  (() => {})(`   Alasan        : ${result.voidReason}`);
-  (() => {})('\n✅ Laporan keuangan (GL Summary & Trial Balance) telah disesuaikan.\n');
+  ;(() => {})('\n🎉 SELESAI! Ringkasan:');
+  ;(() => {})(`   Ledger Number : ${result.ledgerNumber}`);
+  ;(() => {})(`   Status Baru   : ${result.status}`);
+  ;(() => {})(`   Void By       : ${result.voidBy}`);
+  ;(() => {})(`   Void At       : ${result.voidAt?.toISOString()}`);
+  ;(() => {})(`   Alasan        : ${result.voidReason}`);
+  ;(() => {})('\n✅ Laporan keuangan (GL Summary & Trial Balance) telah disesuaikan.\n');
 }
 
 voidLedger()

@@ -575,7 +575,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
     const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("");
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-    // (() => {})("DATA", reports);
+    // ;(() => {})("DATA", reports);
 
     // Ref untuk track mounting status dan previous values
     const isMountedRef = useRef(true);
@@ -589,7 +589,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
     // Filter reports berdasarkan SPK dan Item Group
     const selectedReports = React.useMemo(() => {
         if (!reports || reports.length === 0) {
-            // (() => {})("📭 No reports available");
+            // ;(() => {})("📭 No reports available");
             return [];
         }
 
@@ -599,7 +599,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
             filtered = filtered.filter(r =>
                 r.spkNumber?.trim() === selectedSpk?.trim()
             );
-            // (() => {})(`🔎 After SPK filter (${selectedSpk}):`, filtered.length);
+            // ;(() => {})(`🔎 After SPK filter (${selectedSpk}):`, filtered.length);
         }
 
         if (selectedItemGroup) {
@@ -608,10 +608,10 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
                 r.itemName === selectedItemGroup ||
                 r.projectName === selectedItemGroup
             );
-            // (() => {})(`🔎 After ItemGroup filter (${selectedItemGroup}):`, filtered.length);
+            // ;(() => {})(`🔎 After ItemGroup filter (${selectedItemGroup}):`, filtered.length);
         }
 
-        // (() => {})("✅ Final selectedReports:", {
+        // ;(() => {})("✅ Final selectedReports:", {
         //     count: filtered.length,
         //     items: filtered.map(r => ({
         //         id: r.id,
@@ -644,12 +644,12 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
     // Generate PDF blob
     const createPdfBlobUrl = useCallback(async (reports: ReportHistory[], itemGroup?: string) => {
         if (!reports || reports.length === 0) {
-            // (() => {})("📭 No reports to generate PDF");
+            // ;(() => {})("📭 No reports to generate PDF");
             return "";
         }
 
         try {
-            // (() => {})("📄 Generating PDF with:", {
+            // ;(() => {})("📄 Generating PDF with:", {
             //     reportCount: reports.length,
             //     itemGroup,
             //     sampleReport: reports[0]
@@ -657,7 +657,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
 
             const blob = await pdf(<PdfDocument reports={reports} itemGroup={itemGroup} />).toBlob();
             const url = URL.createObjectURL(blob);
-            // (() => {})("✅ PDF Blob URL created successfully");
+            // ;(() => {})("✅ PDF Blob URL created successfully");
             return url;
         } catch (error) {
             console.error("❌ Error creating PDF:", error);

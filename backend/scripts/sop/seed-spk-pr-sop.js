@@ -11,7 +11,7 @@ async function main() {
     return
   }
   
-  (() => {})('Using admin:', admin.email)
+  ;(() => {})('Using admin:', admin.email)
 
   // --- SOP SEEDING: SPK ---
   const spkTitle = 'SOP Pengelolaan Surat Perintah Kerja (SPK)'
@@ -57,7 +57,7 @@ async function main() {
         }
       }
     })
-    (() => {})('SPK SOP Created')
+    ;(() => {})('SPK SOP Created')
   }
 
   // --- SOP SEEDING: Purchase Request ---
@@ -104,7 +104,7 @@ async function main() {
         }
       }
     })
-    (() => {})('PR SOP Created')
+    ;(() => {})('PR SOP Created')
   }
 }
 

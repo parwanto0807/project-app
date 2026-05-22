@@ -44,5 +44,5 @@ if (NODE_ENV !== "production") {
 }
 export const allowedOrigins = NODE_ENV === "production" ? prodOrigins : devOrigins;
 
-  (() => {})(NODE_ENV);
-  (() => {})(allowedOrigins);
+  ;(() => {})(NODE_ENV);
+  ;(() => {})(allowedOrigins);

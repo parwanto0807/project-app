@@ -2,7 +2,7 @@
 import { prisma } from '../src/config/db.js';
 
 async function main() {
-  (() => {})('Remapping Cash Opname System Accounts for Go-Live...');
+  ;(() => {})('Remapping Cash Opname System Accounts for Go-Live...');
 
   const equityCode = '3-10101'; // Saldo Awal Ekuitas
 
@@ -16,7 +16,7 @@ async function main() {
     process.exit(1);
   }
 
-  (() => {})(`✓ Found Equity Account: ${equityCoa.code} - ${equityCoa.name}`);
+  ;(() => {})(`✓ Found Equity Account: ${equityCoa.code} - ${equityCoa.name}`);
 
   const keysToUpdate = [
     { key: 'CASH_OVERAGE_ACCOUNT', desc: 'Digunakan untuk mencatat selisih lebih (overage) saat Cash Opname. Dialihkan ke Ekuitas untuk Go-Live.' },
@@ -36,10 +36,10 @@ async function main() {
         description: item.desc
       }
     });
-    (() => {})(`✓ Updated ${item.key} -> ${equityCoa.code}`);
+    ;(() => {})(`✓ Updated ${item.key} -> ${equityCoa.code}`);
   }
 
-  (() => {})('✅ Remapping complete.');
+  ;(() => {})('✅ Remapping complete.');
 }
 
 main()

@@ -49,7 +49,7 @@ const LoginAdminForm = () => {
         startTransition(async () => {
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-                // (() => {})("API URL:", apiUrl);
+                // ;(() => {})("API URL:", apiUrl);
 
                 const res = await fetch(`${apiUrl}/api/auth/admin/loginAdmin`, {
                     method: "POST",
@@ -62,7 +62,7 @@ const LoginAdminForm = () => {
                 });
 
                 const data = await res.json();
-                // (() => {})("Response data:", data);
+                // ;(() => {})("Response data:", data);
 
                 if (!res.ok) {
                     form.reset();

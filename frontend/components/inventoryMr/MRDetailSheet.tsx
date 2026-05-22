@@ -496,7 +496,7 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                             size="lg"
                             onClick={() => {
                                 // Implement approve logic
-                                (() => {})("Approve dari sheet:", mr.id)
+                                ;(() => {})("Approve dari sheet:", mr.id)
                             }}
                         >
                             <CheckCheck className="h-5 w-5 mr-2" />

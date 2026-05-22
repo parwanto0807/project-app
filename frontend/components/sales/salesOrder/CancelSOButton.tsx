@@ -25,7 +25,7 @@ interface Props {
 export function CancelSOButton({ id, disabled }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  (() => {})("ID, Disble", id, disabled)
+  ;(() => {})("ID, Disble", id, disabled)
 
   const handleCancel = async () => {
     try {

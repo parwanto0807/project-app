@@ -66,10 +66,10 @@ export function TableHeader({
   // Combined loading state
   const isLoading = userLoading || isDataFetching;
 
-  // (() => {})('🔍 TableHeader Debug:');
-  // (() => {})('   - isLoading:', isLoading);
-  // (() => {})('   - userLoading:', userLoading);
-  // (() => {})('   - isDataFetching:', isDataFetching);
+  // ;(() => {})('🔍 TableHeader Debug:');
+  // ;(() => {})('   - isLoading:', isLoading);
+  // ;(() => {})('   - userLoading:', userLoading);
+  // ;(() => {})('   - isDataFetching:', isDataFetching);
 
   return (
     <div className="w-full">

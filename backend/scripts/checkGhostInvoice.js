@@ -8,13 +8,13 @@ async function checkInvoice() {
         });
 
         if (invoice) {
-            (() => {})(`Invoice ID: ${invoice.id}`);
-            (() => {})(`Date: ${invoice.invoiceDate.toISOString()}`);
-            (() => {})(`Total: ${invoice.totalAmount}`);
-            (() => {})(`Created At: ${invoice.createdAt.toISOString()}`);
-            (() => {})(`Created By: ${invoice.createdById}`);
+            ;(() => {})(`Invoice ID: ${invoice.id}`);
+            ;(() => {})(`Date: ${invoice.invoiceDate.toISOString()}`);
+            ;(() => {})(`Total: ${invoice.totalAmount}`);
+            ;(() => {})(`Created At: ${invoice.createdAt.toISOString()}`);
+            ;(() => {})(`Created By: ${invoice.createdById}`);
         } else {
-            (() => {})('Invoice not found');
+            ;(() => {})('Invoice not found');
         }
 
     } catch (e) {

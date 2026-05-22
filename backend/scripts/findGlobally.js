@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 async function findGlobally() {
     try {
-        (() => {})(`Searching for any ledger line with amount 1,250,000 created today/yesterday:`);
+        ;(() => {})(`Searching for any ledger line with amount 1,250,000 created today/yesterday:`);
         
         const lines = await prisma.ledgerLine.findMany({
             where: {
@@ -21,13 +21,13 @@ async function findGlobally() {
             }
         });
 
-        (() => {})(`Found ${lines.length} lines.`);
+        ;(() => {})(`Found ${lines.length} lines.`);
         lines.forEach(l => {
-            (() => {})(`- COA: ${l.coa.code} (${l.coa.name})`);
-            (() => {})(`  Date: ${l.ledger.transactionDate.toISOString()}`);
-            (() => {})(`  Amount: ${l.debitAmount || l.creditAmount}`);
-            (() => {})(`  Desc: ${l.ledger.description}`);
-            (() => {})(`  Ref: ${l.ledger.referenceNumber}`);
+            ;(() => {})(`- COA: ${l.coa.code} (${l.coa.name})`);
+            ;(() => {})(`  Date: ${l.ledger.transactionDate.toISOString()}`);
+            ;(() => {})(`  Amount: ${l.debitAmount || l.creditAmount}`);
+            ;(() => {})(`  Desc: ${l.ledger.description}`);
+            ;(() => {})(`  Ref: ${l.ledger.referenceNumber}`);
         });
 
     } catch (e) {

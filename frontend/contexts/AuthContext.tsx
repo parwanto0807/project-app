@@ -158,12 +158,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             });
 
             if (res.status === 401) {
-                (() => {})('[Auth] 401 - Handling unauthorized');
+                ;(() => {})('[Auth] 401 - Handling unauthorized');
                 const errorData = await res.json().catch(() => ({}));
 
                 // Handle device conflict
                 if (errorData.error === "SESSION_REVOKED" || errorData.code === "DEVICE_CONFLICT") {
-                    (() => {})('[Auth] 🚫 Device conflict detected!');
+                    ;(() => {})('[Auth] 🚫 Device conflict detected!');
 
                     // 1. Clear semua state dan cookies
                     cleanup();
@@ -175,7 +175,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
                         // 3. Redirect hanya jika belum di halaman unauthorized
                         if (window.location.pathname !== '/unauthorized') {
-                            (() => {})('[Auth] 🔀 Redirecting to /unauthorized');
+                            ;(() => {})('[Auth] 🔀 Redirecting to /unauthorized');
                             window.location.href = '/unauthorized';
                         }
                     }

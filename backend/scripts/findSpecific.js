@@ -14,10 +14,10 @@ async function findSpecific() {
         });
 
         lines.forEach(l => {
-            (() => {})(`COA: ${l.coa.code}`);
-            (() => {})(`Ref: ${l.ledger.referenceNumber}`);
-            (() => {})(`Desc: ${l.ledger.description}`);
-            (() => {})(`Created At: ${l.ledger.createdAt.toISOString()}`);
+            ;(() => {})(`COA: ${l.coa.code}`);
+            ;(() => {})(`Ref: ${l.ledger.referenceNumber}`);
+            ;(() => {})(`Desc: ${l.ledger.description}`);
+            ;(() => {})(`Created At: ${l.ledger.createdAt.toISOString()}`);
         });
 
     } catch (e) {

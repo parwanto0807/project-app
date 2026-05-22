@@ -89,13 +89,13 @@ export default function TrialBalancePage() {
     // Fetch Trial Balance Data
     const fetchTB = useCallback(async () => {
         if (!selectedPeriodId) {
-            (() => {})("[TB Page] No period selected");
+            ;(() => {})("[TB Page] No period selected");
             return;
         }
 
-        (() => {})("[TB Page] Fetching TB for period:", selectedPeriodId);
-        (() => {})("[TB Page] Search:", search);
-        (() => {})("[TB Page] COA Type:", coaType);
+        ;(() => {})("[TB Page] Fetching TB for period:", selectedPeriodId);
+        ;(() => {})("[TB Page] Search:", search);
+        ;(() => {})("[TB Page] COA Type:", coaType);
 
         try {
             setIsDataFetching(true);
@@ -105,10 +105,10 @@ export default function TrialBalancePage() {
                 coaType !== "all" ? coaType : undefined
             );
 
-            (() => {})("[TB Page] Result:", result);
+            ;(() => {})("[TB Page] Result:", result);
 
             if (result.success) {
-                (() => {})("[TB Page] Setting data - count:", result.data?.length);
+                ;(() => {})("[TB Page] Setting data - count:", result.data?.length);
                 setTbData(result.data);
                 setTotals(result.totals);
             } else {

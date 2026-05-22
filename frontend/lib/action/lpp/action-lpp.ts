@@ -208,7 +208,7 @@ export async function uploadFoto(
 ): Promise<{ url: string }> {
   // Pastikan return type sesuai
   try {
-    (() => {})("🔍 [UPLOAD] Starting upload...", {
+    ;(() => {})("🔍 [UPLOAD] Starting upload...", {
       detailId: detailId?.substring(0, 8) + "...",
       lppId: lppId?.substring(0, 8) + "...",
       fileName: file.name,
@@ -231,7 +231,7 @@ export async function uploadFoto(
     }
 
     const url = `${API_BASE_URL}/api/lpp/${cleanLppId}/details/${cleanDetailId}/upload-foto`;
-    (() => {})("🌐 Calling API:", url);
+    ;(() => {})("🌐 Calling API:", url);
 
     const res = await fetch(url, {
       method: "POST",
@@ -252,7 +252,7 @@ export async function uploadFoto(
     }
 
     const result = await res.json();
-    (() => {})("✅ Upload successful:", result);
+    ;(() => {})("✅ Upload successful:", result);
     return result;
   } catch (error) {
     console.error("❌ Upload error details:", {

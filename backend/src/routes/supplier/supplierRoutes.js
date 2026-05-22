@@ -15,7 +15,7 @@ const router = express.Router();
 router.get("/", getSuppliers);
 
 router.get("/generate-code", (req, res) => {
-  (() => {})("🔥 Generate Supplier Code endpoint hit");
+  ;(() => {})("🔥 Generate Supplier Code endpoint hit");
   generateSupplierCode(req, res);
 });
 // GET /api/suppliers/:id

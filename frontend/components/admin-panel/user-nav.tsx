@@ -26,10 +26,10 @@ import { useSession } from "@/components/clientSessionProvider"; // ← GUNAKAN 
 
 export function UserNav() {
   const { user, isLoading } = useSession(); // ← useSession mengembalikan { user, isLoading }
-  // (() => {})("USER NAV useSession:", { user, isLoading });
-  // (() => {})("🔍 USER NAV DEBUG - Full user data:", user);
-  // (() => {})("🔍 USER NAV DEBUG - Avatar URL:", user?.avatar);
-  // (() => {})("🔍 USER NAV DEBUG - Has avatar:", !!user?.avatar);
+  // ;(() => {})("USER NAV useSession:", { user, isLoading });
+  // ;(() => {})("🔍 USER NAV DEBUG - Full user data:", user);
+  // ;(() => {})("🔍 USER NAV DEBUG - Avatar URL:", user?.avatar);
+  // ;(() => {})("🔍 USER NAV DEBUG - Has avatar:", !!user?.avatar);
 
   // ✅ Handle loading state
   if (isLoading) {
@@ -73,7 +73,7 @@ export function UserNav() {
                     alt={user.name || "User"}
                     className="h-full w-full object-cover"
                     onError={(e) => {
-                      (() => {})("Avatar image failed to load, using fallback");
+                      ;(() => {})("Avatar image failed to load, using fallback");
                       (e.target as HTMLImageElement).src = "/default-avatar.png";
                     }}
                   />

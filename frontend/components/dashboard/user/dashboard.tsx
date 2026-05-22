@@ -324,7 +324,7 @@ const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkPr
                         'in-progress',
             }));
     }, [reports]);
-    (() => {})("Recent", recentActivities);
+    ;(() => {})("Recent", recentActivities);
 
     // Data statistik untuk UI
     const statsData = [

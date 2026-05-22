@@ -292,16 +292,16 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
     // 👇 MAP KE SPKData (DIBENARKAN) - FIXED PROGRESS CALCULATION
     const mapToSPKData = (raw: SPKDataApi | null): SPKData[] => {
-        (() => {})('🚀 ==== mapToSPKData CALLED ====');
-        (() => {})('📦 Raw data:', raw);
+        ;(() => {})('🚀 ==== mapToSPKData CALLED ====');
+        ;(() => {})('📦 Raw data:', raw);
 
         if (!raw) {
             console.warn('⚠️ mapToSPKData: raw is null!');
             return [];
         }
 
-        (() => {})('✅ SPK Number:', raw.spkNumber);
-        (() => {})('📄 spkFieldReport:', raw.spkFieldReport);
+        ;(() => {})('✅ SPK Number:', raw.spkNumber);
+        ;(() => {})('📄 spkFieldReport:', raw.spkFieldReport);
 
         const clientName = raw.salesOrder?.customer?.name || 'Client Tidak Dikenal';
         const projectName = raw.salesOrder?.project?.name || 'Project Tidak Dikenal';
@@ -318,15 +318,15 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
         // ✅ FIRST: Map items to calculate individual item status and progress from field reports
         let items = raw.salesOrder?.items?.map(itemSales => {
             // DEBUG: Log untuk cek data
-            (() => {})('🔍 Item:', itemSales.name);
-            (() => {})('📄 All spkFieldReport:', raw.spkFieldReport);
+            ;(() => {})('🔍 Item:', itemSales.name);
+            ;(() => {})('📄 All spkFieldReport:', raw.spkFieldReport);
 
             // Get all field reports for this specific item
             const itemFieldReports = raw.spkFieldReport?.filter(
                 (report: { soDetailId?: string }) => report.soDetailId === itemSales.id
             ) || [];
 
-            (() => {})('📊 Field reports for this item:', itemFieldReports);
+            ;(() => {})('📊 Field reports for this item:', itemFieldReports);
 
             // Sort by reportedAt descending to get the latest report
             const sortedReports = itemFieldReports.sort((a: any, b: any) => {
@@ -339,8 +339,8 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
             const latestReport = sortedReports[0];
             const itemProgress = latestReport?.progress ?? 0;
 
-            (() => {})('✅ Latest report:', latestReport);
-            (() => {})('📊 Item Progress:', itemProgress);
+            ;(() => {})('✅ Latest report:', latestReport);
+            ;(() => {})('📊 Item Progress:', itemProgress);
 
             // Determine status based on progress
             const itemStatus: 'PENDING' | 'DONE' = itemProgress >= 100 ? 'DONE' : 'PENDING';
@@ -427,7 +427,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
     // ✅ HANYA 2 EFFECT YANG PENTING
     useEffect(() => {
         if (dataSpk) {
-            (() => {})("DATA SPK From PAGE", dataSpk);
+            ;(() => {})("DATA SPK From PAGE", dataSpk);
             const mapped = mapToSPKData(dataSpk);
             setUserSpk(mapped);
         }

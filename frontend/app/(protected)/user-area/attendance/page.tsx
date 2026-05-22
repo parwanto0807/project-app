@@ -64,7 +64,7 @@ export default function AttendancePage() {
                 await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
                 faceapiRef.current = faceapi;
                 setModelsLoaded(true);
-                (() => {})("✅ Face detection models loaded");
+                ;(() => {})("✅ Face detection models loaded");
             } catch (err) {
                 console.error("❌ Failed to load face models:", err);
                 toast.error("Gagal memuat model deteksi wajah");

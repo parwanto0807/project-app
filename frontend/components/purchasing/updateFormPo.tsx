@@ -492,7 +492,7 @@ export default function UpdateFormPO({
         // Get spkId from initialData - try sPKId, SPK?.id, or fallback to PurchaseRequest's spkId
         const spkIdValue = initialData.sPKId || initialData.SPK?.id || initialData.PurchaseRequest?.spkId || "";
 
-        (() => {})("SPK Init Debug:", {
+        ;(() => {})("SPK Init Debug:", {
             sPKId: initialData.sPKId,
             SPK: initialData.SPK,
             spkIdValue,

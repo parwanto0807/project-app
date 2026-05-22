@@ -90,7 +90,7 @@ export const generateInvoiceNumber = async (req, res) => {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const prefix = `INV-SUPP/${year}/${month}/`;
         
-        (() => {})('🔍 Generating invoice number for:', { year, month, prefix });
+        ;(() => {})('🔍 Generating invoice number for:', { year, month, prefix });
         
         // Get all invoices from current month (using date range instead of startsWith)
         const startOfMonth = new Date(year, now.getMonth(), 1);
@@ -112,15 +112,15 @@ export const generateInvoiceNumber = async (req, res) => {
             }
         });
 
-        (() => {})('📋 All invoices this month:', allInvoices.length);
-        (() => {})('📋 Invoice numbers:', allInvoices.map(inv => inv.invoiceNumber));
+        ;(() => {})('📋 All invoices this month:', allInvoices.length);
+        ;(() => {})('📋 Invoice numbers:', allInvoices.map(inv => inv.invoiceNumber));
 
         // Filter only invoices that match our prefix pattern
         const matchingInvoices = allInvoices.filter(inv => 
             inv.invoiceNumber && inv.invoiceNumber.startsWith(prefix)
         );
 
-        (() => {})('✅ Matching invoices:', matchingInvoices.map(inv => inv.invoiceNumber));
+        ;(() => {})('✅ Matching invoices:', matchingInvoices.map(inv => inv.invoiceNumber));
 
         let nextNumber = 1;
         
@@ -130,32 +130,32 @@ export const generateInvoiceNumber = async (req, res) => {
                 .map(inv => {
                     const match = inv.invoiceNumber.match(/INV-SUPP\/(\d{4})\/(\d{2})\/(\d{4})/);
                     if (match) {
-                        (() => {})(`   Parsing ${inv.invoiceNumber} -> ${match[3]}`);
+                        ;(() => {})(`   Parsing ${inv.invoiceNumber} -> ${match[3]}`);
                         return parseInt(match[3], 10);
                     }
                     return 0;
                 })
                 .filter(num => num > 0);
             
-            (() => {})('🔢 Extracted numbers:', numbers);
+            ;(() => {})('🔢 Extracted numbers:', numbers);
             
             if (numbers.length > 0) {
                 const maxNumber = Math.max(...numbers);
                 nextNumber = maxNumber + 1;
-                (() => {})(`📊 Max number found: ${maxNumber}, Next: ${nextNumber}`);
+                ;(() => {})(`📊 Max number found: ${maxNumber}, Next: ${nextNumber}`);
             }
         } else {
             // Fallback: If no invoices have the new format, but there ARE invoices in this month,
             // assume they take up slots (e.g. legacy format invoices)
             if (allInvoices.length > 0) {
                 nextNumber = allInvoices.length + 1;
-                (() => {})(`⚠️ No matching format found, but ${allInvoices.length} invoices exist. Using count + 1 = ${nextNumber}`);
+                ;(() => {})(`⚠️ No matching format found, but ${allInvoices.length} invoices exist. Using count + 1 = ${nextNumber}`);
             }
         }
 
         const invoiceNumber = `INV-SUPP/${year}/${month}/${String(nextNumber).padStart(4, '0')}`;
         
-        (() => {})('✅ Generated invoice number:', invoiceNumber);
+        ;(() => {})('✅ Generated invoice number:', invoiceNumber);
 
         res.status(200).json({
             success: true,
@@ -665,7 +665,7 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                 }
 
                 if (isCash) {
-                    (() => {})(`💰 Invoice ${invoice.invoiceNumber} is CASH. Processing Staff Balance deduction...`);
+                    ;(() => {})(`💰 Invoice ${invoice.invoiceNumber} is CASH. Processing Staff Balance deduction...`);
                     
                     // 2. Manage Staff Balance
                     let staffBalance = await tx.staffBalance.findUnique({

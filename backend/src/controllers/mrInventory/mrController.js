@@ -343,12 +343,12 @@ export const mrController = {
         // Journal will be created when user clicks "Posting" button
         // This allows for better control and review before posting to ledger
         
-        (() => {})(`✅ MR ${updatedMR.mrNumber} issued successfully.`);
+        ;(() => {})(`✅ MR ${updatedMR.mrNumber} issued successfully.`);
         
         /* COMMENTED OUT - Auto journal creation
         // ===== AUTO-CREATE JOURNAL FOR WIP WAREHOUSE ONLY =====
         // IMPORTANT: Journal creation ONLY happens if warehouse.isWip === true
-        (() => {})(`🔍 Checking warehouse for journal creation:`, {
+        ;(() => {})(`🔍 Checking warehouse for journal creation:`, {
           warehouseName: updatedMR.Warehouse?.name,
           isWip: updatedMR.Warehouse?.isWip,
           mrNumber: updatedMR.mrNumber
@@ -356,14 +356,14 @@ export const mrController = {
 
         // Explicit check: ONLY process if isWip is explicitly true
         if (updatedMR.Warehouse && updatedMR.Warehouse.isWip === true) {
-          (() => {})(`✅ WIP Warehouse detected (isWip=true). Creating journal entry for: ${updatedMR.mrNumber}`);
+          ;(() => {})(`✅ WIP Warehouse detected (isWip=true). Creating journal entry for: ${updatedMR.mrNumber}`);
           
           // Calculate total material cost from issued items
           const totalMaterialCost = updatedMR.items.reduce((sum, item) => {
             return sum + (Number(item.qtyIssued) * Number(item.priceUnit || 0));
           }, 0);
 
-          (() => {})(`💰 Total material cost calculated: ${totalMaterialCost}`);
+          ;(() => {})(`💰 Total material cost calculated: ${totalMaterialCost}`);
 
           if (totalMaterialCost > 0) {
             try {
@@ -380,7 +380,7 @@ export const mrController = {
                 ? ` | PR: ${prNumbers.join(', ')}` 
                 : '';
               
-              (() => {})(`📝 Creating journal with accounts:`, {
+              ;(() => {})(`📝 Creating journal with accounts:`, {
                 debitAccount: 'PURCHASE_EXPENSE',
                 creditAccount: inventoryAccountKey,
                 amount: totalMaterialCost,
@@ -410,13 +410,13 @@ export const mrController = {
                 tx // Pass transaction context
               });
 
-              (() => {})(`✅ Journal entry created successfully for WIP material usage: ${updatedMR.mrNumber} | Amount: ${totalMaterialCost}`);
+              ;(() => {})(`✅ Journal entry created successfully for WIP material usage: ${updatedMR.mrNumber} | Amount: ${totalMaterialCost}`);
             } catch (journalError) {
               console.error(`❌ Failed to create journal entry for ${updatedMR.mrNumber}:`, journalError);
               throw new Error(`Failed to create journal entry: ${journalError.message}`);
             }
           } else {
-            (() => {})(`⚠️ No journal created for ${updatedMR.mrNumber} - Total cost is 0 (no material cost calculated)`);
+            ;(() => {})(`⚠️ No journal created for ${updatedMR.mrNumber} - Total cost is 0 (no material cost calculated)`);
           }
         } else {
           // Log reason why journal was NOT created
@@ -426,7 +426,7 @@ export const mrController = {
               ? 'Warehouse isWip=false (not a WIP warehouse)'
               : 'Warehouse isWip is null/undefined';
           
-          (() => {})(`ℹ️ No journal created for ${updatedMR.mrNumber} - Reason: ${reason}`);
+          ;(() => {})(`ℹ️ No journal created for ${updatedMR.mrNumber} - Reason: ${reason}`);
         }
         */
 
@@ -518,11 +518,11 @@ export const mrController = {
           throw new Error('Journal posting only allowed for WIP warehouses');
         }
 
-        (() => {})(`📝 Posting journal for ${mr.mrNumber} (WIP Warehouse: ${mr.Warehouse.name})`);
+        ;(() => {})(`📝 Posting journal for ${mr.mrNumber} (WIP Warehouse: ${mr.Warehouse.name})`);
 
         // 5. Calculate total material cost
         let totalMaterialCost = 0;
-        (() => {})(`🔍 Calculating costs for MR: ${mr.mrNumber}`);
+        ;(() => {})(`🔍 Calculating costs for MR: ${mr.mrNumber}`);
 
         for (const item of mr.items) {
           let itemPrice = Number(item.priceUnit || 0);
@@ -530,7 +530,7 @@ export const mrController = {
 
           // FALLBACK: If priceUnit is 0, try to calculate from stockAllocations
           if (itemPrice === 0 && qty > 0) {
-            (() => {})(`  ⚠️ Item ${item.productId} has 0 priceUnit, checking allocations...`);
+            ;(() => {})(`  ⚠️ Item ${item.productId} has 0 priceUnit, checking allocations...`);
             const allocations = await tx.stockAllocation.findMany({
               where: { mrItemId: item.id },
               include: {
@@ -554,16 +554,16 @@ export const mrController = {
                 where: { id: item.id },
                 data: { priceUnit: itemPrice }
               });
-              (() => {})(`    ✅ Found price from allocations: ${itemPrice}`);
+              ;(() => {})(`    ✅ Found price from allocations: ${itemPrice}`);
             }
           }
 
           const itemTotal = qty * itemPrice;
           totalMaterialCost += itemTotal;
-          (() => {})(`  - Item: ${item.product?.name || item.productId}, Qty: ${qty}, Price: ${itemPrice}, Subtotal: ${itemTotal}`);
+          ;(() => {})(`  - Item: ${item.product?.name || item.productId}, Qty: ${qty}, Price: ${itemPrice}, Subtotal: ${itemTotal}`);
         }
 
-        (() => {})(`💰 Total material cost: ${totalMaterialCost}`);
+        ;(() => {})(`💰 Total material cost: ${totalMaterialCost}`);
 
         if (totalMaterialCost <= 0) {
           throw new Error('Cannot post journal with zero or negative cost. Please check if product prices (FIFO batches) are properly set.');
@@ -617,7 +617,7 @@ export const mrController = {
           tx
         });
 
-        (() => {})(`✅ Ledger posted successfully: ${ledger.ledgerNumber} | Amount: ${totalMaterialCost}`);
+        ;(() => {})(`✅ Ledger posted successfully: ${ledger.ledgerNumber} | Amount: ${totalMaterialCost}`);
 
         return {
           mr,

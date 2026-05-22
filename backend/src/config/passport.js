@@ -19,7 +19,7 @@ passport.use(new GoogleStrategy({
 }, 
 async (req, accessToken, refreshToken, profile, done) => {
   try {
-    // (() => {})('Google Profile:', profile);
+    // ;(() => {})('Google Profile:', profile);
     
     // Cari atau buat user berdasarkan email
     const email = profile.emails?.[0]?.value;

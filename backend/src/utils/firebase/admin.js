@@ -5,7 +5,7 @@ import { join } from "path";
 
 if (!admin.apps.length) {
   try {
-    (() => {})("🔥 Initializing Firebase Admin SDK...");
+    ;(() => {})("🔥 Initializing Firebase Admin SDK...");
 
     // Cari file service account
     const possibleFileNames = [
@@ -24,7 +24,7 @@ if (!admin.apps.length) {
         const fileContent = readFileSync(filePath, "utf8");
         serviceAccount = JSON.parse(fileContent);
         serviceAccountPath = filePath;
-        // (() => {})(`✅ Found service account file: ${fileName}`);
+        // ;(() => {})(`✅ Found service account file: ${fileName}`);
         break;
       } catch (error) {
         // Continue to next file
@@ -43,22 +43,22 @@ if (!admin.apps.length) {
       databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
     });
 
-    // (() => {})('✅ Firebase Admin SDK initialized successfully!');
-    // (() => {})(`📧 Project: ${serviceAccount.project_id}`);
-    // (() => {})(`👤 Service Account: ${serviceAccount.client_email}`);
+    // ;(() => {})('✅ Firebase Admin SDK initialized successfully!');
+    // ;(() => {})(`📧 Project: ${serviceAccount.project_id}`);
+    // ;(() => {})(`👤 Service Account: ${serviceAccount.client_email}`);
   } catch (error) {
     console.error(
       "❌ Firebase Admin SDK initialization failed:",
       error.message
     );
-    // (() => {})("💡 Make sure:");
-    // (() => {})("   - Service account JSON file is in backend root directory");
-    // (() => {})("   - File name matches one of the expected names");
-    // (() => {})("   - File contains valid JSON format");
-    // (() => {})("⚠️ Push notifications will be disabled");
+    // ;(() => {})("💡 Make sure:");
+    // ;(() => {})("   - Service account JSON file is in backend root directory");
+    // ;(() => {})("   - File name matches one of the expected names");
+    // ;(() => {})("   - File contains valid JSON format");
+    // ;(() => {})("⚠️ Push notifications will be disabled");
   }
 } else {
-  (() => {})("✅ Firebase Admin SDK already initialized");
+  ;(() => {})("✅ Firebase Admin SDK already initialized");
 }
 
 export default admin;

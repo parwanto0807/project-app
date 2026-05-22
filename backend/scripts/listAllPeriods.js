@@ -5,7 +5,7 @@ async function listPeriods() {
   const periods = await prisma.accountingPeriod.findMany({
     orderBy: { startDate: 'asc' }
   });
-  (() => {})(JSON.stringify(periods, null, 2));
+  ;(() => {})(JSON.stringify(periods, null, 2));
 }
 
 listPeriods()

@@ -4,7 +4,7 @@ async function check() {
     const c = await prisma.chartOfAccounts.findUnique({
         where: { code: '1-10001' }
     });
-    (() => {})('1-10001 ParentId:', c.parentId);
+    ;(() => {})('1-10001 ParentId:', c.parentId);
     await prisma.$disconnect();
 }
 

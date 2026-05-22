@@ -77,7 +77,7 @@ export default function Refreshing() {
     abortControllerRef.current = abortController;
 
     try {
-      (() => {})("🔄 Attempting token refresh via API...");
+      ;(() => {})("🔄 Attempting token refresh via API...");
 
       const response = await api.post<RefreshResponse>(
         "/api/auth/refresh",
@@ -97,7 +97,7 @@ export default function Refreshing() {
       setDetailMessage("Berhasil memperbarui sesi. Mengalihkan…");
       setStatus("success");
 
-      (() => {})("✅ Token refresh successful, redirecting to:", redirect);
+      ;(() => {})("✅ Token refresh successful, redirecting to:", redirect);
 
       setTimeout(() => {
         router.replace(redirect);
@@ -105,7 +105,7 @@ export default function Refreshing() {
 
     } catch (error: unknown) {
       if (error instanceof Error && error.name === 'AbortError') {
-        (() => {})('Refresh request was aborted');
+        ;(() => {})('Refresh request was aborted');
         return;
       }
 

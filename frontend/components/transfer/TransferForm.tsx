@@ -121,13 +121,13 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
     useEffect(() => {
         const fetchData = async () => {
             setIsLoadingData(true);
-            (() => {})('🔄 Starting data fetch...');
+            ;(() => {})('🔄 Starting data fetch...');
 
             try {
                 // Get current month period for inventory
                 const now = new Date();
                 const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                (() => {})('📅 Current period:', period);
+                ;(() => {})('📅 Current period:', period);
 
                 const [warehouseRes, karyawanRes, productsRes] = await Promise.all([
                     getWarehouses(),
@@ -135,14 +135,14 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                     getInventoryMonitoring({ limit: 1000, period })
                 ]);
 
-                (() => {})('📦 Warehouse response:', warehouseRes);
-                (() => {})('👤 Karyawan response:', karyawanRes);
-                (() => {})('🏭 Products response:', productsRes);
+                ;(() => {})('📦 Warehouse response:', warehouseRes);
+                ;(() => {})('👤 Karyawan response:', karyawanRes);
+                ;(() => {})('🏭 Products response:', productsRes);
 
                 // Process warehouses
                 if (warehouseRes.success && warehouseRes.data) {
                     const warehouseData = warehouseRes.data.data || [];
-                    (() => {})('✅ Warehouses loaded:', warehouseData.length);
+                    ;(() => {})('✅ Warehouses loaded:', warehouseData.length);
                     setWarehouses(warehouseData);
                 } else {
                     console.error('❌ Failed to load warehouses:', warehouseRes);
@@ -150,10 +150,10 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
 
                 // Process karyawan
                 if (karyawanRes && karyawanRes.karyawan) {
-                    (() => {})('✅ Karyawan loaded:', karyawanRes.karyawan.length);
-                    (() => {})('📋 First karyawan:', karyawanRes.karyawan[0]);
+                    ;(() => {})('✅ Karyawan loaded:', karyawanRes.karyawan.length);
+                    ;(() => {})('📋 First karyawan:', karyawanRes.karyawan[0]);
                     setKaryawans(karyawanRes.karyawan);
-                    (() => {})('💾 Karyawan state updated');
+                    ;(() => {})('💾 Karyawan state updated');
                 } else {
                     console.error('❌ Failed to load karyawan:', karyawanRes);
                 }
@@ -161,9 +161,9 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                 // Process products
                 if (productsRes.success && productsRes.data) {
                     const stockData = productsRes.data.data || [];
-                    (() => {})('✅ Stock data loaded:', stockData.length);
-                    (() => {})('📋 First stock item (full):', JSON.stringify(stockData[0], null, 2));
-                    (() => {})('🔍 Stock item keys:', stockData[0] ? Object.keys(stockData[0]) : 'No data');
+                    ;(() => {})('✅ Stock data loaded:', stockData.length);
+                    ;(() => {})('📋 First stock item (full):', JSON.stringify(stockData[0], null, 2));
+                    ;(() => {})('🔍 Stock item keys:', stockData[0] ? Object.keys(stockData[0]) : 'No data');
 
                     const productOptions: ProductOption[] = stockData.map((item: any) => {
                         // Use availableStock as requested
@@ -192,14 +192,14 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                             unit: unit
                         };
 
-                        (() => {})(`📦 Product: ${product.code} | Unit: ${unit} | Stock: ${displayStock} (Raw: ${rawStock})`);
+                        ;(() => {})(`📦 Product: ${product.code} | Unit: ${unit} | Stock: ${displayStock} (Raw: ${rawStock})`);
 
                         return product;
                     });
-                    (() => {})('✅ Products processed:', productOptions.length);
-                    (() => {})('📋 First processed product:', productOptions[0]);
+                    ;(() => {})('✅ Products processed:', productOptions.length);
+                    ;(() => {})('📋 First processed product:', productOptions[0]);
                     setProducts(productOptions);
-                    (() => {})('💾 Products state updated');
+                    ;(() => {})('💾 Products state updated');
                 } else {
                     console.error('❌ Failed to load products:', productsRes);
                 }
@@ -208,7 +208,7 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                 toast.error('Gagal memuat data: ' + (error as Error).message);
             } finally {
                 setIsLoadingData(false);
-                (() => {})('✅ Data fetch completed');
+                ;(() => {})('✅ Data fetch completed');
             }
         };
 
@@ -222,27 +222,27 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
 
     // Log available products when warehouse changes
     useEffect(() => {
-        (() => {})('🏭 From Warehouse ID:', fromWarehouseId);
-        (() => {})('📦 Total products:', products.length);
+        ;(() => {})('🏭 From Warehouse ID:', fromWarehouseId);
+        ;(() => {})('📦 Total products:', products.length);
 
         // Show unique warehouse IDs in products
         const uniqueWarehouseIds = [...new Set(products.map(p => p.warehouseId))];
-        (() => {})('🏢 Unique warehouse IDs in products:', uniqueWarehouseIds);
+        ;(() => {})('🏢 Unique warehouse IDs in products:', uniqueWarehouseIds);
 
         // Show products for selected warehouse
         const filtered = products.filter(p => p.warehouseId === fromWarehouseId);
-        (() => {})('🔍 Products matching warehouse ID:', filtered.length);
+        ;(() => {})('🔍 Products matching warehouse ID:', filtered.length);
 
         // Show products with stock
         const withStock = filtered.filter(p => p.availableStock > 0);
-        (() => {})('✅ Available products for this warehouse:', withStock.length);
+        ;(() => {})('✅ Available products for this warehouse:', withStock.length);
 
         if (withStock.length > 0) {
-            (() => {})('📋 First available product:', withStock[0]);
+            ;(() => {})('📋 First available product:', withStock[0]);
         } else if (filtered.length > 0) {
-            (() => {})('⚠️ Products found but no stock:', filtered[0]);
+            ;(() => {})('⚠️ Products found but no stock:', filtered[0]);
         } else if (products.length > 0) {
-            (() => {})('⚠️ Sample product warehouse ID:', products[0].warehouseId);
+            ;(() => {})('⚠️ Sample product warehouse ID:', products[0].warehouseId);
         }
     }, [fromWarehouseId, products, availableProducts]);
 
@@ -508,7 +508,7 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                                                                                     value={`${product.code} ${product.name}`}
                                                                                     onSelect={() => {
                                                                                         field.onChange(product.id);
-                                                                                        (() => {})('🔄 Selected Product:', product.code, 'Unit:', product.unit);
+                                                                                        ;(() => {})('🔄 Selected Product:', product.code, 'Unit:', product.unit);
                                                                                         setValue(`items.${index}.unit`, product.unit);
                                                                                     }}
                                                                                 >

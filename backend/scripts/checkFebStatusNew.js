@@ -7,7 +7,7 @@ async function checkFebStatus() {
   const coa = await prisma.chartOfAccounts.findFirst({ where: { code: '1-10205' } });
   
   if (!coa) {
-    (() => {})('COA 1-10205 Not Found');
+    ;(() => {})('COA 1-10205 Not Found');
     return;
   }
 
@@ -17,13 +17,13 @@ async function checkFebStatus() {
   });
 
   if (tb) {
-      (() => {})('--- FEB TB Record ---');
-      (() => {})('ID:', tb.id);
-      (() => {})('Opening:', tb.openingDebit);
-      (() => {})('Period:', tb.periodDebit);
-      (() => {})('Ending:', tb.endingDebit);
+      ;(() => {})('--- FEB TB Record ---');
+      ;(() => {})('ID:', tb.id);
+      ;(() => {})('Opening:', tb.openingDebit);
+      ;(() => {})('Period:', tb.periodDebit);
+      ;(() => {})('Ending:', tb.endingDebit);
   } else {
-      (() => {})('TB Record Not Found for this Period.');
+      ;(() => {})('TB Record Not Found for this Period.');
   }
 
   // Also check if any Journal Entries exist for this period
@@ -42,7 +42,7 @@ async function checkFebStatus() {
       },
       _sum: { debitAmount: true }
   });
-  (() => {})('Total Ledger Debit for Feb:', adjustment._sum.debitAmount);
+  ;(() => {})('Total Ledger Debit for Feb:', adjustment._sum.debitAmount);
 }
 
 checkFebStatus()

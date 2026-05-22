@@ -354,7 +354,7 @@ const ReportProgressTab = ({
                 return;
             }
 
-            // (() => {})('Files to be submitted:',
+            // ;(() => {})('Files to be submitted:',
             //     formData.photos.map(photo => ({
             //         name: photo.file.name,
             //         category: photo.category,
