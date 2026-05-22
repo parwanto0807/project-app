@@ -115,7 +115,8 @@ export const cdataPost = async (req, res) => {
             } catch (err) {}
 
           } else {
-            if (absensiHariIni.jamMasuk && getHoursDiff(checkTime, absensiHariIni.jamMasuk) > 0.5) {
+            // Kita ubah jeda minimal menjadi 1 menit (1/60 jam) agar mudah ditest
+            if (absensiHariIni.jamMasuk && getHoursDiff(checkTime, absensiHariIni.jamMasuk) > (1 / 60)) {
                await prisma.absensi.update({
                  where: { id: absensiHariIni.id },
                  data: {

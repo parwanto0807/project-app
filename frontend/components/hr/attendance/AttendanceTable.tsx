@@ -4,12 +4,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2, PlusCircle } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2, PlusCircle, Trash2, Loader2 } from "lucide-react";
+import { Fragment, useState, useEffect } from "react";
 import ValidateAttendanceDialog from "./ValidateAttendanceDialog";
 import { ManualAttendanceDialog } from "./ManualAttendanceDialog";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { toast } from "sonner";
+import { deleteAbsensi } from "@/lib/action/hr/absensi";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface TableProps {
   data: any[];
@@ -44,6 +47,26 @@ function getDiscrepancyInfo(jamKeluar: string | null, firstSeen: string | null) 
 export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: TableProps) {
   const [validateRecord, setValidateRecord] = useState<any | null>(null);
   const [manualRecord, setManualRecord] = useState<any | null>(null);
+  const { user, isLoading: isSessionLoading } = useSession();
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (absensiId: string) => {
+    if (!confirm("Yakin ingin menghapus data absensi ini?")) return;
+    setIsDeleting(absensiId);
+    try {
+      const res = await deleteAbsensi(absensiId);
+      if (res.success) {
+        toast.success("Berhasil menghapus data absensi");
+        if (onRefresh) onRefresh();
+      } else {
+        toast.error(res.error || "Gagal menghapus");
+      }
+    } catch (e) {
+      toast.error("Terjadi kesalahan");
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -322,6 +345,17 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                           {/* Actions */}
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
+                              {user?.email === "parwanto0807@gmail.com" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all h-7 px-2"
+                                  onClick={() => handleDelete(row.id)}
+                                  disabled={isDeleting === row.id}
+                                >
+                                  {isDeleting === row.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                </Button>
+                              )}
                               {row.isMissing && (
                                 <Button
                                   variant="ghost"

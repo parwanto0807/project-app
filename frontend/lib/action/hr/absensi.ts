@@ -129,3 +129,23 @@ export async function createManualAbsensi(data: {
     return { success: false, error: (error as Error).message };
   }
 }
+
+export async function deleteAbsensi(id: string) {
+  try {
+    const cookieStore = await cookies();
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}`, {
+      method: "DELETE",
+      headers: { 
+        "Content-Type": "application/json",
+        Cookie: cookieStore.toString(),
+      },
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Gagal menghapus absensi");
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
