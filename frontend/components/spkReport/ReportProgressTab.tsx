@@ -334,6 +334,39 @@ const ReportProgressTab = ({
                 return;
             }
 
+            let finalPhotos = [...formData.photos];
+            if (finalPhotos.length > 0) {
+                const missingCoords = finalPhotos.some(p => p.latitude === undefined || p.longitude === undefined);
+                if (missingCoords) {
+                    try {
+                        toast.info("Meminta Akses GPS...", { description: "Tolong izinkan akses lokasi (GPS) untuk menyimpan foto." });
+                        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                                enableHighAccuracy: true,
+                                timeout: 10000,
+                                maximumAge: 0
+                            });
+                        });
+                        
+                        finalPhotos = finalPhotos.map(p => ({
+                            ...p,
+                            latitude: p.latitude ?? position.coords.latitude,
+                            longitude: p.longitude ?? position.coords.longitude
+                        }));
+                        
+                        // Update state UI juga
+                        setFormData(prev => ({ ...prev, photos: finalPhotos }));
+                        toast.success("Lokasi GPS didapatkan!");
+                    } catch (geoErr) {
+                        toast.error("Gagal Menyimpan Laporan: Izin Lokasi Ditolak", { 
+                            description: "Sistem membutuhkan akses lokasi (GPS) Anda saat ini untuk bukti laporan lapangan. Tolong aktifkan GPS dan izinkan browser mengakses lokasi." 
+                        });
+                        setUploading(false);
+                        return;
+                    }
+                }
+            }
+
             const originalSpkData = dataSpk.find(spk => spk.id === selectedSpk.id);
 
             if (!originalSpkData) {
@@ -368,12 +401,12 @@ const ReportProgressTab = ({
                 type: formData.type,
                 progress: formData.progress,
                 note: formData.note,
-                photos: formData.photos.map(photo => photo.file),
-                photoCoordinates: formData.photos.map(photo => ({
+                photos: finalPhotos.map(photo => photo.file),
+                photoCoordinates: finalPhotos.map(photo => ({
                     latitude: photo.latitude,
                     longitude: photo.longitude
                 })),
-                soDetailId: formData.items,
+                soDetailId: formData.items || undefined,
             });
 
             await createSpkFieldReport(reportData);

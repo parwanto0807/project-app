@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sheet"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import {
     Table,
@@ -457,12 +458,13 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                                         MR: {mr.mrNumber}
                                     </Badge>
                                 </div>
-                                {qrCodeUrl ? (
-                                    <div className="p-4 bg-white rounded-lg border border-slate-100">
-                                        <img
-                                            src={qrCodeUrl}
-                                            alt="QR Code"
-                                            className="w-56 h-56 object-contain"
+                                {mr.qrToken ? (
+                                    <div className="p-4 bg-white rounded-lg border border-slate-100 flex items-center justify-center">
+                                        <QRCodeSVG
+                                            value={mr.qrToken}
+                                            size={200}
+                                            level="M"
+                                            includeMargin={true}
                                         />
                                     </div>
                                 ) : (

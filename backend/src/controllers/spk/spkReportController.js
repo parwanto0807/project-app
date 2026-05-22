@@ -725,7 +725,7 @@ export const getSPKFieldReports = async (req, res) => {
         },
         karyawan: { select: { namaLengkap: true, email: true } },
         soDetail: { select: { name: true } },
-        photos: { select: { imageUrl: true } },
+        photos: { select: { imageUrl: true, latitude: true, longitude: true } },
       },
       orderBy: { reportedAt: "asc" },
     });
@@ -749,6 +749,11 @@ export const getSPKFieldReports = async (req, res) => {
       type: report.type,
       note: report.note,
       photos: report.photos.map((photo) => photo.imageUrl),
+      photoDetails: report.photos.map((photo) => ({
+        imageUrl: photo.imageUrl,
+        latitude: photo.latitude,
+        longitude: photo.longitude,
+      })),
       reportedAt: report.reportedAt,
       soDetailId: report.soDetailId,
       itemName: report.soDetail?.name || "Item tidak dikenal",

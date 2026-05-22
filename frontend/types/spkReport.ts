@@ -51,6 +51,11 @@ export interface ReportHistory {
   type: "PROGRESS" | "FINAL";
   note: string | null;
   photos: string[];
+  photoDetails?: {
+    imageUrl: string;
+    latitude?: number;
+    longitude?: number;
+  }[];
   reportedAt: Date;
   soDetailId: string;
   itemName: string;

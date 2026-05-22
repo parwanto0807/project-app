@@ -580,6 +580,17 @@ export const getAllSPKAdmin = async (req, res) => {
         spkFieldReport: {
           include: {
             soDetail: true,
+            photos: {
+              select: {
+                latitude: true,
+                longitude: true,
+              },
+              where: {
+                latitude: { not: null },
+                longitude: { not: null },
+              },
+              take: 1,
+            },
           },
           orderBy: {
             reportedAt: "desc", // atau createdAt: 'desc'

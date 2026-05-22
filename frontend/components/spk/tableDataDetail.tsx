@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Camera, CheckCircle, Clock, X, Archive, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, Calendar, ChevronsRight, PackageOpenIcon, Wrench, PenTool, FileSignature, ShieldCheck, Trash2, UserCheck2Icon, Filter, ArrowLeft, FileDown } from 'lucide-react';
+import { Camera, CheckCircle, Clock, X, Archive, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, Calendar, ChevronsRight, PackageOpenIcon, Wrench, PenTool, FileSignature, ShieldCheck, Trash2, UserCheck2Icon, Filter, ArrowLeft, FileDown, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { deleteReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -1193,13 +1193,21 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                                                                 return `${baseUrl}${normalizedPath}`;
                                                                                                             };
                                                                                                             const photoUrl = getPhotoUrl(photo);
+                                                                                                            
+                                                                                                            // Get coordinates if available
+                                                                                                            // report.photoDetails might not exist in the ReportHistory type directly but if backend sends it we can access it using 'any' cast here to avoid TS error since ReportHistory type is imported elsewhere.
+                                                                                                            const photoDetail = (report as any).photoDetails?.[idx];
+                                                                                                            const hasCoordinates = photoDetail?.latitude && photoDetail?.longitude;
+                                                                                                            const mapUrl = hasCoordinates 
+                                                                                                                ? `https://maps.google.com/?q=${photoDetail.latitude},${photoDetail.longitude}`
+                                                                                                                : null;
 
                                                                                                             return (
-                                                                                                                <div
-                                                                                                                    key={idx}
-                                                                                                                    className="group relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30 cursor-pointer"
-                                                                                                                    onClick={() => window.open(photoUrl, "_blank")}
-                                                                                                                >
+                                                                                                                <div key={idx} className="flex flex-col gap-2">
+                                                                                                                    <div
+                                                                                                                        className="group relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30 cursor-pointer"
+                                                                                                                        onClick={() => window.open(photoUrl, "_blank")}
+                                                                                                                    >
                                                                                                                     <Image
                                                                                                                         src={photoUrl}
                                                                                                                         alt={`bukti-${idx + 1}`}
@@ -1213,6 +1221,18 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                                                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                                                                                                                         <ZoomIn className="h-6 w-6 text-white drop-shadow" />
                                                                                                                     </div>
+                                                                                                                </div>
+                                                                                                                    {hasCoordinates && (
+                                                                                                                        <Button 
+                                                                                                                            variant="outline" 
+                                                                                                                            size="sm" 
+                                                                                                                            className="w-full text-xs h-8"
+                                                                                                                            onClick={() => window.open(mapUrl!, '_blank')}
+                                                                                                                        >
+                                                                                                                            <MapPin className="h-3 w-3 mr-1 text-red-500" />
+                                                                                                                            Lihat Lokasi
+                                                                                                                        </Button>
+                                                                                                                    )}
                                                                                                                 </div>
                                                                                                             );
                                                                                                         })}
@@ -1575,29 +1595,48 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                     };
 
                                                     const photoUrl = getPhotoUrl(photo);
+                                                    
+                                                    // Get coordinates if available
+                                                    const photoDetail = selectedReport.photoDetails?.[idx];
+                                                    const hasCoordinates = photoDetail?.latitude && photoDetail?.longitude;
+                                                    const mapUrl = hasCoordinates 
+                                                        ? `https://maps.google.com/?q=${photoDetail.latitude},${photoDetail.longitude}`
+                                                        : null;
 
                                                     return (
-                                                        <div
-                                                            key={idx}
-                                                            className="group relative aspect-square rounded-lg md:rounded-xl overflow-hidden border border-border/40 bg-muted/30 hover:scale-105 transition-all duration-300 cursor-pointer"
-                                                            onClick={() => window.open(photoUrl, '_blank')}
-                                                        >
-                                                            <Image
-                                                                src={photoUrl}
-                                                                alt={`Dokumentasi ${idx + 1}`}
-                                                                fill
-                                                                className="object-cover transition-transform duration-300 group-hover:scale-110"
-                                                                sizes="(max-width: 768px) 50vw, 25vw"
-                                                                onError={(e) => {
-                                                                    e.currentTarget.src = '/images/placeholder-image.svg';
-                                                                }}
-                                                            />
-                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                                                <ZoomIn className="h-5 w-5 md:h-6 md:w-6 text-white drop-shadow" />
+                                                        <div key={idx} className="flex flex-col gap-2">
+                                                            <div
+                                                                className="group relative aspect-square rounded-lg md:rounded-xl overflow-hidden border border-border/40 bg-muted/30 hover:scale-105 transition-all duration-300 cursor-pointer"
+                                                                onClick={() => window.open(photoUrl, '_blank')}
+                                                            >
+                                                                <Image
+                                                                    src={photoUrl}
+                                                                    alt={`Dokumentasi ${idx + 1}`}
+                                                                    fill
+                                                                    className="object-cover transition-transform duration-300 group-hover:scale-110"
+                                                                    sizes="(max-width: 768px) 50vw, 25vw"
+                                                                    onError={(e) => {
+                                                                        e.currentTarget.src = '/images/placeholder-image.svg';
+                                                                    }}
+                                                                />
+                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                    <ZoomIn className="h-5 w-5 md:h-6 md:w-6 text-white drop-shadow" />
+                                                                </div>
+                                                                <div className="absolute top-1 right-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                                                                    {idx + 1}
+                                                                </div>
                                                             </div>
-                                                            <div className="absolute top-1 right-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                                                                {idx + 1}
-                                                            </div>
+                                                            {hasCoordinates && (
+                                                                <Button 
+                                                                    variant="outline" 
+                                                                    size="sm" 
+                                                                    className="w-full text-xs h-8"
+                                                                    onClick={() => window.open(mapUrl!, '_blank')}
+                                                                >
+                                                                    <MapPin className="h-3 w-3 mr-1 text-red-500" />
+                                                                    Lihat Lokasi
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}

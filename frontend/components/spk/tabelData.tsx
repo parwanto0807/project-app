@@ -142,6 +142,7 @@ interface SPKFieldReport {
     status?: string;
     reportedAt?: Date;
     createdAt: Date;
+    photos?: { latitude: number; longitude: number }[];
 }
 
 type TabelDataSpkProps = {
@@ -568,6 +569,9 @@ export default function TabelDataSpk({
                 const spkPdfData = mapSpkToPdfValues(spk);
                 const isExpanded = expandedRows.has(spk.id);
 
+                const latestReportWithCoord = spk.spkFieldReport?.find(r => r.photos && r.photos.length > 0 && r.photos[0].latitude && r.photos[0].longitude);
+                const mapUrl = latestReportWithCoord && latestReportWithCoord.photos ? `https://maps.google.com/?q=${latestReportWithCoord.photos[0].latitude},${latestReportWithCoord.photos[0].longitude}` : null;
+
                 return (
                     <Card key={`spk-card-${spk.id}`} className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all duration-200 h-full flex flex-col">
                         <CardContent className="px-2 pt-3 pb-2 flex-1 flex flex-col">
@@ -862,6 +866,17 @@ export default function TabelDataSpk({
                                                     <BarChart2 className="h-3 w-3 mr-1" />
                                                     <span className="text-xs">Monitoring</span>
                                                 </Button>
+                                                {mapUrl && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 w-full xs:w-32 border-red-300 hover:bg-red-50 dark:border-red-600 dark:hover:bg-red-900/20 cursor-pointer"
+                                                        onClick={() => window.open(mapUrl, '_blank')}
+                                                    >
+                                                        <MapPin className="h-3 w-3 mr-1" />
+                                                        <span className="text-xs">Peta</span>
+                                                    </Button>
+                                                )}
                                             </div>
 
                                             {/* Admin Actions */}
@@ -955,6 +970,9 @@ export default function TabelDataSpk({
                             displayData.map((spk, idx) => {
                                 const spkPdfData = mapSpkToPdfValues(spk);
                                 const isExpanded = expandedRows.has(spk.id);
+                                
+                                const latestReportWithCoord = spk.spkFieldReport?.find(r => r.photos && r.photos.length > 0 && r.photos[0].latitude && r.photos[0].longitude);
+                                const mapUrl = latestReportWithCoord && latestReportWithCoord.photos ? `https://maps.google.com/?q=${latestReportWithCoord.photos[0].latitude},${latestReportWithCoord.photos[0].longitude}` : null;
 
                                 return (
                                     <Fragment key={`spk-${spk.id}`}>
@@ -1370,6 +1388,29 @@ export default function TabelDataSpk({
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     </TooltipProvider>
+
+                                                    {mapUrl && (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="h-8 w-8 rounded-full border-gray-300 dark:border-gray-600 bg-white hover:bg-red-50 dark:bg-gray-800 dark:hover:bg-red-900/30 transition-all duration-300"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            window.open(mapUrl, '_blank');
+                                                                        }}
+                                                                    >
+                                                                        <MapPin className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Lihat Lokasi Koordinat</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    )}
 
                                                     {/* Dropdown Menu */}
                                                     <DropdownMenu>

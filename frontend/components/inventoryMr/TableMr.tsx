@@ -60,7 +60,6 @@ import {
 
 import { format, isToday, isThisWeek, isThisMonth } from "date-fns"
 import { id } from "date-fns/locale"
-import QRCode from "qrcode"
 import { MRDetailSheet } from "./MRDetailSheet"
 import { QRScannerDialog } from "./QRScannerDialog"
 import { MRIssueConfirmDialog } from "./MRIssueConfirmDialog"
@@ -167,7 +166,6 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
     const [showQRScanner, setShowQRScanner] = React.useState(false)
     const [isProcessingQR, setIsProcessingQR] = React.useState(false)
     const [showDetailSheet, setShowDetailSheet] = React.useState(false)
-    const [qrCodeUrl, setQrCodeUrl] = React.useState<string>("")
     const [currentPage, setCurrentPage] = React.useState(1)
     const [viewMode, setViewMode] = React.useState<"list" | "grid">("list")
     const [columnVisibility, setColumnVisibility] = React.useState({
@@ -273,20 +271,9 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         return configs[status as keyof typeof configs] || configs.PENDING
     }
 
-    const generateQRCode = async (token: string) => {
-        try {
-            const url = await QRCode.toDataURL(token, {
-                width: 200,
-                margin: 2,
-                color: {
-                    dark: '#1e40af',
-                    light: '#f8fafc'
-                }
-            })
-            setQrCodeUrl(url)
-        } catch (err) {
-            console.error('Failed to generate QR code:', err)
-        }
+    const handleViewDetails = (mr: MaterialRequisition) => {
+        setSelectedMR(mr)
+        setShowDetailSheet(true)
     }
 
     const handleApprove = async (mr: MaterialRequisition) => {
@@ -455,7 +442,6 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                 </SheetTrigger>
                                 <MRDetailSheet
                                     mr={selectedMR}
-                                    qrCodeUrl={qrCodeUrl}
                                     onScanQRCode={handleScanQRCode}
                                 />
                             </Sheet>
@@ -1044,7 +1030,6 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                         </SheetTrigger>
                                                                         <MRDetailSheet
                                                                             mr={selectedMR}
-                                                                            qrCodeUrl={qrCodeUrl}
                                                                             onScanQRCode={handleScanQRCode}
                                                                         />
                                                                     </Sheet>
