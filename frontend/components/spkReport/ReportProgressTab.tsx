@@ -65,6 +65,8 @@ interface ReportHistory {
 interface PhotoWithCategory {
     file: File;
     category: "SEBELUM" | "PROSES" | "SESUDAH";
+    latitude?: number;
+    longitude?: number;
 }
 
 interface ProgressFormData {
@@ -190,6 +192,23 @@ const ReportProgressTab = ({
         // Set uploading state agar UI tidak freeze jika memproses banyak foto
         setUploading(true);
 
+        // Ambil lokasi hanya sekali untuk semua foto yang diupload bersamaan
+        let lat: number | undefined;
+        let lon: number | undefined;
+        try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                });
+            });
+            lat = position.coords.latitude;
+            lon = position.coords.longitude;
+        } catch (geoErr) {
+            console.warn("Geolokasi gagal atau tidak diizinkan", geoErr);
+        }
+
         const currentCategory = formData.photoCategory;
         const processedPhotos: PhotoWithCategory[] = [];
 
@@ -222,7 +241,9 @@ const ReportProgressTab = ({
 
                 processedPhotos.push({
                     file: processedFile,
-                    category: currentCategory
+                    category: currentCategory,
+                    latitude: lat,
+                    longitude: lon
                 });
             }
 
@@ -348,6 +369,10 @@ const ReportProgressTab = ({
                 progress: formData.progress,
                 note: formData.note,
                 photos: formData.photos.map(photo => photo.file),
+                photoCoordinates: formData.photos.map(photo => ({
+                    latitude: photo.latitude,
+                    longitude: photo.longitude
+                })),
                 soDetailId: formData.items,
             });
 

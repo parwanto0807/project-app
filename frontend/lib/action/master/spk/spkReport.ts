@@ -73,6 +73,7 @@ export const createReportFormData = ({
   progress,
   note,
   photos,
+  photoCoordinates,
   soDetailId,
 }: {
   spkId: string;
@@ -81,6 +82,7 @@ export const createReportFormData = ({
   progress: number;
   note?: string;
   photos?: File[];
+  photoCoordinates?: { latitude?: number; longitude?: number }[];
   soDetailId?: string; // 👈 boleh null/undefined
 }): FormData => {
   const formData = new FormData();
@@ -104,12 +106,16 @@ export const createReportFormData = ({
   if (photos && photos.length > 0) {
     photos.forEach((photo, index) => {
       formData.append("photos", photo);
-      (() => {})(
+      console.log(
         `🖼️ Ditambahkan foto ${index + 1}:`,
         photo.name,
         `(${photo.size} bytes)`
       );
     });
+
+    if (photoCoordinates && photoCoordinates.length > 0) {
+      formData.append("photoCoordinates", JSON.stringify(photoCoordinates));
+    }
   } else {
     console.warn("⚠️ Tidak ada foto yang ditambahkan ke FormData");
   }
@@ -117,9 +123,9 @@ export const createReportFormData = ({
   // ✅ ✅ ✅ KRITIS: soDetailId — hanya append jika bernilai valid (bukan null/undefined/kosong)
   if (soDetailId && soDetailId.trim() !== "") {
     formData.append("soDetailId", soDetailId.trim());
-    // (() => {})("📌 Ditambahkan soDetailId:", soDetailId.trim());
+    // console.log("📌 Ditambahkan soDetailId:", soDetailId.trim());
   } else {
-    (() => {})("➖ Tidak menambahkan soDetailId (tidak dipilih atau kosong)");
+    // console.log("➖ Tidak menambahkan soDetailId (tidak dipilih atau kosong)");
   }
 
   // 👇 Debug akhir

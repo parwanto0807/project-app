@@ -19,6 +19,7 @@ export const createSpkFieldReport = async (req, res) => {
       note,
       soDetailId,
       progress: progressStr, // ← ambil sebagai string dulu
+      photoCoordinates, // ← array koordinat
     } = req.body;
 
     // ✅ Konversi progress ke number
@@ -79,16 +80,31 @@ export const createSpkFieldReport = async (req, res) => {
       },
     });
 
+    // Parse photo coordinates jika ada
+    let coords = [];
+    if (photoCoordinates) {
+      try {
+        coords = JSON.parse(photoCoordinates);
+      } catch (e) {
+        console.error("Gagal parse photoCoordinates", e);
+      }
+    }
+
     // Handle upload foto
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-      const photoPromises = req.files.map((photo) => {
+      const photoPromises = req.files.map((photo, idx) => {
         const imageUrl = `/images/spk/${photo.filename}`;
+        const lat = coords[idx]?.latitude;
+        const lon = coords[idx]?.longitude;
+
         return prisma.sPKFieldReportPhoto.create({
           data: {
             reportId: report.id,
             imageUrl,
             caption: photo.originalname,
             uploadedBy: karyawanId,
+            latitude: lat !== undefined ? lat : null,
+            longitude: lon !== undefined ? lon : null,
           },
         });
       });
@@ -386,7 +402,7 @@ export const createSpkFieldReport = async (req, res) => {
 export const addPhotosToReport = async (req, res) => {
   try {
     const { id } = req.params;
-    const { karyawanId } = req.body; // pastikan yang upload adalah karyawan yang berwenang
+    const { karyawanId, photoCoordinates } = req.body; // pastikan yang upload adalah karyawan yang berwenang
 
     const report = await prisma.sPKFieldReport.findUnique({
       where: { id },
@@ -403,14 +419,29 @@ export const addPhotosToReport = async (req, res) => {
         .json({ error: "Tidak ada file foto yang diunggah" });
     }
 
-    const photoPromises = req.files.photos.map((photo) => {
+    // Parse photo coordinates jika ada
+    let coords = [];
+    if (photoCoordinates) {
+      try {
+        coords = JSON.parse(photoCoordinates);
+      } catch (e) {
+        console.error("Gagal parse photoCoordinates", e);
+      }
+    }
+
+    const photoPromises = req.files.photos.map((photo, idx) => {
       const imageUrl = `/images/spk/${photo.filename}`;
+      const lat = coords[idx]?.latitude;
+      const lon = coords[idx]?.longitude;
+
       return prisma.sPKFieldReportPhoto.create({
         data: {
           reportId: id,
           imageUrl,
           caption: photo.originalname,
           uploadedBy: karyawanId,
+          latitude: lat !== undefined ? lat : null,
+          longitude: lon !== undefined ? lon : null,
         },
       });
     });

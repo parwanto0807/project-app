@@ -143,6 +143,8 @@ interface ReportHistory {
 interface PhotoWithCategory {
   file: File;
   category: "SEBELUM" | "PROSES" | "SESUDAH";
+  latitude?: number;
+  longitude?: number;
 }
 
 interface ProgressFormData {
