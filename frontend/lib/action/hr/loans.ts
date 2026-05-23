@@ -206,6 +206,7 @@ export async function createKasbon(formData: {
   jumlah: string | number;
   keperluan?: string;
   bulanPotong?: string;
+  tanggal?: string;
   catatan?: string;
 }) {
   try {

@@ -382,7 +382,7 @@ export const getAllKasbon = async (req, res) => {
 
 export const createKasbon = async (req, res) => {
   try {
-    const { karyawanId, jumlah, keperluan, bulanPotong, catatan } = req.body;
+    const { karyawanId, jumlah, keperluan, bulanPotong, catatan, tanggal } = req.body;
 
     if (!karyawanId || !jumlah) {
       return res.status(400).json({ message: "karyawanId dan jumlah wajib diisi" });
@@ -407,6 +407,7 @@ export const createKasbon = async (req, res) => {
         jumlah: amount,
         keperluan,
         bulanPotong: bulanPotong ? new Date(bulanPotong) : null,
+        tanggal: tanggal ? new Date(tanggal) : new Date(),
         catatan,
         status: "PENDING",
       },
@@ -661,8 +662,18 @@ export const updateKasbon = async (req, res) => {
       include: { karyawan: { select: { gajiPokok: true } } },
     });
     if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
+
+    // Jika bukan PENDING, hanya boleh ubah bulanPotong dan catatan
     if (kasbon.status !== "PENDING") {
-      return res.status(400).json({ message: "Hanya kasbon berstatus PENDING yang dapat diedit" });
+      const updated = await prisma.kasbonSementara.update({
+        where: { id },
+        data: {
+          bulanPotong: bulanPotong ? new Date(bulanPotong) : kasbon.bulanPotong,
+          catatan: catatan !== undefined ? catatan : kasbon.catatan,
+        },
+        include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+      });
+      return res.json({ ...updated, warning: "Hanya tanggal pelunasan dan catatan yang diubah karena status bukan PENDING." });
     }
 
     const amount = jumlah ? parseFloat(jumlah) : Number(kasbon.jumlah);

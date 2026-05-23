@@ -2,6 +2,8 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   Table,
   TableBody,
@@ -48,6 +50,7 @@ import {
   Eye,
   ExternalLink,
   CreditCard,
+  Printer,
 } from "lucide-react";
 import {
   Tooltip,
@@ -265,6 +268,58 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
     return filteredData;
   }, [data, searchTerm, sortConfig, statusFilter]); // Pastikan menggunakan 'data' bukan 'karyawan'
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(14);
+    doc.text("Daftar Karyawan", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`, 14, 22);
+
+    const tableColumn = ["No", "NIK", "Nama Lengkap", "Jabatan", "Departemen", "Status Kerja"];
+    const tableRows: any[] = [];
+
+    filteredAndSortedData.forEach((karyawan, index) => {
+      const rowData = [
+        index + 1,
+        karyawan.nik || "-",
+        karyawan.namaLengkap || "-",
+        karyawan.jabatan || "-",
+        karyawan.departemen || "-",
+        karyawan.statusKerja === "aktif" ? "Aktif" : (karyawan.statusKerja === "cuti" ? "Cuti" : "Non-Aktif"),
+      ];
+      tableRows.push(rowData);
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 28,
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        halign: 'left',
+      },
+      headStyles: {
+        fillColor: [14, 165, 233],
+        textColor: 255,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { halign: 'center', cellWidth: 30 },
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      }
+    });
+
+    doc.save("daftar-karyawan.pdf");
+  };
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
@@ -770,6 +825,15 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   <span className="md:hidden">Tambah</span>
                 </Button>
               </Link>
+              <Button
+                onClick={handleExportPDF}
+                className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 md:px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2 w-full md:w-auto"
+                aria-label="Print PDF"
+              >
+                <Printer size={18} />
+                <span className="hidden md:inline">Print PDF</span>
+                <span className="md:hidden">Print</span>
+              </Button>
             </div>
           </div>
         ) : (
@@ -822,6 +886,15 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     <span className="md:hidden">Tambah</span>
                   </Button>
                 </Link>
+                <Button
+                  onClick={handleExportPDF}
+                  className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 md:px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2 w-full md:w-auto"
+                  aria-label="Print PDF"
+                >
+                  <Printer size={18} />
+                  <span className="hidden md:inline">Print PDF</span>
+                  <span className="md:hidden">Print</span>
+                </Button>
               </div>
             </div>
           </CardHeader>

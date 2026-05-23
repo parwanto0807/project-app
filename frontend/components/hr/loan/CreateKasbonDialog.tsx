@@ -43,6 +43,7 @@ const CreateKasbonDialog: React.FC<CreateKasbonDialogProps> = ({
     jumlah: "",
     keperluan: "",
     bulanPotong: "",
+    tanggal: new Date().toISOString().split("T")[0],
     catatan: "",
   });
 
@@ -83,7 +84,7 @@ const CreateKasbonDialog: React.FC<CreateKasbonDialogProps> = ({
         }
         onOpenChange(false);
         onSuccess?.();
-        setFormData({ karyawanId: "", jumlah: "", keperluan: "", bulanPotong: "", catatan: "" });
+        setFormData({ karyawanId: "", jumlah: "", keperluan: "", bulanPotong: "", tanggal: new Date().toISOString().split("T")[0], catatan: "" });
         setSelectedEmployee(null);
       } else {
         toast.error(res.error || "Gagal membuat kasbon");
@@ -95,11 +96,11 @@ const CreateKasbonDialog: React.FC<CreateKasbonDialogProps> = ({
     }
   };
 
-  // Generate next 6 months options for bulanPotong
-  const monthOptions = Array.from({ length: 6 }, (_, i) => {
+  // Generate 8 months options for bulanPotong (including 1 month back)
+  const monthOptions = Array.from({ length: 8 }, (_, i) => {
     const d = new Date();
     d.setDate(1);
-    d.setMonth(d.getMonth() + i + 1);
+    d.setMonth(d.getMonth() + i - 1);
     return {
       label: d.toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
       value: d.toISOString().split("T")[0],
@@ -186,6 +187,17 @@ const CreateKasbonDialog: React.FC<CreateKasbonDialogProps> = ({
                 Melebihi 50% gaji pokok. Pengajuan tetap bisa disimpan namun perlu persetujuan khusus.
               </div>
             )}
+          </div>
+
+          {/* Tanggal Input */}
+          <div className="space-y-2">
+            <Label className="text-gray-600">Tanggal Pengajuan / Input *</Label>
+            <Input
+              type="date"
+              className="rounded-xl border-gray-200"
+              value={formData.tanggal}
+              onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
+            />
           </div>
 
           {/* Bulan Potong */}
