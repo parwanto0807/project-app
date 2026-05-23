@@ -48,6 +48,8 @@ import { SpkFormValuesPdfProps } from "@/types/spk";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { SpkProgressUpdateDialog } from "./SpkProgressUpdateDialog";
+import { SpkMapDialog } from "./SpkMapDialog";
+import { MapPhoto } from "./SpkMapComponent";
 
 type SPK = {
     id: string;
@@ -142,7 +144,7 @@ interface SPKFieldReport {
     status?: string;
     reportedAt?: Date;
     createdAt: Date;
-    photos?: { latitude: number; longitude: number }[];
+    photos?: { latitude: number; longitude: number; imageUrl?: string; caption?: string }[];
 }
 
 type TabelDataSpkProps = {
@@ -343,11 +345,49 @@ export default function TabelDataSpk({
             spkDate: spk.spkDate,
             progress: spk.progress || 0,
             comment: spk.progressComment || "",
-        });
-        setIsProgressDialogOpen(true);
-    };
+    });
+    setIsProgressDialogOpen(true);
+};
 
-    const searchParams = useSearchParams();
+const [isMapDialogOpen, setIsMapDialogOpen] = useState(false);
+const [selectedMapPhotos, setSelectedMapPhotos] = useState<MapPhoto[]>([]);
+const [selectedSpkNumberForMap, setSelectedSpkNumberForMap] = useState("");
+
+const handleOpenMapDialog = (spk: SPK) => {
+    const photos: MapPhoto[] = [];
+    if (spk.spkFieldReport) {
+        spk.spkFieldReport.forEach(report => {
+            if (report.photos && report.photos.length > 0) {
+                report.photos.forEach(p => {
+                    if (p.latitude && p.longitude) {
+                        // Get backend URL
+                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+                        let fullImageUrl = undefined;
+                        
+                        if (p.imageUrl) {
+                            fullImageUrl = p.imageUrl.startsWith('http') 
+                                ? p.imageUrl 
+                                : `${apiUrl}${p.imageUrl.startsWith('/') ? '' : '/'}${p.imageUrl}`;
+                        }
+
+                        photos.push({
+                            latitude: p.latitude,
+                            longitude: p.longitude,
+                            imageUrl: fullImageUrl,
+                            caption: p.caption || `Laporan pada ${new Date(report.reportedAt || report.createdAt).toLocaleDateString('id-ID')}`
+                        });
+                    }
+                });
+            }
+        });
+    }
+    
+    setSelectedMapPhotos(photos);
+    setSelectedSpkNumberForMap(spk.spkNumber);
+    setIsMapDialogOpen(true);
+};
+
+const searchParams = useSearchParams();
     const page = Number(searchParams.get("page")) || 1;
     const highlightStatus = searchParams.get("status") || "";
     const pageSize = searchParams.get("pageSize") || "";
@@ -360,7 +400,8 @@ export default function TabelDataSpk({
     const pdfActions = usePdfActions();
 
     // DEBUG: Log data yang diterima
-    ;(() => {})("🔍 TabelDataSpk - Data received:", {
+    /*
+    console.log("🔍 TabelDataSpk - Data received:", {
         dataCount: dataSpk?.length || 0,
         data: dataSpk?.map(item => ({
             id: item.id,
@@ -369,6 +410,7 @@ export default function TabelDataSpk({
             status: item.spkStatusClose
         }))
     });
+    */
 
     const handleDelete = async (spkId: string) => {
         const confirmDelete = window.confirm(
@@ -443,7 +485,7 @@ export default function TabelDataSpk({
     // Gunakan dataSpk langsung tanpa filtering
     const displayData = dataSpk || [];
 
-    ;(() => {})("🔍 TabelDataSpk - Display data count:", displayData.length);
+    // console.log("🔍 TabelDataSpk - Display data count:", displayData.length);
 
     const toggleRow = (id: string) => {
         const newExpanded = new Set(expandedRows);
@@ -868,15 +910,15 @@ export default function TabelDataSpk({
                                                 </Button>
                                                 {mapUrl && (
                                                     <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-8 w-full xs:w-32 border-red-300 hover:bg-red-50 dark:border-red-600 dark:hover:bg-red-900/20 cursor-pointer"
-                                                        onClick={() => window.open(mapUrl, '_blank')}
-                                                    >
-                                                        <MapPin className="h-3 w-3 mr-1" />
-                                                        <span className="text-xs">Peta</span>
-                                                    </Button>
-                                                )}
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 w-full xs:w-32 border-red-300 hover:bg-red-50 dark:border-red-600 dark:hover:bg-red-900/20 cursor-pointer"
+                                                    onClick={() => handleOpenMapDialog(spk)}
+                                                >
+                                                    <MapPin className="h-3 w-3 mr-1" />
+                                                    <span className="text-xs">Peta</span>
+                                                </Button>
+                                            )}
                                             </div>
 
                                             {/* Admin Actions */}
@@ -1399,7 +1441,7 @@ export default function TabelDataSpk({
                                                                         className="h-8 w-8 rounded-full border-gray-300 dark:border-gray-600 bg-white hover:bg-red-50 dark:bg-gray-800 dark:hover:bg-red-900/30 transition-all duration-300"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            window.open(mapUrl, '_blank');
+                                                                            handleOpenMapDialog(spk);
                                                                         }}
                                                                     >
                                                                         <MapPin className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -1764,6 +1806,13 @@ export default function TabelDataSpk({
                     onSuccess={() => onRefresh?.()}
                 />
             )}
+
+            <SpkMapDialog 
+                isOpen={isMapDialogOpen} 
+                onOpenChange={setIsMapDialogOpen} 
+                photos={selectedMapPhotos} 
+                spkNumber={selectedSpkNumberForMap} 
+            />
         </Card>
     );
 }

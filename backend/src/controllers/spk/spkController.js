@@ -584,12 +584,12 @@ export const getAllSPKAdmin = async (req, res) => {
               select: {
                 latitude: true,
                 longitude: true,
+                imageUrl: true,
               },
               where: {
                 latitude: { not: null },
                 longitude: { not: null },
               },
-              take: 1,
             },
           },
           orderBy: {
