@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Package, ArrowLeftRight, Plus } from 'lucide-react';
@@ -12,24 +12,15 @@ import { useTransfers } from '@/hooks/use-tf';
 
 export default function TransferPage() {
     const router = useRouter();
-    const { data: transfersData, isLoading } = useTransfers({ page: 1, limit: 10 });
+    const [page, setPage] = useState(1);
+    const limit = 10;
+    
+    const { data: transfersData, isLoading } = useTransfers({ page, limit });
 
     // API returns: { success: true, data: [...], pagination: {...} }
     // data is DIRECTLY the array, not nested!
     const transfers = transfersData?.success && Array.isArray(transfersData.data) ? transfersData.data : [];
     const pagination = (transfersData as any)?.pagination;
-
-    useEffect(() => {
-        ;(() => {})('📊 Transfer Page - Data:', transfersData);
-        ;(() => {})('📊 Transfer Page - Data (JSON):', JSON.stringify(transfersData, null, 2));
-        ;(() => {})('📋 Transfers array:', transfers);
-        ;(() => {})('🔢 Transfers count:', transfers.length);
-        if (transfersData) {
-            ;(() => {})('🔍 transfersData.data:', transfersData.data);
-            ;(() => {})('🔍 transfersData.data type:', typeof transfersData.data);
-            ;(() => {})('🔍 Is transfersData.data an array?', Array.isArray(transfersData.data));
-        }
-    }, [transfersData, transfers]);
 
     const handleCreateTransfer = () => {
         router.push('/admin-area/inventory/transfer/create');
@@ -87,7 +78,7 @@ export default function TransferPage() {
                             <CardTitle>Transfer List</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <TransferTable data={transfers} isLoading={isLoading} />
+                            <TransferTable data={transfers} isLoading={isLoading} pagination={pagination} onPageChange={setPage} />
                         </CardContent>
                     </Card>
                 </div>

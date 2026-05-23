@@ -6,6 +6,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
     Eye,
     Loader2,
     Search,
@@ -46,6 +55,13 @@ const BlobProvider = dynamic(
 interface TransferTableProps {
     data: StockTransfer[];
     isLoading?: boolean;
+    pagination?: {
+        page: number;
+        limit: number;
+        totalCount: number;
+        totalPages: number;
+    };
+    onPageChange?: (page: number) => void;
 }
 
 const statusConfig: Record<TransferStatus, {
@@ -86,7 +102,7 @@ const statusConfig: Record<TransferStatus, {
     },
 };
 
-export function TransferTable({ data, isLoading }: TransferTableProps) {
+export function TransferTable({ data, isLoading, pagination, onPageChange }: TransferTableProps) {
     const router = useRouter();
     const createGR = useCreateTransferGR();
     const [selectedTransfer, setSelectedTransfer] = useState<StockTransfer | null>(null);
@@ -434,6 +450,79 @@ export function TransferTable({ data, isLoading }: TransferTableProps) {
                         </Table>
                     </div>
                 </CardContent>
+                {/* Pagination */}
+                {pagination && onPageChange && pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6 rounded-b-xl">
+                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.totalCount)}</span> of <span className="font-medium">{pagination.totalCount}</span> results
+                                </p>
+                            </div>
+                            <div>
+                                <Pagination className="justify-end w-auto mx-0">
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (pagination.page > 1) onPageChange(pagination.page - 1);
+                                                }}
+                                                className={pagination.page <= 1 ? "pointer-events-none opacity-50" : ""}
+                                            />
+                                        </PaginationItem>
+                                        
+                                        {[...Array(pagination.totalPages)].map((_, i) => {
+                                            const pageNumber = i + 1;
+                                            if (
+                                                pageNumber === 1 ||
+                                                pageNumber === pagination.totalPages ||
+                                                (pageNumber >= pagination.page - 1 && pageNumber <= pagination.page + 1)
+                                            ) {
+                                                return (
+                                                    <PaginationItem key={i}>
+                                                        <PaginationLink
+                                                            href="#"
+                                                            isActive={pageNumber === pagination.page}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                onPageChange(pageNumber);
+                                                            }}
+                                                        >
+                                                            {pageNumber}
+                                                        </PaginationLink>
+                                                    </PaginationItem>
+                                                );
+                                            } else if (
+                                                pageNumber === pagination.page - 2 ||
+                                                pageNumber === pagination.page + 2
+                                            ) {
+                                                return (
+                                                    <PaginationItem key={i}>
+                                                        <PaginationEllipsis />
+                                                    </PaginationItem>
+                                                );
+                                            }
+                                            return null;
+                                        })}
+
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (pagination.page < pagination.totalPages) onPageChange(pagination.page + 1);
+                                                }}
+                                                className={pagination.page >= pagination.totalPages ? "pointer-events-none opacity-50" : ""}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </Card>
 
             {/* Transfer Detail Sheet */}
