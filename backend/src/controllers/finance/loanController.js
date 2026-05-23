@@ -250,7 +250,7 @@ export const postPinjaman = async (req, res) => {
       return updatedLoan;
     }, { timeout: 30000 });
 
-    // Send push notification to the Employee
+    // Send push notification to the Employee & Admin
     try {
       if (loan.karyawan?.userId) {
         await NotificationService.sendToUser(loan.karyawan.userId, {
@@ -264,6 +264,17 @@ export const postPinjaman = async (req, res) => {
           }
         });
       }
+      // Notify Admin
+      await NotificationService.broadcastToAdminsOnly({
+        title: "💵 Pinjaman Dicairkan",
+        body: `Pinjaman untuk ${loan.karyawan?.namaLengkap} sebesar Rp${loan.jumlahPinjaman.toLocaleString('id-ID')} telah dicairkan.`,
+        type: "loan_approved",
+        data: {
+          id: loan.id,
+          status: "ACTIVE",
+          click_action: "FLUTTER_NOTIFICATION_CLICK"
+        }
+      });
     } catch (notifError) {
       console.error("[Notification] Failed to send loan approval notification:", notifError.message);
     }
@@ -450,7 +461,7 @@ export const approveKasbon = async (req, res) => {
       },
     });
 
-    // Send push notification to the Employee
+    // Send push notification to the Employee & Admin
     try {
       if (kasbon.karyawan?.userId) {
         await NotificationService.sendToUser(kasbon.karyawan.userId, {
@@ -464,6 +475,17 @@ export const approveKasbon = async (req, res) => {
           }
         });
       }
+      // Notify Admin
+      await NotificationService.broadcastToAdminsOnly({
+        title: "🪙 Kasbon Disetujui",
+        body: `Kasbon untuk ${kasbon.karyawan?.namaLengkap} sebesar Rp${kasbon.jumlah.toLocaleString('id-ID')} telah disetujui.`,
+        type: "cash_advance_approved",
+        data: {
+          id: kasbon.id,
+          status: "APPROVED",
+          click_action: "FLUTTER_NOTIFICATION_CLICK"
+        }
+      });
     } catch (notifError) {
       console.error("[Notification] Failed to send kasbon approval notification:", notifError.message);
     }
@@ -533,7 +555,7 @@ export const postKasbon = async (req, res) => {
       return updated;
     }, { timeout: 30000 });
 
-    // Send push notification to the Employee
+    // Send push notification to the Employee & Admin
     try {
       if (kasbon.karyawan?.userId) {
         await NotificationService.sendToUser(kasbon.karyawan.userId, {
@@ -547,6 +569,17 @@ export const postKasbon = async (req, res) => {
           }
         });
       }
+      // Notify Admin
+      await NotificationService.broadcastToAdminsOnly({
+        title: "🪙 Kasbon Dicairkan",
+        body: `Kasbon untuk ${kasbon.karyawan?.namaLengkap} sebesar Rp${kasbon.jumlah.toLocaleString('id-ID')} telah dicairkan.`,
+        type: "cash_advance_disbursed",
+        data: {
+          id: kasbon.id,
+          status: "DISBURSED",
+          click_action: "FLUTTER_NOTIFICATION_CLICK"
+        }
+      });
     } catch (notifError) {
       console.error("[Notification] Failed to send kasbon disbursement notification:", notifError.message);
     }
@@ -579,7 +612,7 @@ export const rejectKasbon = async (req, res) => {
         },
         include: { karyawan: { select: { namaLengkap: true, nik: true } } },
       });
-      // Send push notification to the Employee
+      // Send push notification to the Employee & Admin
       try {
         if (updated.karyawan?.userId) {
           await NotificationService.sendToUser(updated.karyawan.userId, {
@@ -593,6 +626,17 @@ export const rejectKasbon = async (req, res) => {
             }
           });
         }
+        // Notify Admin
+        await NotificationService.broadcastToAdminsOnly({
+          title: "❌ Kasbon Ditolak",
+          body: `Kasbon untuk ${updated.karyawan?.namaLengkap} telah ditolak. Alasan: ${rejectedReason || "Tidak ada alasan"}.`,
+          type: "cash_advance_rejected",
+          data: {
+            id: updated.id,
+            status: "REJECTED",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
       } catch (notifError) {
         console.error("[Notification] Failed to send kasbon rejection notification:", notifError.message);
       }
@@ -612,7 +656,7 @@ export const rejectKasbon = async (req, res) => {
         },
         include: { karyawan: { select: { namaLengkap: true, nik: true } } },
       });
-      // Send push notification to the Employee
+      // Send push notification to the Employee & Admin
       try {
         if (updated.karyawan?.userId) {
           await NotificationService.sendToUser(updated.karyawan.userId, {
@@ -626,6 +670,17 @@ export const rejectKasbon = async (req, res) => {
             }
           });
         }
+        // Notify Admin
+        await NotificationService.broadcastToAdminsOnly({
+          title: "❌ Kasbon Dibatalkan",
+          body: `Kasbon untuk ${updated.karyawan?.namaLengkap} telah dibatalkan setelah approval. Alasan: ${rejectedReason || "Dibatalkan setelah approval"}.`,
+          type: "cash_advance_rejected",
+          data: {
+            id: updated.id,
+            status: "REJECTED",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
       } catch (notifError) {
         console.error("[Notification] Failed to send kasbon rejection notification:", notifError.message);
       }
@@ -910,7 +965,7 @@ export const applyMyKasbon = async (req, res) => {
         where: { id: karyawan.id },
         select: { namaLengkap: true }
       });
-      await NotificationService.broadcastToAdmins({
+      await NotificationService.broadcastToAdminsOnly({
         title: "🪙 Pengajuan Kasbon Baru",
         body: `${employeeDetails?.namaLengkap || 'Karyawan'} mengajukan Kasbon sebesar Rp${amount.toLocaleString('id-ID')}.`,
         type: "cash_advance_request",
@@ -922,6 +977,20 @@ export const applyMyKasbon = async (req, res) => {
           click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
       });
+
+      // Notifikasi untuk user yang mengajukan
+      if (userId) {
+        await NotificationService.sendToUser(userId, {
+          title: "🪙 Pengajuan Berhasil",
+          body: `Halo ${employeeDetails?.namaLengkap || 'Karyawan'}, pengajuan Kasbon Anda sebesar Rp${amount.toLocaleString('id-ID')} berhasil dikirim dan menunggu persetujuan Admin.`,
+          type: "cash_advance_submitted",
+          data: {
+            id: kasbon.id,
+            status: "PENDING",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
     } catch (notifError) {
       console.error("[Notification] Failed to send admin notification for kasbon request:", notifError.message);
     }
@@ -1007,7 +1076,7 @@ export const applyLoan = async (req, res) => {
         where: { id: karyawan.id },
         select: { namaLengkap: true }
       });
-      await NotificationService.broadcastToAdmins({
+      await NotificationService.broadcastToAdminsOnly({
         title: "💵 Pengajuan Pinjaman Baru",
         body: `${employeeDetails?.namaLengkap || 'Karyawan'} mengajukan Pinjaman sebesar Rp${amount.toLocaleString('id-ID')} dengan tenor ${months} bulan.`,
         type: "loan_request",
@@ -1020,6 +1089,20 @@ export const applyLoan = async (req, res) => {
           click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
       });
+
+      // Notifikasi untuk user yang mengajukan
+      if (userId) {
+        await NotificationService.sendToUser(userId, {
+          title: "💵 Pengajuan Berhasil",
+          body: `Halo ${employeeDetails?.namaLengkap || 'Karyawan'}, pengajuan Pinjaman Anda sebesar Rp${amount.toLocaleString('id-ID')} berhasil dikirim dan menunggu persetujuan Admin.`,
+          type: "loan_submitted",
+          data: {
+            id: result.id,
+            status: "DRAFT",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
     } catch (notifError) {
       console.error("[Notification] Failed to send admin notification for loan request:", notifError.message);
     }
