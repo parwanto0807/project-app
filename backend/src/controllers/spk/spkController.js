@@ -579,7 +579,13 @@ export const getAllSPKAdmin = async (req, res) => {
         },
         spkFieldReport: {
           include: {
-            soDetail: true,
+            soDetail: {
+              include: {
+                product: {
+                  select: { name: true }
+                }
+              }
+            },
             photos: {
               select: {
                 latitude: true,

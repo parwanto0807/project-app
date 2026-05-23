@@ -21,6 +21,7 @@ export interface MapPhoto {
   longitude: number;
   imageUrl?: string;
   caption?: string;
+  itemName?: string;
 }
 
 interface SpkMapComponentProps {
@@ -87,11 +88,18 @@ export default function SpkMapComponent({ photos }: SpkMapComponentProps) {
                         No Image Available
                       </div>
                     )}
-                    {photo.caption && (
-                      <p className="text-xs font-medium text-gray-800 m-0 leading-tight">
-                        {photo.caption}
-                      </p>
-                    )}
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      {photo.itemName && (
+                        <p className="text-[11px] font-bold text-blue-600 dark:text-blue-400 m-0 leading-tight">
+                          {photo.itemName}
+                        </p>
+                      )}
+                      {photo.caption && (
+                        <p className="text-xs font-medium text-gray-800 m-0 leading-tight">
+                          {photo.caption}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

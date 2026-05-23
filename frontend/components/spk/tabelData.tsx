@@ -144,6 +144,7 @@ interface SPKFieldReport {
     status?: string;
     reportedAt?: Date;
     createdAt: Date;
+    soDetail?: { product?: { name?: string } };
     photos?: { latitude: number; longitude: number; imageUrl?: string; caption?: string }[];
 }
 
@@ -374,7 +375,8 @@ const handleOpenMapDialog = (spk: SPK) => {
                             latitude: p.latitude,
                             longitude: p.longitude,
                             imageUrl: fullImageUrl,
-                            caption: p.caption || `Laporan pada ${new Date(report.reportedAt || report.createdAt).toLocaleDateString('id-ID')}`
+                            caption: p.caption || `Laporan pada ${new Date(report.reportedAt || report.createdAt).toLocaleDateString('id-ID')}`,
+                            itemName: report.soDetail?.product?.name || "Laporan Umum"
                         });
                     }
                 });
