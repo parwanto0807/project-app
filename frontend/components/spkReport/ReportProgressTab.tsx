@@ -347,19 +347,19 @@ const ReportProgressTab = ({
                                 maximumAge: 0
                             });
                         });
-                        
+
                         finalPhotos = finalPhotos.map(p => ({
                             ...p,
                             latitude: p.latitude ?? position.coords.latitude,
                             longitude: p.longitude ?? position.coords.longitude
                         }));
-                        
+
                         // Update state UI juga
                         setFormData(prev => ({ ...prev, photos: finalPhotos }));
                         toast.success("Lokasi GPS didapatkan!");
                     } catch (geoErr) {
-                        toast.error("Gagal Menyimpan Laporan: Izin Lokasi Ditolak", { 
-                            description: "Sistem membutuhkan akses lokasi (GPS) Anda saat ini untuk bukti laporan lapangan. Tolong aktifkan GPS dan izinkan browser mengakses lokasi." 
+                        toast.error("Gagal Menyimpan Laporan: Izin Lokasi Ditolak", {
+                            description: "Sistem membutuhkan akses lokasi (GPS) Anda saat ini untuk bukti laporan lapangan. Tolong aktifkan GPS dan izinkan browser mengakses lokasi."
                         });
                         setUploading(false);
                         return;
@@ -428,7 +428,7 @@ const ReportProgressTab = ({
                 photoCategory: 'SEBELUM'
             }));
 
-            setActiveTab('list');
+            // setActiveTab('list');
             fetchReports();
 
         } catch (error) {

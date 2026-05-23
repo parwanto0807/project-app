@@ -126,16 +126,16 @@ export default function SpkReportPageAdmin() {
         try {
             setIsLoading(true);
 
-            let result: SPK[] = [];
-            if (role === "admin" || role === 'super') {
-                result = await fetchAllSpk();   // ✅ ambil semua SPK untuk admin/super
-            } else {
-                result = await getSpkByEmail(email); // ✅ user biasa hanya SPK yang assigned
-            }
+            // Fetch data SPK dan data Karyawan secara paralel agar lebih cepat
+            const [result, karyawan] = await Promise.all([
+                (role === "admin" || role === 'super') 
+                    ? fetchAllSpk() 
+                    : getSpkByEmail(email),
+                fetchKaryawanByEmail(email)
+            ]);
 
             setDataSpk(result);
 
-            const karyawan = await fetchKaryawanByEmail(email);
             if (karyawan) {
                 setDataKarywanByEmail(karyawan.user.id);
             } else {
