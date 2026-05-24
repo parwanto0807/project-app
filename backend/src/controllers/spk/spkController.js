@@ -319,7 +319,6 @@ export const getRecentSPK = async (req, res) => {
         },
         spkFieldReport: {
           orderBy: { reportedAt: 'desc' },
-          take: 1,
           include: {
             photos: true,
           },

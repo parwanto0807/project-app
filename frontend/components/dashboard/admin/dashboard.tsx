@@ -1299,12 +1299,16 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
     const [isHovered, setIsHovered] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
 
-    // Ambil semua foto (tidak dibatasi)
+    // Ambil semua foto dari seluruh laporan SPK terkait (tidak hanya laporan terakhir)
     const spksWithPhotos = recentSpk.map((spk) => {
-        const latestReport = spk.spkFieldReport?.[0];
-        // Tampilkan semua foto yang ada
-        const photos = latestReport?.photos || [];
-        return { ...spk, photos };
+        const allPhotos = spk.spkFieldReport?.reduce((acc, report) => {
+            if (report.photos && Array.isArray(report.photos)) {
+                return [...acc, ...report.photos];
+            }
+            return acc;
+        }, [] as any[]) || [];
+        
+        return { ...spk, photos: allPhotos };
     });
 
     const handleNext = () => {
@@ -1353,28 +1357,24 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
     const currentSpk = spksWithPhotos[currentIndex];
     const hasPhotos = currentSpk?.photos?.length > 0;
 
-    // Layout Grid Sempurna (Tidak ada ruang kosong)
-    const getPerfectGridClass = (total: number, index: number) => {
-        if (total === 1) return "col-span-12 row-span-12";
-        if (total === 2) return "col-span-6 row-span-12";
-        if (total === 3) {
-            if (index === 0) return "col-span-8 row-span-12";
-            return "col-span-4 row-span-6";
-        }
-        if (total === 4) {
-            if (index === 0) return "col-span-8 row-span-12";
-            return "col-span-4 row-span-4";
-        }
-        if (total === 5) {
-            if (index === 0) return "col-span-6 row-span-12";
-            return "col-span-3 row-span-6";
-        }
-        if (total === 6) {
-            if (index === 0) return "col-span-8 row-span-8";
-            return "col-span-4 row-span-4";
-        }
-        return "col-span-4 row-span-4";
+    const getGridConfig = (total: number) => {
+        if (total === 1) return { container: "grid-cols-1 grid-rows-1", getItem: () => "col-span-1" };
+        if (total === 2) return { container: "grid-cols-2 grid-rows-1", getItem: () => "col-span-1" };
+        if (total === 3) return { container: "grid-cols-2 grid-rows-2", getItem: (i: number) => i === 0 ? "row-span-2 col-span-1" : "col-span-1" };
+        if (total === 4) return { container: "grid-cols-2 grid-rows-2", getItem: () => "col-span-1" };
+        if (total === 5) return { container: "grid-cols-6 grid-rows-2", getItem: (i: number) => i < 3 ? "col-span-2" : "col-span-3" };
+        if (total === 6) return { container: "grid-cols-3 grid-rows-2", getItem: () => "col-span-1" };
+        if (total === 7) return { container: "grid-cols-12 grid-rows-2", getItem: (i: number) => i < 4 ? "col-span-3" : "col-span-4" };
+        if (total === 8) return { container: "grid-cols-4 grid-rows-2", getItem: () => "col-span-1" };
+        if (total === 9) return { container: "grid-cols-3 grid-rows-3", getItem: () => "col-span-1" };
+        if (total === 10) return { container: "grid-cols-5 grid-rows-2", getItem: () => "col-span-1" };
+        
+        // Default untuk > 10 foto (Maksimum 12 foto yang ditampilkan)
+        return { container: "grid-cols-4 grid-rows-3", getItem: () => "col-span-1" };
     };
+
+    const gridConfig = getGridConfig(currentSpk?.photos?.length || 0);
+    const photosToShow = currentSpk?.photos?.slice(0, 12) || [];
 
     return (
         <div 
@@ -1386,38 +1386,22 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
                 @keyframes slideFadeIn {
                     0% { 
                         opacity: 0; 
-                        transform: translateX(100%) scale(0.95);
+                        transform: scale(1.05) translateY(10px); 
                     }
                     100% { 
                         opacity: 1; 
-                        transform: translateX(0) scale(1);
+                        transform: scale(1) translateY(0); 
                     }
                 }
-                
-                @keyframes slideFadeOut {
-                    0% { 
-                        opacity: 1; 
-                        transform: translateX(0) scale(1);
-                    }
-                    100% { 
-                        opacity: 0; 
-                        transform: translateX(-100%) scale(0.95);
-                    }
-                }
-                
                 .animate-slide-fade-in {
-                    animation: slideFadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-                }
-                
-                .animate-slide-fade-out {
-                    animation: slideFadeOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                    animation: slideFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
                 }
                 
                 .custom-scrollbar::-webkit-scrollbar {
-                    width: 4px;
+                    width: 6px;
                 }
                 .custom-scrollbar::-webkit-scrollbar-track {
-                    background: rgba(0,0,0,0.1);
+                    background: transparent;
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb {
                     background: rgba(255,255,255,0.2);
@@ -1442,78 +1426,37 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
             {hasPhotos ? (
                 <div 
                     key={`${currentSpk.id}-${currentIndex}`} 
-                    className="absolute inset-0 p-1 md:p-2 bg-slate-950 animate-slide-fade-in overflow-y-auto custom-scrollbar"
+                    className="absolute inset-0 p-1 md:p-2 bg-slate-950 animate-slide-fade-in overflow-hidden"
                 >
-                    {currentSpk.photos.length <= 6 ? (
-                        // Perfect packed grid untuk 1-6 foto (100% full, tidak ada kosong)
-                        <div className="grid grid-cols-12 grid-rows-12 gap-1 md:gap-2 h-full w-full">
-                            {currentSpk.photos.map((photo: any, idx: number) => (
-                                <div key={photo.id || idx} className={`relative overflow-hidden rounded-xl shadow-sm bg-slate-800 ${getPerfectGridClass(currentSpk.photos.length, idx)}`}>
-                                    <div className="absolute inset-0 bg-slate-800 animate-pulse" />
-                                    <img 
-                                        src={(() => {
-                                            const src = makeImageSrc(photo.imageUrl);
-                                            return src;
-                                        })()} 
-                                        alt={`SPK ${currentSpk.spkNumber} - Photo ${idx + 1}`}
-                                        loading="lazy"
-                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 hover:opacity-100"
-                                        onError={(e) => {
-                                            const target = e.currentTarget as HTMLImageElement;
-                                            const originalSrc = target.src;
-                                            if (originalSrc.includes('localhost:5000') || originalSrc.includes('localhost:3000')) {
-                                                const newSrc = originalSrc.replace(/http:\/\/localhost:(5000|3000)/, 'https://api.rylif-app.com');
-                                                if (target.getAttribute('data-tried-vps') !== 'true') {
-                                                    target.setAttribute('data-tried-vps', 'true');
-                                                    target.src = newSrc;
-                                                    return;
-                                                }
+                    <div className={`grid ${gridConfig.container} gap-1 md:gap-2 h-full w-full`}>
+                        {photosToShow.map((photo: any, idx: number) => (
+                            <div key={photo.id || idx} className={`relative overflow-hidden rounded-xl shadow-sm bg-slate-800 ${gridConfig.getItem(idx)}`}>
+                                <div className="absolute inset-0 bg-slate-800 animate-pulse" />
+                                <img 
+                                    src={(() => {
+                                        const src = makeImageSrc(photo.imageUrl);
+                                        return src;
+                                    })()} 
+                                    alt={`SPK ${currentSpk.spkNumber} - Photo ${idx + 1}`}
+                                    loading="lazy"
+                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 hover:opacity-100"
+                                    onError={(e) => {
+                                        const target = e.currentTarget as HTMLImageElement;
+                                        const originalSrc = target.src;
+                                        if (originalSrc.includes('localhost:5000') || originalSrc.includes('localhost:3000')) {
+                                            const newSrc = originalSrc.replace(/http:\/\/localhost:(5000|3000)/, 'https://api.rylif-app.com');
+                                            if (target.getAttribute('data-tried-vps') !== 'true') {
+                                                target.setAttribute('data-tried-vps', 'true');
+                                                target.src = newSrc;
+                                                return;
                                             }
-                                            target.style.display = 'none';
-                                        }}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        // Masonry flex-grow layout untuk foto > 6 (Otomatis mengisi baris sampai penuh)
-                        <div className="flex flex-wrap gap-1 md:gap-2 w-full content-start">
-                            {currentSpk.photos.map((photo: any, idx: number) => {
-                                const growFactors = [1, 2, 1.5, 3, 1.2];
-                                return (
-                                    <div 
-                                        key={photo.id || idx} 
-                                        className="relative overflow-hidden rounded-xl shadow-sm bg-slate-800 h-[100px] md:h-[150px]"
-                                        style={{ flexGrow: growFactors[idx % growFactors.length], flexBasis: "20%" }}
-                                    >
-                                        <div className="absolute inset-0 bg-slate-800 animate-pulse" />
-                                        <img 
-                                            src={(() => {
-                                                const src = makeImageSrc(photo.imageUrl);
-                                                return src;
-                                            })()} 
-                                            alt={`SPK ${currentSpk.spkNumber} - Photo ${idx + 1}`}
-                                            loading="lazy"
-                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 hover:opacity-100"
-                                            onError={(e) => {
-                                                const target = e.currentTarget as HTMLImageElement;
-                                                const originalSrc = target.src;
-                                                if (originalSrc.includes('localhost:5000') || originalSrc.includes('localhost:3000')) {
-                                                    const newSrc = originalSrc.replace(/http:\/\/localhost:(5000|3000)/, 'https://api.rylif-app.com');
-                                                    if (target.getAttribute('data-tried-vps') !== 'true') {
-                                                        target.setAttribute('data-tried-vps', 'true');
-                                                        target.src = newSrc;
-                                                        return;
-                                                    }
-                                                }
-                                                target.style.display = 'none';
-                                            }}
-                                        />
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
+                                        }
+                                        target.style.display = 'none';
+                                    }}
+                                />
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ) : (
                 <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-800">
