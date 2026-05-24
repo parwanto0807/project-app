@@ -2,8 +2,9 @@
 export const makeImageSrc = (val?: string | null): string => {
   if (!val) return "";
   if (val.startsWith("http")) return val; // full URL
-  const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
-  return `${base}${val}`;
+  const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:5000";
+  const path = val.startsWith("/") ? val : `/${val}`;
+  return `${base}${path}`;
 };
 
 export const makeImageSrcEmployee = (val?: string | null): string => {

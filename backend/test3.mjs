@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); prisma.sPKFieldReportPhoto.findMany({where: {imageUrl: {contains: '1779514572854'}}}).then(res => { console.log(res); prisma.$disconnect(); }).catch(e => { console.error(e); prisma.$disconnect(); })

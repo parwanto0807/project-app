@@ -26,12 +26,16 @@ import {
     BarChart3,
     FileText,
     Receipt,
+    ChevronLeft,
+    ChevronRight,
+    ImageIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { SalesChart } from "./salesChart";
 import { InvoiceChart } from "./invoiceChart";
 import { MobileShortcut } from "@/components/mobile-shortcut";
 import { ActiveEmployeesCard } from "./active-employees-card";
+import { makeImageSrc } from "@/utils/makeImageSrc";
 
 // =============================
 // KONFIGURASI API BACKEND
@@ -89,10 +93,22 @@ interface SPKMini {
             name: string;
             branch: string | null;
         } | null;
+        project?: {
+            id: string;
+            name: string;
+        } | null;
     } | null;
     team: {
         namaTeam: string;
     } | null;
+    spkFieldReport?: Array<{
+        id: string;
+        reportedAt: string;
+        photos: Array<{
+            id: string;
+            imageUrl: string;
+        }>;
+    }>;
 }
 
 interface SalesStats {
@@ -269,7 +285,7 @@ function StatusBadge({ status }: { status: OrderStatus }) {
 export default function DashboardAwalSalesOrder() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState("sales-order");
+    const [activeTab, setActiveTab] = useState("logistic");
 
     const [customerCount, setCustomerCount] = useState<number | null>(null);
     const [productCount, setProductCount] = useState<number | null>(null);
@@ -821,8 +837,8 @@ export default function DashboardAwalSalesOrder() {
 
                 {/* Logistic & SPK Tab */}
                 <TabsContent value="logistic" className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        <Card className="lg:col-span-2 shadow-sm border overflow-hidden">
+                    <div className="grid grid-cols-1 gap-6">
+                        <Card className="shadow-sm border overflow-hidden">
                             <CardHeader className="pb-3 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-900/10">
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -849,145 +865,7 @@ export default function DashboardAwalSalesOrder() {
                                         Belum ada aktivitas SPK terbaru.
                                     </div>
                                 ) : (
-                                    <>
-                                        {/* Desktop View Table */}
-                                        <div className="hidden md:block overflow-x-auto">
-                                            <Table>
-                                                <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
-                                                    <TableRow>
-                                                        <TableHead className="w-[150px] text-xs font-bold">Nomor SPK</TableHead>
-                                                        <TableHead className="text-xs font-bold">Customer / SO</TableHead>
-                                                        <TableHead className="w-[180px] text-xs font-bold">Progress</TableHead>
-                                                        <TableHead className="w-[100px] text-xs font-bold">Status</TableHead>
-                                                        <TableHead className="w-[140px] text-xs font-bold text-right">Update Terakhir</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {recentSpk.map((s) => (
-                                                        <TableRow key={s.id} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/5 transition-colors group">
-                                                            <TableCell className="font-bold text-xs md:text-sm text-orange-600 dark:text-orange-400">
-                                                                {s.spkNumber}
-                                                                <div className="text-[10px] text-muted-foreground font-normal mt-0.5">
-                                                                    Team: {s.team?.namaTeam || "-"}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <div className="text-xs md:text-sm font-medium">
-                                                                    {s.salesOrder?.customer?.name || "-"}
-                                                                </div>
-                                                                <div className="text-[10px] text-muted-foreground">
-                                                                    SO: {s.salesOrder?.soNumber || "-"}
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <div className="space-y-1.5">
-                                                                    <div className="flex justify-between items-center text-[10px]">
-                                                                        <span className="font-medium">{s.progress}%</span>
-                                                                        <span className="text-muted-foreground truncate max-w-[100px]">
-                                                                            {s.progressComment || "No comment"}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                                        <div 
-                                                                            className={`h-full rounded-full transition-all duration-500 ${
-                                                                                s.progress >= 100 ? 'bg-emerald-500' : 
-                                                                                s.progress >= 50 ? 'bg-sky-500' : 
-                                                                                s.progress > 0 ? 'bg-amber-500' : 'bg-slate-300'
-                                                                            }`}
-                                                                            style={{ width: `${s.progress}%` }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Badge className={`text-[10px] px-2 py-0.5 rounded-full ${
-                                                                    s.spkStatusClose 
-                                                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400' 
-                                                                    : 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400'
-                                                                }`}>
-                                                                    {s.spkStatusClose ? 'CLOSED' : 'OPEN'}
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                <div className="text-[10px] md:text-xs text-muted-foreground font-medium">
-                                                                    {new Date(s.updatedAt).toLocaleDateString('id-ID', {
-                                                                        day: '2-digit',
-                                                                        month: 'short',
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit'
-                                                                    })}
-                                                                </div>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-
-                                        {/* Mobile View Card List */}
-                                        <div className="md:hidden divide-y">
-                                            {recentSpk.map((s) => (
-                                                <div key={s.id} className="p-4 space-y-3 hover:bg-orange-50/30 transition-colors">
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <div className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-tight">
-                                                                {s.spkNumber}
-                                                            </div>
-                                                            <div className="text-sm font-semibold mt-0.5 leading-tight">
-                                                                {s.salesOrder?.customer?.name || "-"}
-                                                            </div>
-                                                            <div className="text-[10px] text-muted-foreground">
-                                                                SO: {s.salesOrder?.soNumber || "-"} | Team: {s.team?.namaTeam || "-"}
-                                                            </div>
-                                                        </div>
-                                                        <Badge className={`text-[9px] px-1.5 py-0 rounded-full ${
-                                                            s.spkStatusClose 
-                                                            ? 'bg-emerald-100 text-emerald-700' 
-                                                            : 'bg-orange-100 text-orange-700'
-                                                        }`}>
-                                                            {s.spkStatusClose ? 'CLOSED' : 'OPEN'}
-                                                        </Badge>
-                                                    </div>
-
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex justify-between items-center text-[10px]">
-                                                            <span className="font-bold">{s.progress}% Progress</span>
-                                                            <span className="text-muted-foreground italic truncate max-w-[150px]">
-                                                                "{s.progressComment || "No comment"}"
-                                                            </span>
-                                                        </div>
-                                                        <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                            <div 
-                                                                className={`h-full rounded-full ${
-                                                                    s.progress >= 100 ? 'bg-emerald-500' : 
-                                                                    s.progress >= 50 ? 'bg-sky-500' : 
-                                                                    s.progress > 0 ? 'bg-amber-500' : 'bg-slate-300'
-                                                                }`}
-                                                                style={{ width: `${s.progress}%` }}
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex justify-between items-center pt-1">
-                                                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                            <Calendar className="h-3 w-3" />
-                                                            {new Date(s.updatedAt).toLocaleDateString('id-ID', {
-                                                                day: '2-digit',
-                                                                month: 'short',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })}
-                                                        </div>
-                                                        <Button variant="link" size="sm" className="h-auto p-0 text-[10px] text-orange-600" asChild>
-                                                            <Link href={`/admin-area/logistic/spk?search=${s.spkNumber}`}>
-                                                                Detail <ArrowUpRight className="h-2 w-2 ml-0.5" />
-                                                            </Link>
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </>
+                                        <SPKCarousel recentSpk={recentSpk} />
                                 )}
                             </CardContent>
                         </Card>
@@ -1328,6 +1206,224 @@ function RecentTableSkeleton() {
                     <Skeleton className="h-8 w-[80px]" />
                 </div>
             ))}
+        </div>
+    );
+}
+
+function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+
+    // Ambil semua foto (maksimal 4 agar ringan)
+    const spksWithPhotos = recentSpk.map(spk => {
+        const latestReport = spk.spkFieldReport?.[0];
+        const photos = latestReport?.photos?.slice(0, 4) || [];
+        return { ...spk, photos };
+    });
+
+    const handleNext = () => {
+        setCurrentIndex((prev) => (prev + 1) % spksWithPhotos.length);
+    };
+
+    const handlePrev = () => {
+        setCurrentIndex((prev) => (prev - 1 + spksWithPhotos.length) % spksWithPhotos.length);
+    };
+
+    // Auto-slide setiap 5 detik
+    useEffect(() => {
+        if (spksWithPhotos.length <= 1 || isHovered) return;
+
+        const interval = setInterval(() => {
+            setCurrentIndex((prev) => (prev + 1) % spksWithPhotos.length);
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [spksWithPhotos.length, isHovered]);
+
+    if (spksWithPhotos.length === 0) {
+        return (
+            <div className="p-12 text-sm text-muted-foreground text-center">
+                Belum ada aktivitas SPK terbaru.
+            </div>
+        );
+    }
+
+    const currentSpk = spksWithPhotos[currentIndex];
+    const hasPhotos = currentSpk?.photos?.length > 0;
+
+    // Fungsi untuk mendapatkan layout Bento/Mosaic acak yang elegan
+    const getMosaicClass = (total: number, index: number) => {
+        if (total === 1) return "col-span-12 row-span-12";
+        if (total === 2) return "col-span-6 row-span-12";
+        if (total === 3) {
+            if (index === 0) return "col-span-8 row-span-12";
+            return "col-span-4 row-span-6";
+        }
+        // Jika 4 foto
+        if (index === 0) return "col-span-8 row-span-12";
+        if (index === 1) return "col-span-4 row-span-6";
+        if (index === 2) return "col-span-2 row-span-6";
+        return "col-span-2 row-span-6";
+    };
+
+    return (
+        <div 
+            className="relative w-full overflow-hidden rounded-md group bg-slate-100 dark:bg-slate-900 aspect-video md:aspect-[21/9]"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            <style>{`
+                @keyframes slideFadeIn {
+                    0% { opacity: 0; transform: scale(1.05); }
+                    100% { opacity: 1; transform: scale(1); }
+                }
+                .animate-slide-fade {
+                    animation: slideFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                }
+            `}</style>
+
+            {hasPhotos ? (
+                <div key={currentSpk.id || currentIndex} className="absolute inset-0 grid grid-cols-12 grid-rows-12 gap-1 bg-black animate-slide-fade">
+                    {currentSpk.photos.map((photo: any, idx: number) => (
+                        <div key={photo.id || idx} className={`relative overflow-hidden ${getMosaicClass(currentSpk.photos.length, idx)}`}>
+                            <img 
+                                src={(() => {
+                                    const src = makeImageSrc(photo.imageUrl);
+                                    return src;
+                                })()} 
+                                alt={`SPK ${currentSpk.spkNumber} - Photo ${idx + 1}`}
+                                loading="lazy"
+                                className="absolute inset-0 w-full h-full object-contain p-1 transition-transform duration-700 group-hover:scale-105 opacity-80 hover:opacity-100 bg-slate-900/50"
+                                onError={(e) => {
+                                    const target = e.currentTarget as HTMLImageElement;
+                                    const originalSrc = target.src;
+                                    
+                                    if (originalSrc.includes('localhost:5000') || originalSrc.includes('localhost:3000')) {
+                                        const newSrc = originalSrc.replace(/http:\/\/localhost:(5000|3000)/, 'https://api.rylif-app.com');
+                                        if (target.getAttribute('data-tried-vps') !== 'true') {
+                                            target.setAttribute('data-tried-vps', 'true');
+                                            target.src = newSrc;
+                                            return;
+                                        }
+                                    }
+
+                                    target.style.display = 'none';
+                                    const parent = target.parentElement;
+                                    if (parent && !parent.querySelector('.fallback-icon')) {
+                                        const fallback = document.createElement('div');
+                                        fallback.className = 'fallback-icon absolute inset-0 w-full h-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center';
+                                        fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-slate-400 opacity-50"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+                                        parent.appendChild(fallback);
+                                    }
+                                }}
+                            />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-slate-100 dark:bg-slate-800">
+                    <ImageIcon className="w-12 h-12 mb-2 opacity-50" />
+                    <span>Tidak ada foto</span>
+                </div>
+            )}
+
+            {/* Gradient Overlay for Text Readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
+
+            {/* Content Layer */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 text-white pointer-events-auto flex flex-col gap-2">
+                <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                        <Link href={`/admin-area/logistic/spk?search=${currentSpk.spkNumber}`} className="text-lg md:text-2xl font-bold text-orange-400 hover:text-orange-300 hover:underline inline-block drop-shadow-md">
+                            {currentSpk.spkNumber}
+                        </Link>
+                        
+                        {/* Nama Project - Lebih Besar di Desktop */}
+                        <div className="text-base md:text-xl font-bold text-white mt-1 md:mt-2 leading-snug drop-shadow-md line-clamp-2">
+                            {currentSpk.salesOrder?.project?.name || "Nama Project Tidak Tersedia"}
+                        </div>
+                        
+                        {/* Info Customer & SO */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm text-slate-200 mt-2 font-medium">
+                            <span className="flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded-md backdrop-blur-md">
+                                <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                                {currentSpk.salesOrder?.customer?.name || "-"}
+                                {currentSpk.salesOrder?.customer?.branch ? ` - ${currentSpk.salesOrder.customer.branch}` : ""}
+                            </span>
+                            <span className="flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded-md backdrop-blur-md">
+                                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                                {currentSpk.salesOrder?.soNumber || "-"}
+                            </span>
+                            <span className="flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded-md backdrop-blur-md">
+                                <Users2 className="w-3.5 h-3.5 text-orange-400" />
+                                {currentSpk.team?.namaTeam || "-"}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <Badge className={`px-2 py-1 ${
+                        currentSpk.spkStatusClose 
+                        ? 'bg-emerald-500/80 text-white border-emerald-400' 
+                        : 'bg-orange-500/80 text-white border-orange-400'
+                    }`}>
+                        {currentSpk.spkStatusClose ? 'CLOSED' : 'OPEN'}
+                    </Badge>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mt-2">
+                    <div className="flex justify-between items-center text-xs mb-1">
+                        <span className="font-bold text-white">{currentSpk.progress}% Progress</span>
+                        <span className="text-slate-300 italic truncate max-w-[200px] md:max-w-md">
+                            {currentSpk.progressComment || "No comment"}
+                        </span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-700/50 rounded-full overflow-hidden backdrop-blur-sm">
+                        <div 
+                            className={`h-full rounded-full transition-all duration-1000 ${
+                                currentSpk.progress >= 100 ? 'bg-emerald-400' : 
+                                currentSpk.progress >= 50 ? 'bg-sky-400' : 
+                                currentSpk.progress > 0 ? 'bg-amber-400' : 'bg-slate-400'
+                            }`}
+                            style={{ width: `${currentSpk.progress}%` }}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Navigation Buttons */}
+            {spksWithPhotos.length > 1 && (
+                <>
+                    <button 
+                        onClick={handlePrev}
+                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/60 transition-colors backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        aria-label="Previous SPK"
+                    >
+                        <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button 
+                        onClick={handleNext}
+                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/60 transition-colors backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        aria-label="Next SPK"
+                    >
+                        <ChevronRight className="w-6 h-6" />
+                    </button>
+
+                    {/* Dots Indicator */}
+                    <div className="absolute top-4 right-4 flex gap-1.5">
+                        {spksWithPhotos.map((_, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => setCurrentIndex(idx)}
+                                className={`h-1.5 rounded-full transition-all duration-300 ${
+                                    idx === currentIndex ? 'w-6 bg-orange-400' : 'w-1.5 bg-white/50 hover:bg-white/80'
+                                }`}
+                                aria-label={`Go to slide ${idx + 1}`}
+                            />
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 }

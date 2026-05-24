@@ -280,6 +280,11 @@ export const getRecentSPK = async (req, res) => {
     const take = parseInt(req.query.take) || 5;
 
     const recentSPK = await prisma.sPK.findMany({
+      where: {
+        spkFieldReport: {
+          some: {}
+        }
+      },
       take: take,
       orderBy: {
         updatedAt: "desc",
@@ -299,11 +304,24 @@ export const getRecentSPK = async (req, res) => {
                 branch: true,
               },
             },
+            project: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         team: {
           select: {
             namaTeam: true,
+          },
+        },
+        spkFieldReport: {
+          orderBy: { reportedAt: 'desc' },
+          take: 1,
+          include: {
+            photos: true,
           },
         },
       },

@@ -1,0 +1,1 @@
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); prisma.sPKFieldReportPhoto.findMany({take: 5}).then(res => { console.log(res.map(p => p.imageUrl)); prisma.$disconnect(); }).catch(e => { console.error(e); prisma.$disconnect(); })

@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); prisma.sPKFieldReportPhoto.findMany({take: 5, orderBy: {createdAt: 'desc'}}).then(res => { console.log(res); prisma.$disconnect(); });
