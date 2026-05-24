@@ -514,42 +514,44 @@ export default function DashboardAwalSalesOrder() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 md:p-8 lg:p-10 font-sans selection:bg-blue-100 selection:text-blue-900 relative overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-2 py-2 sm:px-4 sm:py-4 md:px-8 md:py-8 lg:px-10 lg:py-10 font-sans selection:bg-blue-100 selection:text-blue-900 relative overflow-hidden">
             {/* Animated Background Elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" />
                 <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-emerald-400/10 to-blue-400/10 rounded-full blur-3xl animate-pulse delay-1000" />
             </div>
 
-            {/* Header with Glassmorphism */}
-            <div className="relative mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                        <div className="h-12 w-1 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full" />
-                        <h1 className="text-3xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 dark:from-white dark:via-blue-100 dark:to-purple-100 bg-clip-text text-transparent">
+            {/* Header with Glassmorphism - Mobile Optimized */}
+            <div className="relative mb-4 sm:mb-6 md:mb-8 flex flex-col gap-2 sm:gap-3 md:gap-4">
+                <div className="space-y-1 sm:space-y-2">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="h-8 sm:h-10 md:h-12 w-0.5 sm:w-1 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full" />
+                        <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 dark:from-white dark:via-blue-100 dark:to-purple-100 bg-clip-text text-transparent">
                             Dashboard Overview
                         </h1>
                     </div>
-                    <p className="text-slate-600 dark:text-slate-300 ml-4 text-sm md:text-base font-medium flex items-center gap-2">
-                        <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <p className="text-[10px] sm:text-xs md:text-sm font-medium text-slate-600 dark:text-slate-300 ml-3 sm:ml-4 flex items-center gap-1 sm:gap-2">
+                        <span className="inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse" />
                         Welcome back. Here's what's happening today.
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                    <Button asChild className="gap-2 bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 text-white rounded-2xl h-12 px-6 shadow-lg shadow-slate-900/20 text-sm font-bold transition-all hover:scale-105 hover:shadow-xl">
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                    <Button asChild className="gap-1.5 sm:gap-2 bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 text-white rounded-xl sm:rounded-2xl h-9 sm:h-10 md:h-11 px-3 sm:px-4 md:px-5 shadow-lg shadow-slate-900/20 text-[11px] sm:text-xs md:text-sm font-bold transition-all hover:scale-105 hover:shadow-xl">
                         <Link href="/admin-area/sales/salesOrder/create">
-                            <FilePlus2 className="h-4 w-4" />
-                            Buat Sales Order
+                            <FilePlus2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+                            <span className="hidden xs:inline">Buat Sales Order</span>
+                            <span className="xs:hidden">Sales Order</span>
                         </Link>
                     </Button>
-                    <Button variant="outline" className="gap-2 rounded-2xl h-12 px-6 text-sm font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:scale-105 backdrop-blur-sm bg-white/50 dark:bg-slate-900/50">
-                        <Download className="h-4 w-4" />
-                        Export Laporan
+                    <Button variant="outline" className="gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl h-9 sm:h-10 md:h-11 px-3 sm:px-4 md:px-5 text-[11px] sm:text-xs md:text-sm font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:scale-105 backdrop-blur-sm bg-white/50 dark:bg-slate-900/50">
+                        <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+                        <span className="hidden xs:inline">Export Laporan</span>
+                        <span className="xs:hidden">Export</span>
                     </Button>
                 </div>
             </div>
-            {/* Stats Grid - Enhanced with better spacing and animations */}
-            <div className="relative grid grid-cols-2 gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+            {/* Stats Grid - Mobile Optimized */}
+            <div className="relative grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 lg:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-6 md:mb-8">
                 <StatCard
                     title="Total Pelanggan"
                     value={customerCount}
@@ -594,47 +596,47 @@ export default function DashboardAwalSalesOrder() {
 
             <MobileShortcut basePath={basePath} />
 
-            {/* Main Content with Tabs - Enhanced Design */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 relative">
-                <div className="flex justify-start mb-4">
-                    <TabsList className="inline-flex w-full lg:w-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-2 rounded-3xl h-auto border-2 border-slate-200/50 dark:border-slate-700/50 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+            {/* Main Content with Tabs - Mobile Optimized */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6 relative">
+                <div className="flex justify-start mb-2 sm:mb-3 md:mb-4">
+                    <TabsList className="flex w-full lg:w-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-1 sm:p-1.5 md:p-2 rounded-2xl sm:rounded-3xl h-auto border border-slate-200/50 dark:border-slate-700/50 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
                         <TabsTrigger
                             value="sales-order"
-                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-2 rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 dark:data-[state=active]:from-blue-600 dark:data-[state=active]:to-blue-700 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-5 py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
+                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2 rounded-xl sm:rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 dark:data-[state=active]:from-blue-600 dark:data-[state=active]:to-blue-700 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-1 sm:px-3 md:px-5 py-1.5 sm:py-2.5 md:py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
                         >
-                            <FileText className="h-5 w-5 shrink-0" />
-                            <span className="text-sm truncate">Sales Order</span>
+                            <FileText className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 shrink-0" />
+                            <span className="text-[9px] sm:text-xs md:text-sm truncate">Sales Order</span>
                         </TabsTrigger>
                         <TabsTrigger
                             value="logistic"
-                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-2 rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 dark:data-[state=active]:from-orange-600 dark:data-[state=active]:to-orange-700 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-5 py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
+                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2 rounded-xl sm:rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 dark:data-[state=active]:from-orange-600 dark:data-[state=active]:to-orange-700 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-1 sm:px-3 md:px-5 py-1.5 sm:py-2.5 md:py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
                         >
-                            <Package className="h-5 w-5 shrink-0" />
-                            <span className="text-sm truncate">Logistic</span>
+                            <Package className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 shrink-0" />
+                            <span className="text-[9px] sm:text-xs md:text-sm truncate">Logistic</span>
                         </TabsTrigger>
                         <TabsTrigger
                             value="invoicing"
-                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-2 rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 dark:data-[state=active]:from-purple-600 dark:data-[state=active]:to-purple-700 data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-5 py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
+                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-0.5 sm:gap-1.5 md:gap-2 rounded-xl sm:rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 dark:data-[state=active]:from-purple-600 dark:data-[state=active]:to-purple-700 data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-1 sm:px-3 md:px-5 py-1.5 sm:py-2.5 md:py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
                         >
-                            <Receipt className="h-5 w-5 shrink-0" />
-                            <span className="text-sm truncate">Invoicing</span>
+                            <Receipt className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 shrink-0" />
+                            <span className="text-[9px] sm:text-xs md:text-sm truncate">Invoicing</span>
                         </TabsTrigger>
                     </TabsList>
                 </div>
 
                 {/* Sales Order Tab - Enhanced Cards */}
-                <TabsContent value="sales-order" className="space-y-6 mt-6">
-                    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                <TabsContent value="sales-order" className="space-y-4 sm:space-y-6 mt-4 sm:mt-6">
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6 md:gap-8 lg:grid-cols-3">
                         {/* Recent Sales Orders - Enhanced Card */}
-                        <Card className="lg:col-span-2 border-0 shadow-2xl shadow-blue-500/5 dark:shadow-blue-500/10 rounded-[32px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
-                            <CardHeader className="pb-4 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10 border-b border-slate-100 dark:border-slate-800">
-                                <CardTitle className="text-lg md:text-xl flex items-center gap-3 font-bold text-slate-800 dark:text-white">
-                                    <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg shadow-blue-500/30">
-                                        <BarChart3 className="h-5 w-5 text-white" />
+                        <Card className="lg:col-span-2 border-0 shadow-2xl shadow-blue-500/5 dark:shadow-blue-500/10 rounded-2xl sm:rounded-3xl md:rounded-[24px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
+                            <CardHeader className="pb-3 sm:pb-4 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10 border-b border-slate-100 dark:border-slate-800 p-3 sm:p-4 md:p-5">
+                                <CardTitle className="text-sm sm:text-base md:text-lg flex items-center gap-2 sm:gap-3 font-bold text-slate-800 dark:text-white">
+                                    <div className="p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl shadow-lg shadow-blue-500/30">
+                                        <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-white" />
                                     </div>
-                                    Grafik Sales Order 6 Bulan Terakhir
+                                    <span className="text-xs sm:text-sm md:text-base leading-tight">Grafik Sales Order 6 Bulan Terakhir</span>
                                 </CardTitle>
-                                <CardDescription className="text-xs md:text-sm ml-14">
+                                <CardDescription className="text-[10px] sm:text-xs md:text-sm ml-8 sm:ml-10 md:ml-14 mt-0.5 sm:mt-1">
                                     Trend nilai sales order dalam 6 bulan terakhir
                                 </CardDescription>
                             </CardHeader>
@@ -728,7 +730,7 @@ export default function DashboardAwalSalesOrder() {
                             <ActiveEmployeesCard />
 
                             {/* Quick Actions - Enhanced */}
-                            <Card className="border-0 shadow-2xl shadow-slate-500/5 dark:shadow-slate-500/10 rounded-[32px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
+                            <Card className="border-0 shadow-2xl shadow-slate-500/5 dark:shadow-slate-500/10 rounded-2xl md:rounded-[24px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
                                 <CardHeader className="pb-4 bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10">
                                     <CardTitle className="text-base md:text-lg flex items-center gap-3 font-bold text-slate-800 dark:text-white">
                                         <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl shadow-lg shadow-blue-500/30">
@@ -766,7 +768,7 @@ export default function DashboardAwalSalesOrder() {
                             </Card>
 
                             {/* Sales Stats - Enhanced */}
-                            <Card className="border-0 shadow-2xl shadow-green-500/5 dark:shadow-green-500/10 rounded-[32px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
+                            <Card className="border-0 shadow-2xl shadow-green-500/5 dark:shadow-green-500/10 rounded-2xl md:rounded-[24px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
                                 <CardHeader className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10">
                                     <CardTitle className="text-base md:text-lg flex items-center gap-3 font-bold text-slate-800 dark:text-white">
                                         <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl shadow-lg shadow-green-500/30">
@@ -837,7 +839,7 @@ export default function DashboardAwalSalesOrder() {
                             </Card>
 
                             {/* System Status - Enhanced */}
-                            <Card className="border-0 shadow-2xl shadow-slate-500/5 dark:shadow-slate-500/10 rounded-[32px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
+                            <Card className="border-0 shadow-2xl shadow-slate-500/5 dark:shadow-slate-500/10 rounded-2xl md:rounded-[24px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
                                 <CardHeader className="pb-4 bg-gradient-to-br from-slate-50/50 to-slate-100/50 dark:from-slate-800/50 dark:to-slate-900/50">
                                     <CardTitle className="text-base md:text-lg flex items-center gap-3 font-bold text-slate-800 dark:text-white">
                                         <div className="relative">
@@ -1187,26 +1189,26 @@ function StatCard({
     const scheme = colors[colorScheme];
 
     return (
-        <Card className={`group relative overflow-hidden bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 border-0 shadow-2xl shadow-${colorScheme}-500/5 dark:shadow-${colorScheme}-500/10 rounded-[28px] transition-all duration-500 hover:shadow-2xl hover:shadow-${colorScheme}-500/20 hover:-translate-y-2 backdrop-blur-xl`}>
+        <Card className={`group relative overflow-hidden bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 border-0 shadow-2xl shadow-${colorScheme}-500/5 dark:shadow-${colorScheme}-500/10 rounded-[20px] md:rounded-[24px] transition-all duration-500 hover:shadow-2xl hover:shadow-${colorScheme}-500/20 hover:-translate-y-2 backdrop-blur-xl`}>
             {/* Animated gradient background */}
             <div className={`absolute inset-0 bg-gradient-to-br ${scheme.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
             
-            <CardHeader className="relative p-6 pb-2 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-[10px] md:text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+            <CardHeader className="relative p-3 md:p-5 pb-1 md:pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-[10px] md:text-xs lg:text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider leading-tight">
                     {title}
                 </CardTitle>
-                <div className={`h-10 w-10 md:h-14 md:w-14 rounded-[16px] md:rounded-[20px] ${scheme.iconBg} ${scheme.iconColor} flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-lg ${scheme.iconColor.replace('text-', 'shadow-')}/30`}>
+                <div className={`h-9 w-9 md:h-11 md:w-11 rounded-[12px] md:rounded-[14px] ${scheme.iconBg} ${scheme.iconColor} flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-lg ${scheme.iconColor.replace('text-', 'shadow-')}/30`}>
                     {icon}
                 </div>
             </CardHeader>
 
-            <CardContent className="relative px-6 py-4">
+            <CardContent className="relative px-3 md:px-5 py-2 md:py-3">
                 {loading ? (
                     <Skeleton className="h-8 w-32 mt-1" />
                 ) : (
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center">
-                            <span className={`text-xl md:text-4xl font-black tracking-tight bg-gradient-to-br from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent transition-all duration-300 group-hover:scale-105`}>
+                            <span className={`text-lg md:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-br from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent transition-all duration-300 group-hover:scale-105`}>
                                 {/* Di mode mobile, selalu tampilkan nilai asli */}
                                 {isMobile ? (
                                     value !== null
@@ -1524,65 +1526,65 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-900/40 to-transparent pointer-events-none" />
             <div className="absolute inset-0 bg-gradient-to-r from-slate-900/60 via-transparent to-transparent pointer-events-none" />
 
-            {/* Content Layer */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-white pointer-events-auto flex flex-col gap-4">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            {/* Content Layer - Mobile Optimized */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 md:p-6 lg:p-10 text-white pointer-events-auto flex flex-col gap-2 sm:gap-3 md:gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-2 sm:gap-3 md:gap-4">
                     <div className="flex-1 max-w-3xl">
-                        <div className="flex items-center gap-3 mb-2">
-                            <Badge className={`px-2.5 py-1 text-[10px] md:text-xs font-bold tracking-wider ${
+                        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 mb-1 sm:mb-1.5 md:mb-2">
+                            <Badge className={`px-1.5 py-0.5 sm:px-2 sm:py-1 md:px-2.5 md:py-1 text-[8px] sm:text-[9px] md:text-[10px] font-bold tracking-wider ${
                                 currentSpk.spkStatusClose 
                                 ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-0' 
                                 : 'bg-orange-500 hover:bg-orange-600 text-white border-0'
                             }`}>
                                 {currentSpk.spkStatusClose ? 'CLOSED' : 'IN PROGRESS'}
                             </Badge>
-                            <span className="text-slate-300 text-xs font-medium flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                                {currentSpk.team?.namaTeam || "Tim Tidak Ditentukan"}
+                            <span className="text-slate-300 text-[9px] sm:text-[10px] md:text-xs font-medium flex items-center gap-1">
+                                <span className="h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full bg-slate-400" />
+                                <span className="truncate max-w-[100px] sm:max-w-[150px]">{currentSpk.team?.namaTeam || "Tim Tidak Ditentukan"}</span>
                             </span>
                         </div>
 
-                        <Link href={`/admin-area/logistic/spk?search=${currentSpk.spkNumber}`} className="text-2xl md:text-3xl font-bold text-white hover:text-orange-400 transition-colors inline-block tracking-tight drop-shadow-sm mb-1">
+                        <Link href={`/admin-area/logistic/spk?search=${currentSpk.spkNumber}`} className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-bold text-white hover:text-orange-400 transition-colors inline-block tracking-tight drop-shadow-sm mb-0.5 sm:mb-1 leading-tight">
                             {currentSpk.spkNumber}
                         </Link>
                         
-                        <div className="text-sm md:text-lg text-slate-200 font-medium leading-relaxed drop-shadow-sm line-clamp-2 mb-3">
+                        <div className="text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg text-slate-200 font-medium leading-snug drop-shadow-sm line-clamp-2 mb-1.5 sm:mb-2 md:mb-3">
                             {currentSpk.salesOrder?.project?.name || "Nama Project Tidak Tersedia"}
                         </div>
                         
-                        {/* Info Pills */}
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 text-xs text-slate-100 font-medium">
-                                <Building2 className="w-3.5 h-3.5 text-blue-300" />
-                                <span className="truncate max-w-[150px] md:max-w-[200px]">
+                        {/* Info Pills - Mobile Optimized */}
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 md:gap-2">
+                            <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 bg-white/10 hover:bg-white/20 transition-colors px-1.5 py-1 sm:px-2 sm:py-1 md:px-3 md:py-1.5 rounded-full backdrop-blur-md border border-white/10 text-[9px] sm:text-[10px] md:text-xs text-slate-100 font-medium">
+                                <Building2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 text-blue-300 shrink-0" />
+                                <span className="truncate max-w-[80px] sm:max-w-[120px] md:max-w-[150px] lg:max-w-[200px]">
                                     {currentSpk.salesOrder?.customer?.name || "-"}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 text-xs text-slate-100 font-medium">
-                                <FileText className="w-3.5 h-3.5 text-emerald-300" />
-                                {currentSpk.salesOrder?.soNumber || "-"}
+                            <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 bg-white/10 hover:bg-white/20 transition-colors px-1.5 py-1 sm:px-2 sm:py-1 md:px-3 md:py-1.5 rounded-full backdrop-blur-md border border-white/10 text-[9px] sm:text-[10px] md:text-xs text-slate-100 font-medium">
+                                <FileText className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 text-emerald-300 shrink-0" />
+                                <span className="truncate max-w-[80px] sm:max-w-[120px]">{currentSpk.salesOrder?.soNumber || "-"}</span>
                             </div>
                         </div>
                     </div>
                     
-                    {/* Circular Progress */}
-                    <div className="hidden md:flex flex-col items-center bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/10 min-w-[120px]">
-                        <div className="text-3xl font-bold text-white tracking-tighter mb-1">
-                            {currentSpk.progress}<span className="text-lg text-slate-400">%</span>
+                    {/* Circular Progress - Desktop Only */}
+                    <div className="hidden md:flex flex-col items-center bg-white/10 p-2 md:p-3 rounded-xl md:rounded-2xl backdrop-blur-md border border-white/10 min-w-[100px] md:min-w-[120px]">
+                        <div className="text-2xl md:text-3xl font-bold text-white tracking-tighter mb-0.5 md:mb-1">
+                            {currentSpk.progress}<span className="text-base md:text-lg text-slate-400">%</span>
                         </div>
-                        <div className="text-[10px] text-slate-300 uppercase tracking-widest font-semibold">Progress</div>
+                        <div className="text-[8px] md:text-[10px] text-slate-300 uppercase tracking-widest font-semibold">Progress</div>
                     </div>
                 </div>
 
-                {/* Mobile Progress Bar (Hidden on Desktop since we have circular progress) */}
-                <div className="md:hidden mt-2">
-                    <div className="flex justify-between items-center text-xs mb-1.5">
+                {/* Mobile Progress Bar - Mobile Optimized */}
+                <div className="md:hidden mt-1 sm:mt-1.5 md:mt-2">
+                    <div className="flex justify-between items-center text-[9px] sm:text-[10px] mb-1">
                         <span className="font-bold text-white tracking-wide">{currentSpk.progress}% PROGRESS</span>
-                        <span className="text-slate-300 truncate max-w-[150px]">
+                        <span className="text-slate-300 truncate max-w-[100px] sm:max-w-[150px] text-[8px] sm:text-[9px]">
                             {currentSpk.progressComment || ""}
                         </span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-1 sm:h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                         <div 
                             className={`h-full rounded-full transition-all duration-1000 ease-out ${
                                 currentSpk.progress >= 100 ? 'bg-emerald-400' : 
@@ -1595,7 +1597,7 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
                 </div>
                 
                 {/* Desktop Comment */}
-                <div className="hidden md:block text-sm text-slate-300 italic border-l-2 border-white/20 pl-3 py-0.5 mt-2 max-w-2xl">
+                <div className="hidden md:block text-xs md:text-sm text-slate-300 italic border-l-2 border-white/20 pl-2 md:pl-3 py-0.5 mt-1 md:mt-2 max-w-2xl">
                     "{currentSpk.progressComment || "Tidak ada catatan progres tambahan."}"
                 </div>
             </div>
@@ -1620,18 +1622,18 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
                         <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
 
-                    {/* Dots Indicator with Progress Bar */}
-                    <div className="absolute top-4 right-4 flex flex-col gap-2 z-30">
-                        <div className="flex gap-1.5 bg-black/30 backdrop-blur-md rounded-full p-2">
+                    {/* Dots Indicator with Progress Bar - Mobile Optimized */}
+                    <div className="absolute top-2 sm:top-3 md:top-4 right-2 sm:right-3 md:right-4 flex flex-col gap-1 sm:gap-1.5 md:gap-2 z-30">
+                        <div className="flex gap-1 sm:gap-1.5 bg-black/30 backdrop-blur-md rounded-full p-1 sm:p-1.5 md:p-2">
                             {spksWithPhotos.map((_, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => goToSlide(idx)}
                                     disabled={isTransitioning}
-                                    className={`relative h-2 rounded-full transition-all duration-300 overflow-hidden ${
+                                    className={`relative h-1.5 sm:h-2 rounded-full transition-all duration-300 overflow-hidden ${
                                         idx === currentIndex 
-                                            ? 'w-8 bg-orange-400 shadow-lg shadow-orange-400/50' 
-                                            : 'w-2 bg-white/40 hover:bg-white/70 hover:w-4'
+                                            ? 'w-6 sm:w-8 bg-orange-400 shadow-lg shadow-orange-400/50' 
+                                            : 'w-1.5 sm:w-2 bg-white/40 hover:bg-white/70 hover:w-3 sm:hover:w-4'
                                     } disabled:cursor-not-allowed`}
                                     aria-label={`Go to slide ${idx + 1}`}
                                 >
@@ -1648,8 +1650,8 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
                             ))}
                         </div>
                         
-                        {/* Counter */}
-                        <div className="text-white text-xs font-bold bg-black/40 backdrop-blur-md rounded-full px-3 py-1 text-center">
+                        {/* Counter - Mobile Optimized */}
+                        <div className="text-white text-[9px] sm:text-[10px] md:text-xs font-bold bg-black/40 backdrop-blur-md rounded-full px-2 sm:px-2.5 md:px-3 py-0.5 sm:py-1 text-center">
                             {currentIndex + 1} / {spksWithPhotos.length}
                         </div>
                     </div>
