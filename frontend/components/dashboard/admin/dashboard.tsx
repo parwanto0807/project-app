@@ -514,111 +514,127 @@ export default function DashboardAwalSalesOrder() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8 dark:bg-slate-900">
-            {/* Header */}
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        Dashboard Preview Admin
-                    </h1>
-                    <p className="text-muted-foreground mt-2 text-sm md:text-base">
-                        Ringkasan performa penjualan dan aktivitas terkini
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 md:p-8 lg:p-10 font-sans selection:bg-blue-100 selection:text-blue-900 relative overflow-hidden">
+            {/* Animated Background Elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-emerald-400/10 to-blue-400/10 rounded-full blur-3xl animate-pulse delay-1000" />
+            </div>
+
+            {/* Header with Glassmorphism */}
+            <div className="relative mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                        <div className="h-12 w-1 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full" />
+                        <h1 className="text-3xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 dark:from-white dark:via-blue-100 dark:to-purple-100 bg-clip-text text-transparent">
+                            Dashboard Overview
+                        </h1>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-300 ml-4 text-sm md:text-base font-medium flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        Welcome back. Here's what's happening today.
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                    <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700 text-xs md:text-sm">
+                <div className="flex flex-wrap gap-3">
+                    <Button asChild className="gap-2 bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 text-white rounded-2xl h-12 px-6 shadow-lg shadow-slate-900/20 text-sm font-bold transition-all hover:scale-105 hover:shadow-xl">
                         <Link href="/admin-area/sales/salesOrder/create">
                             <FilePlus2 className="h-4 w-4" />
                             Buat Sales Order
                         </Link>
                     </Button>
-                    <Button variant="outline" className="gap-2 text-xs md:text-sm">
+                    <Button variant="outline" className="gap-2 rounded-2xl h-12 px-6 text-sm font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:scale-105 backdrop-blur-sm bg-white/50 dark:bg-slate-900/50">
                         <Download className="h-4 w-4" />
                         Export Laporan
                     </Button>
                 </div>
             </div>
-            {/* Stats Grid - MODIFIED FOR MOBILE: 2 columns on mobile, 4 columns on desktop */}
-            <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            {/* Stats Grid - Enhanced with better spacing and animations */}
+            <div className="relative grid grid-cols-2 gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
                 <StatCard
                     title="Total Pelanggan"
                     value={customerCount}
                     loading={loading}
-                    icon={<Users2 className="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" />}
+                    icon={<Users2 className="h-5 w-5 md:h-6 md:w-6" />}
                     trend={salesStats ? Math.round((customerCount || 0) / 10) : 0}
                     href="/admin-area/master/customers"
-                    gradient="from-blue-100 to-blue-200 dark:from-blue-700 dark:to-blue-800"
+                    colorScheme="blue"
+                    alwaysShow={true}
                 />
                 <StatCard
                     title="Produk"
                     value={productCount}
                     loading={loading}
-                    icon={<Package className="h-4 w-4 md:h-5 md:w-5 text-purple-600 dark:text-purple-400" />}
+                    icon={<Package className="h-5 w-5 md:h-6 md:w-6" />}
                     trend={salesStats ? Math.round((productCount || 0) / 5) : 0}
                     href="/admin-area/master/products"
-                    gradient="from-purple-100 to-purple-200 dark:from-purple-700 dark:to-purple-800"
+                    colorScheme="purple"
+                    alwaysShow={true}
                 />
                 <StatCard
                     title={`Sales ${monthName}`}
                     value={salesStats ? salesStats.totalThisMonth : null}
                     loading={loading}
                     formatted
-                    icon={<CreditCard className="h-4 w-4 md:h-5 md:w-5 text-amber-600 dark:text-amber-400" />}
+                    icon={<CreditCard className="h-5 w-5 md:h-6 md:w-6" />}
                     trend={calculateTrend()}
                     href="#"
-                    gradient="from-amber-100 to-amber-200 dark:from-amber-700 dark:to-amber-800"
+                    colorScheme="amber"
                 />
                 <StatCard
                     title={`Invoice ${monthName}`}
                     value={invoiceStats ? invoiceStats.totalThisMonth : null}
                     loading={loading}
                     formatted
-                    icon={<Building2 className="h-4 w-4 md:h-5 md:w-5 text-green-600 dark:text-green-400" />}
+                    icon={<Building2 className="h-5 w-5 md:h-6 md:w-6" />}
                     trend={calculateTrendInvoice()}
                     href="/admin-area/finance/invoice"
-                    gradient="from-green-100 to-green-200 dark:from-green-700 dark:to-green-800"
+                    colorScheme="emerald"
                 />
             </div>
 
             <MobileShortcut basePath={basePath} />
 
-            {/* Main Content with Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-3 lg:w-[600px] bg-slate-100 dark:bg-slate-800 p-1 rounded-lg h-auto">
-                    <TabsTrigger
-                        value="sales-order"
-                        className="flex items-center justify-center gap-1.5 md:gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 px-2 py-2.5"
-                    >
-                        <FileText className="h-4 w-4 shrink-0" />
-                        <span className="text-[10px] sm:text-xs md:text-sm font-medium truncate">Sales Order</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="logistic"
-                        className="flex items-center justify-center gap-1.5 md:gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-orange-600 px-2 py-2.5"
-                    >
-                        <Package className="h-4 w-4 shrink-0" />
-                        <span className="text-[10px] sm:text-xs md:text-sm font-medium truncate">Logistic</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="invoicing"
-                        className="flex items-center justify-center gap-1.5 md:gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-600 px-2 py-2.5"
-                    >
-                        <Receipt className="h-4 w-4 shrink-0" />
-                        <span className="text-[10px] sm:text-xs md:text-sm font-medium truncate">Invoicing</span>
-                    </TabsTrigger>
-                </TabsList>
+            {/* Main Content with Tabs - Enhanced Design */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 relative">
+                <div className="flex justify-start mb-4">
+                    <TabsList className="inline-flex w-full lg:w-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-2 rounded-3xl h-auto border-2 border-slate-200/50 dark:border-slate-700/50 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50">
+                        <TabsTrigger
+                            value="sales-order"
+                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-2 rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 dark:data-[state=active]:from-blue-600 dark:data-[state=active]:to-blue-700 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-5 py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
+                        >
+                            <FileText className="h-5 w-5 shrink-0" />
+                            <span className="text-sm truncate">Sales Order</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="logistic"
+                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-2 rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 dark:data-[state=active]:from-orange-600 dark:data-[state=active]:to-orange-700 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-5 py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
+                        >
+                            <Package className="h-5 w-5 shrink-0" />
+                            <span className="text-sm truncate">Logistic</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="invoicing"
+                            className="flex-1 lg:w-[200px] flex items-center justify-center gap-2 rounded-2xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 dark:data-[state=active]:from-purple-600 dark:data-[state=active]:to-purple-700 data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 data-[state=active]:text-white text-slate-600 dark:text-slate-400 px-5 py-3.5 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold"
+                        >
+                            <Receipt className="h-5 w-5 shrink-0" />
+                            <span className="text-sm truncate">Invoicing</span>
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
-                {/* Sales Order Tab */}
-                <TabsContent value="sales-order" className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 bg-gradient-to-br from-blue/80 to-purple-50/50 dark:from-slate-900/90 dark:to-slate-800/80 backdrop-blur-sm">
-                        {/* Recent Sales Orders */}
-                        <Card className="lg:col-span-2 shadow-sm border">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                                    <BarChart3 className="h-5 w-5 text-blue-600" />
+                {/* Sales Order Tab - Enhanced Cards */}
+                <TabsContent value="sales-order" className="space-y-6 mt-6">
+                    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                        {/* Recent Sales Orders - Enhanced Card */}
+                        <Card className="lg:col-span-2 border-0 shadow-2xl shadow-blue-500/5 dark:shadow-blue-500/10 rounded-[32px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
+                            <CardHeader className="pb-4 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10 border-b border-slate-100 dark:border-slate-800">
+                                <CardTitle className="text-lg md:text-xl flex items-center gap-3 font-bold text-slate-800 dark:text-white">
+                                    <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg shadow-blue-500/30">
+                                        <BarChart3 className="h-5 w-5 text-white" />
+                                    </div>
                                     Grafik Sales Order 6 Bulan Terakhir
                                 </CardTitle>
-                                <CardDescription className="text-xs md:text-sm">
+                                <CardDescription className="text-xs md:text-sm ml-14">
                                     Trend nilai sales order dalam 6 bulan terakhir
                                 </CardDescription>
                             </CardHeader>
@@ -630,23 +646,25 @@ export default function DashboardAwalSalesOrder() {
                                 />
                             </CardContent>
 
-                            <Separator />
+                            <Separator className="bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent" />
 
-                            <CardHeader className="pb-3">
+                            <CardHeader className="pb-4 bg-gradient-to-r from-slate-50/50 to-blue-50/50 dark:from-slate-800/50 dark:to-blue-900/10">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <CardTitle className="text-xs md:text-lg flex items-center gap-2">
-                                            <Calendar className="h-5 w-5 text-blue-600" />
+                                        <CardTitle className="text-base md:text-xl flex items-center gap-3 font-bold text-slate-800 dark:text-white">
+                                            <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg shadow-blue-500/30">
+                                                <Calendar className="h-5 w-5 text-white" />
+                                            </div>
                                             Sales Order Terbaru
                                         </CardTitle>
-                                        <CardDescription className="text-xs md:text-sm">
-                                            5 sales order terbaru yang dibuat, dari  {salesOrderCount} Sales Order yang di buat.
+                                        <CardDescription className="text-xs md:text-sm ml-14 mt-1">
+                                            5 sales order terbaru yang dibuat, dari <span className="font-bold text-blue-600 dark:text-blue-400">{salesOrderCount}</span> Sales Order yang di buat.
                                         </CardDescription>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button variant="ghost" size="sm" asChild className="h-8 text-xs md:text-sm">
-                                            <Link href="/admin-area/sales/salesOrder" className="text-blue-600 hover:text-blue-800">
-                                                Lihat semua
+                                        <Button variant="ghost" size="sm" asChild className="h-9 text-xs md:text-sm font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl">
+                                            <Link href="/admin-area/sales/salesOrder">
+                                                Lihat semua →
                                             </Link>
                                         </Button>
                                     </div>
@@ -704,46 +722,56 @@ export default function DashboardAwalSalesOrder() {
                             </CardContent>
                         </Card>
 
-                        {/* Sidebar - Quick Actions & Stats */}
+                        {/* Sidebar - Quick Actions & Stats - Enhanced */}
                         <div className="space-y-6">
                             {/* Active Employees Today */}
                             <ActiveEmployeesCard />
 
-                            {/* Quick Actions */}
-                            <Card className="shadow-sm border">
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                                        <FilePlus2 className="h-5 w-5 text-blue-600" />
+                            {/* Quick Actions - Enhanced */}
+                            <Card className="border-0 shadow-2xl shadow-slate-500/5 dark:shadow-slate-500/10 rounded-[32px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
+                                <CardHeader className="pb-4 bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/10 dark:to-purple-900/10">
+                                    <CardTitle className="text-base md:text-lg flex items-center gap-3 font-bold text-slate-800 dark:text-white">
+                                        <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl shadow-lg shadow-blue-500/30">
+                                            <FilePlus2 className="h-5 w-5 text-white" />
+                                        </div>
                                         Aksi Cepat
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <Button className="w-full justify-start gap-2 h-11 text-xs md:text-sm" asChild>
+                                <CardContent className="space-y-3 p-6">
+                                    <Button className="w-full justify-start gap-3 h-14 text-sm font-bold rounded-2xl bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 text-white shadow-lg shadow-slate-900/20 transition-all hover:scale-105" asChild>
                                         <Link href="/admin-area/sales/salesOrder/create">
-                                            <FilePlus2 className="h-4 w-4" />
+                                            <div className="p-1.5 bg-white/20 rounded-lg">
+                                                <FilePlus2 className="h-4 w-4" />
+                                            </div>
                                             Buat Sales Order Baru
                                         </Link>
                                     </Button>
-                                    <Button variant="outline" className="w-full justify-start gap-2 h-11 text-xs md:text-sm" asChild>
+                                    <Button variant="outline" className="w-full justify-start gap-3 h-14 text-sm font-bold rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:scale-105" asChild>
                                         <Link href="/admin-area/master/customers/create">
-                                            <Users2 className="h-4 w-4" />
+                                            <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                                <Users2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                            </div>
                                             Tambah Pelanggan Baru
                                         </Link>
                                     </Button>
-                                    <Button variant="outline" className="w-full justify-start gap-2 h-11 text-xs md:text-sm" asChild>
+                                    <Button variant="outline" className="w-full justify-start gap-3 h-14 text-sm font-bold rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:scale-105" asChild>
                                         <Link href="/admin-area/master/products/create">
-                                            <Package className="h-4 w-4" />
+                                            <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                                <Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                            </div>
                                             Tambah Produk Baru
                                         </Link>
                                     </Button>
                                 </CardContent>
                             </Card>
 
-                            {/* Sales Stats */}
-                            <Card className="shadow-sm border">
-                                <CardHeader>
-                                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                                        <TrendingUp className="h-5 w-5 text-green-600" />
+                            {/* Sales Stats - Enhanced */}
+                            <Card className="border-0 shadow-2xl shadow-green-500/5 dark:shadow-green-500/10 rounded-[32px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
+                                <CardHeader className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10">
+                                    <CardTitle className="text-base md:text-lg flex items-center gap-3 font-bold text-slate-800 dark:text-white">
+                                        <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl shadow-lg shadow-green-500/30">
+                                            <TrendingUp className="h-5 w-5 text-white" />
+                                        </div>
                                         Performa Penjualan
                                     </CardTitle>
                                 </CardHeader>
@@ -808,26 +836,29 @@ export default function DashboardAwalSalesOrder() {
                                 </CardContent>
                             </Card>
 
-                            {/* System Status */}
-                            <Card className="shadow-sm border">
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                            {/* System Status - Enhanced */}
+                            <Card className="border-0 shadow-2xl shadow-slate-500/5 dark:shadow-slate-500/10 rounded-[32px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl overflow-hidden">
+                                <CardHeader className="pb-4 bg-gradient-to-br from-slate-50/50 to-slate-100/50 dark:from-slate-800/50 dark:to-slate-900/50">
+                                    <CardTitle className="text-base md:text-lg flex items-center gap-3 font-bold text-slate-800 dark:text-white">
+                                        <div className="relative">
+                                            <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75" />
+                                            <div className="relative h-3 w-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50" />
+                                        </div>
                                         Status Sistem
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs md:text-sm">API Connection</span>
-                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Active</Badge>
+                                <CardContent className="space-y-3 p-6">
+                                    <div className="flex justify-between items-center p-3 rounded-xl bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/20">
+                                        <span className="text-xs md:text-sm font-semibold text-slate-700 dark:text-slate-200">API Connection</span>
+                                        <Badge variant="outline" className="bg-green-500 text-white border-0 shadow-lg shadow-green-500/30 font-bold">Active</Badge>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs md:text-sm">Database</span>
-                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Online</Badge>
+                                    <div className="flex justify-between items-center p-3 rounded-xl bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/20">
+                                        <span className="text-xs md:text-sm font-semibold text-slate-700 dark:text-slate-200">Database</span>
+                                        <Badge variant="outline" className="bg-green-500 text-white border-0 shadow-lg shadow-green-500/30 font-bold">Online</Badge>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs md:text-sm">Last Backup</span>
-                                        <span className="text-xs text-muted-foreground">12 Jam Lalu</span>
+                                    <div className="flex justify-between items-center p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                                        <span className="text-xs md:text-sm font-semibold text-slate-700 dark:text-slate-200">Last Backup</span>
+                                        <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">12 Jam Lalu</span>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -836,13 +867,13 @@ export default function DashboardAwalSalesOrder() {
                 </TabsContent>
 
                 {/* Logistic & SPK Tab */}
-                <TabsContent value="logistic" className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6">
-                        <Card className="shadow-sm border overflow-hidden">
-                            <CardHeader className="pb-3 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-900/10">
-                                <div className="flex items-center justify-between">
+                <TabsContent value="logistic" className="space-y-6 mt-4">
+                    <div className="grid grid-cols-1 gap-8">
+                        <Card className="border-0 shadow-[0_2px_20px_-8px_rgba(0,0,0,0.05)] rounded-[24px] overflow-hidden">
+                            <CardHeader className="pb-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                     <div>
-                                        <CardTitle className="text-base md:text-lg flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                                        <CardTitle className="text-xl md:text-2xl flex items-center gap-2 font-bold text-slate-800 dark:text-white">
                                             <Package className="h-5 w-5" />
                                             5 SPK Terakhir Diupdate
                                         </CardTitle>
@@ -872,9 +903,9 @@ export default function DashboardAwalSalesOrder() {
 
                         {/* Sidebar Logistic */}
                         <div className="space-y-6">
-                            <Card className="shadow-sm border border-orange-100 dark:border-orange-900/20">
+                            <Card className="border-0 shadow-[0_2px_20px_-8px_rgba(0,0,0,0.05)] rounded-[24px]">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-base md:text-lg flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                                    <CardTitle className="text-base md:text-lg flex items-center gap-2 font-bold text-slate-800 dark:text-white">
                                         <TrendingUp className="h-5 w-5" />
                                         Metrik Logistik
                                     </CardTitle>
@@ -917,12 +948,12 @@ export default function DashboardAwalSalesOrder() {
                 </TabsContent>
 
                 {/* Invoicing Tab */}
-                <TabsContent value="invoicing" className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <TabsContent value="invoicing" className="space-y-6 mt-4">
+                    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
                         {/* Invoice Chart */}
-                        <Card className="lg:col-span-2 shadow-lg border-0 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-slate-900/90 dark:to-slate-800/80 backdrop-blur-sm">
+                        <Card className="lg:col-span-2 border-0 shadow-[0_2px_20px_-8px_rgba(0,0,0,0.05)] rounded-[24px]">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                                <CardTitle className="text-base md:text-lg flex items-center gap-2 font-bold text-slate-800 dark:text-white">
                                     <BarChart3 className="h-5 w-5 text-purple-600" />
                                     Grafik Invoice 6 Bulan Terakhir
                                 </CardTitle>
@@ -941,9 +972,9 @@ export default function DashboardAwalSalesOrder() {
 
                         {/* Invoice Stats */}
                         <div className="space-y-6">
-                            <Card className="shadow-sm border">
+                            <Card className="border-0 shadow-[0_2px_20px_-8px_rgba(0,0,0,0.05)] rounded-[24px]">
                                 <CardHeader>
-                                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                                    <CardTitle className="text-base md:text-lg flex items-center gap-2 font-bold text-slate-800 dark:text-white">
                                         <Receipt className="h-5 w-5 text-purple-600" />
                                         Statistik Invoice
                                     </CardTitle>
@@ -1054,9 +1085,9 @@ export default function DashboardAwalSalesOrder() {
                             </Card>
 
                             {/* Quick Actions for Invoicing */}
-                            <Card className="shadow-sm border">
+                            <Card className="border-0 shadow-[0_2px_20px_-8px_rgba(0,0,0,0.05)] rounded-[24px]">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                                    <CardTitle className="text-base md:text-lg flex items-center gap-2 font-bold text-slate-800 dark:text-white">
                                         <FilePlus2 className="h-5 w-5 text-purple-600" />
                                         Aksi Cepat Invoice
                                     </CardTitle>
@@ -1084,7 +1115,7 @@ export default function DashboardAwalSalesOrder() {
     );
 }
 
-// ... (StatCard dan RecentTableSkeleton tetap sama)
+// ... (StatCard dan RecentTableSkeleton diperbarui)
 function StatCard({
     title,
     value,
@@ -1093,7 +1124,8 @@ function StatCard({
     trend,
     href,
     formatted = false,
-    gradient = "from-blue-500 to-blue-600"
+    colorScheme = "blue",
+    alwaysShow = false
 }: {
     title: string;
     value: number | null;
@@ -1102,94 +1134,144 @@ function StatCard({
     trend?: number;
     href?: string;
     formatted?: boolean;
-    gradient?: string;
+    colorScheme?: "blue" | "purple" | "amber" | "emerald";
+    alwaysShow?: boolean;
 }) {
-    const [showValue, setShowValue] = useState(!formatted)
+    const [showValue, setShowValue] = useState(alwaysShow ? true : false) // Default false untuk menyembunyikan nilai (XX.XXX.XXX), kecuali alwaysShow = true
+    const [isMobile, setIsMobile] = useState(false)
     const isPositive = trend && trend >= 0;
 
+    // Detect mobile on mount and resize
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 1024)
+        }
+        
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+        
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
+
+    const colors = {
+        blue: {
+            bg: "bg-blue-50/50 dark:bg-blue-900/10",
+            border: "border-blue-100 dark:border-blue-800/50",
+            iconBg: "bg-blue-100 dark:bg-blue-900/40",
+            iconColor: "text-blue-600 dark:text-blue-400",
+            textHover: "group-hover:text-blue-600 dark:group-hover:text-blue-400"
+        },
+        purple: {
+            bg: "bg-purple-50/50 dark:bg-purple-900/10",
+            border: "border-purple-100 dark:border-purple-800/50",
+            iconBg: "bg-purple-100 dark:bg-purple-900/40",
+            iconColor: "text-purple-600 dark:text-purple-400",
+            textHover: "group-hover:text-purple-600 dark:group-hover:text-purple-400"
+        },
+        amber: {
+            bg: "bg-amber-50/50 dark:bg-amber-900/10",
+            border: "border-amber-100 dark:border-amber-800/50",
+            iconBg: "bg-amber-100 dark:bg-amber-900/40",
+            iconColor: "text-amber-600 dark:text-amber-400",
+            textHover: "group-hover:text-amber-600 dark:group-hover:text-amber-400"
+        },
+        emerald: {
+            bg: "bg-emerald-50/50 dark:bg-emerald-900/10",
+            border: "border-emerald-100 dark:border-emerald-800/50",
+            iconBg: "bg-emerald-100 dark:bg-emerald-900/40",
+            iconColor: "text-emerald-600 dark:text-emerald-400",
+            textHover: "group-hover:text-emerald-600 dark:group-hover:text-emerald-400"
+        }
+    };
+
+    const scheme = colors[colorScheme];
+
     return (
-        <Card className={`group relative overflow-hidden border-0 bg-gradient-to-br ${gradient} text-gray-900 dark:text-gray-100 shadow-lg transition-all duration-500 hover:shadow-xl hover:scale-105`}>
-            <CardHeader className="p-2 pb-0 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-xs px-4 md:text-lg md:font-bold font-medium text-gray-600 dark:text-gray-400 transition-colors duration-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
+        <Card className={`group relative overflow-hidden bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 border-0 shadow-2xl shadow-${colorScheme}-500/5 dark:shadow-${colorScheme}-500/10 rounded-[28px] transition-all duration-500 hover:shadow-2xl hover:shadow-${colorScheme}-500/20 hover:-translate-y-2 backdrop-blur-xl`}>
+            {/* Animated gradient background */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${scheme.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+            
+            <CardHeader className="relative p-6 pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-[10px] md:text-sm font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                     {title}
                 </CardTitle>
-                <div className="h-8 w-8 rounded-full bg-white/30 dark:bg-white/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-white/50 dark:group-hover:bg-white/20 group-hover:rotate-6">
+                <div className={`h-10 w-10 md:h-14 md:w-14 rounded-[16px] md:rounded-[20px] ${scheme.iconBg} ${scheme.iconColor} flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-lg ${scheme.iconColor.replace('text-', 'shadow-')}/30`}>
                     {icon}
                 </div>
             </CardHeader>
 
-            <CardContent className="px-4 py-0">
+            <CardContent className="relative px-6 py-4">
                 {loading ? (
-                    <Skeleton className="h-2 w-16 mt-1 px-4" />
+                    <Skeleton className="h-8 w-32 mt-1" />
                 ) : (
-                    <div className="flex items-center gap-1 px-3">
-                        <span className="text-sm font-bold transition-all duration-300 group-hover:text-gray-800 dark:group-hover:text-gray-100">
-                            {/* Di mode mobile, selalu tampilkan nilai asli */}
-                            {typeof window !== 'undefined' && window.innerWidth < 1024 ? (
-                                value !== null
-                                    ? formatted
-                                        ? `Rp ${value.toLocaleString("id-ID")}`
-                                        : value.toLocaleString("id-ID")
-                                    : "-"
-                            ) : (
-                                /* Di desktop, ikuti setting showValue */
-                                showValue
-                                    ? value !== null
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center">
+                            <span className={`text-xl md:text-4xl font-black tracking-tight bg-gradient-to-br from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent transition-all duration-300 group-hover:scale-105`}>
+                                {/* Di mode mobile, selalu tampilkan nilai asli */}
+                                {isMobile ? (
+                                    value !== null
                                         ? formatted
                                             ? `Rp ${value.toLocaleString("id-ID")}`
                                             : value.toLocaleString("id-ID")
                                         : "-"
-                                    : "XXX.XXX.XXX"
-                            )}
-                        </span>
-
-                        {/* Tombol Eye hanya tampil di desktop */}
-                        {formatted && typeof window !== 'undefined' && window.innerWidth >= 1024 && (
-                            <button
-                                type="button"
-                                onClick={() => setShowValue((prev) => !prev)}
-                                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-300"
-                            >
-                                {showValue ? (
-                                    <Eye className="h-3 w-3 ml-1 text-green-500 dark:text-green-400 transition-transform duration-300 group-hover:scale-110" />
                                 ) : (
-                                    <EyeOff className="h-3 w-3 ml-1 transition-transform duration-300 group-hover:scale-110" />
+                                    /* Di desktop, ikuti setting showValue */
+                                    showValue
+                                        ? value !== null
+                                            ? formatted
+                                                ? `Rp ${value.toLocaleString("id-ID")}`
+                                                : value.toLocaleString("id-ID")
+                                            : "-"
+                                        : "XXX.XXX.XXX"
                                 )}
-                            </button>
-                        )}
-                    </div>
-                )}
+                            </span>
 
-                {trend !== undefined && !loading && (
-                    <div
-                        className={`flex items-center text-[10px] mt-0 transition-all duration-300 ${isPositive
-                            ? "text-green-600 dark:text-green-400 group-hover:text-green-700 dark:group-hover:text-green-300"
-                            : "text-red-600 dark:text-red-400 group-hover:text-red-700 dark:group-hover:text-red-300"
-                            }`}
-                    >
-                        {isPositive ? (
-                            <ArrowUpRight className="h-2.5 w-2.5 mr-0.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                        ) : (
-                            <ArrowDownRight className="h-2.5 w-2.5 mr-0.5 transition-transform duration-300 group-hover:translate-y-0.5 group-hover:translate-x-0.5" />
+                            {/* Tombol Eye hanya tampil di desktop dan untuk formatted values dan bukan alwaysShow */}
+                            {formatted && !isMobile && !alwaysShow && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        setShowValue((prev) => !prev)
+                                    }}
+                                    className="ml-3 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-300 hover:scale-110 z-20 relative"
+                                >
+                                    {showValue ? (
+                                        <Eye className="h-5 w-5 text-green-500" />
+                                    ) : (
+                                        <EyeOff className="h-5 w-5" />
+                                    )}
+                                </button>
+                            )}
+                        </div>
+
+                        {trend !== undefined && !loading && (
+                            <div
+                                className={`flex items-center text-[10px] md:text-xs mt-1 transition-all duration-300 ${isPositive
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : "text-rose-600 dark:text-rose-400"
+                                    }`}
+                            >
+                                <span className={`flex items-center justify-center rounded-full p-0.5 md:p-1 mr-1 md:mr-2 ${isPositive ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-rose-100 dark:bg-rose-900/30'}`}>
+                                    {isPositive ? (
+                                        <ArrowUpRight className="h-3 w-3 md:h-4 md:w-4" />
+                                    ) : (
+                                        <ArrowDownRight className="h-3 w-3 md:h-4 md:w-4" />
+                                    )}
+                                </span>
+                                <span className="font-bold text-xs md:text-sm">{Math.abs(trend).toFixed(1)}%</span>
+                                <span className="text-slate-500 dark:text-slate-400 ml-1 md:ml-2 font-semibold hidden sm:inline">vs last month</span>
+                            </div>
                         )}
-                        {Math.abs(trend).toFixed(1)}% {isPositive ? "naik" : "turun"} dari bulan lalu
                     </div>
                 )}
             </CardContent>
-
-            <CardFooter className="p-0 pt-0">
-                {href && (
-                    <Button
-                        variant="link"
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs h-2 transition-all duration-300 group-hover:translate-x-1"
-                        asChild
-                    >
-                        <Link href={href} className="ml-4">
-                            Lihat detail <ArrowUpRight className="h-2.5 w-2.5 ml-0.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                        </Link>
-                    </Button>
-                )}
-            </CardFooter>
+            {href && (
+                <Link href={href} className="absolute inset-0 z-10">
+                    <span className="sr-only">View Details</span>
+                </Link>
+            )}
         </Card>
     );
 }
@@ -1213,32 +1295,50 @@ function RecentTableSkeleton() {
 function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
-    // Ambil semua foto (maksimal 4 agar ringan)
-    const spksWithPhotos = recentSpk.map(spk => {
+    // Ambil semua foto (tidak dibatasi)
+    const spksWithPhotos = recentSpk.map((spk) => {
         const latestReport = spk.spkFieldReport?.[0];
-        const photos = latestReport?.photos?.slice(0, 4) || [];
+        // Tampilkan semua foto yang ada
+        const photos = latestReport?.photos || [];
         return { ...spk, photos };
     });
 
     const handleNext = () => {
+        if (isTransitioning) return;
+        setIsTransitioning(true);
         setCurrentIndex((prev) => (prev + 1) % spksWithPhotos.length);
+        setTimeout(() => setIsTransitioning(false), 600);
     };
 
     const handlePrev = () => {
+        if (isTransitioning) return;
+        setIsTransitioning(true);
         setCurrentIndex((prev) => (prev - 1 + spksWithPhotos.length) % spksWithPhotos.length);
+        setTimeout(() => setIsTransitioning(false), 600);
     };
 
-    // Auto-slide setiap 5 detik
+    const goToSlide = (index: number) => {
+        if (isTransitioning || index === currentIndex) return;
+        setIsTransitioning(true);
+        setCurrentIndex(index);
+        setTimeout(() => setIsTransitioning(false), 600);
+    };
+
+    // Auto-slide setiap 5 detik - DIPERBAIKI
     useEffect(() => {
-        if (spksWithPhotos.length <= 1 || isHovered) return;
+        if (spksWithPhotos.length <= 1) return;
+        
+        // Jangan auto-slide saat hover atau sedang transisi
+        if (isHovered || isTransitioning) return;
 
         const interval = setInterval(() => {
-            setCurrentIndex((prev) => (prev + 1) % spksWithPhotos.length);
+            handleNext();
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [spksWithPhotos.length, isHovered]);
+    }, [spksWithPhotos.length, isHovered, isTransitioning, currentIndex]);
 
     if (spksWithPhotos.length === 0) {
         return (
@@ -1251,176 +1351,307 @@ function SPKCarousel({ recentSpk }: { recentSpk: SPKMini[] }) {
     const currentSpk = spksWithPhotos[currentIndex];
     const hasPhotos = currentSpk?.photos?.length > 0;
 
-    // Fungsi untuk mendapatkan layout Bento/Mosaic acak yang elegan
-    const getMosaicClass = (total: number, index: number) => {
+    // Layout Grid Sempurna (Tidak ada ruang kosong)
+    const getPerfectGridClass = (total: number, index: number) => {
         if (total === 1) return "col-span-12 row-span-12";
         if (total === 2) return "col-span-6 row-span-12";
         if (total === 3) {
             if (index === 0) return "col-span-8 row-span-12";
             return "col-span-4 row-span-6";
         }
-        // Jika 4 foto
-        if (index === 0) return "col-span-8 row-span-12";
-        if (index === 1) return "col-span-4 row-span-6";
-        if (index === 2) return "col-span-2 row-span-6";
-        return "col-span-2 row-span-6";
+        if (total === 4) {
+            if (index === 0) return "col-span-8 row-span-12";
+            return "col-span-4 row-span-4";
+        }
+        if (total === 5) {
+            if (index === 0) return "col-span-6 row-span-12";
+            return "col-span-3 row-span-6";
+        }
+        if (total === 6) {
+            if (index === 0) return "col-span-8 row-span-8";
+            return "col-span-4 row-span-4";
+        }
+        return "col-span-4 row-span-4";
     };
 
     return (
         <div 
-            className="relative w-full overflow-hidden rounded-md group bg-slate-100 dark:bg-slate-900 aspect-video md:aspect-[21/9]"
+            className="relative w-full overflow-hidden rounded-[24px] group bg-slate-900 aspect-[4/3] md:aspect-[21/9] shadow-[0_2px_40px_-12px_rgba(0,0,0,0.1)]"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
             <style>{`
                 @keyframes slideFadeIn {
-                    0% { opacity: 0; transform: scale(1.05); }
-                    100% { opacity: 1; transform: scale(1); }
+                    0% { 
+                        opacity: 0; 
+                        transform: translateX(100%) scale(0.95);
+                    }
+                    100% { 
+                        opacity: 1; 
+                        transform: translateX(0) scale(1);
+                    }
                 }
-                .animate-slide-fade {
-                    animation: slideFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                
+                @keyframes slideFadeOut {
+                    0% { 
+                        opacity: 1; 
+                        transform: translateX(0) scale(1);
+                    }
+                    100% { 
+                        opacity: 0; 
+                        transform: translateX(-100%) scale(0.95);
+                    }
+                }
+                
+                .animate-slide-fade-in {
+                    animation: slideFadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                }
+                
+                .animate-slide-fade-out {
+                    animation: slideFadeOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 4px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: rgba(0,0,0,0.1);
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 4px;
+                }
+                
+                /* Progress bar animation */
+                @keyframes progressBar {
+                    0% { width: 0%; }
+                    100% { width: 100%; }
+                }
+                
+                .progress-bar {
+                    animation: progressBar 5s linear;
+                }
+                
+                .progress-bar.paused {
+                    animation-play-state: paused;
                 }
             `}</style>
 
             {hasPhotos ? (
-                <div key={currentSpk.id || currentIndex} className="absolute inset-0 grid grid-cols-12 grid-rows-12 gap-1 bg-black animate-slide-fade">
-                    {currentSpk.photos.map((photo: any, idx: number) => (
-                        <div key={photo.id || idx} className={`relative overflow-hidden ${getMosaicClass(currentSpk.photos.length, idx)}`}>
-                            <img 
-                                src={(() => {
-                                    const src = makeImageSrc(photo.imageUrl);
-                                    return src;
-                                })()} 
-                                alt={`SPK ${currentSpk.spkNumber} - Photo ${idx + 1}`}
-                                loading="lazy"
-                                className="absolute inset-0 w-full h-full object-contain p-1 transition-transform duration-700 group-hover:scale-105 opacity-80 hover:opacity-100 bg-slate-900/50"
-                                onError={(e) => {
-                                    const target = e.currentTarget as HTMLImageElement;
-                                    const originalSrc = target.src;
-                                    
-                                    if (originalSrc.includes('localhost:5000') || originalSrc.includes('localhost:3000')) {
-                                        const newSrc = originalSrc.replace(/http:\/\/localhost:(5000|3000)/, 'https://api.rylif-app.com');
-                                        if (target.getAttribute('data-tried-vps') !== 'true') {
-                                            target.setAttribute('data-tried-vps', 'true');
-                                            target.src = newSrc;
-                                            return;
-                                        }
-                                    }
-
-                                    target.style.display = 'none';
-                                    const parent = target.parentElement;
-                                    if (parent && !parent.querySelector('.fallback-icon')) {
-                                        const fallback = document.createElement('div');
-                                        fallback.className = 'fallback-icon absolute inset-0 w-full h-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center';
-                                        fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-slate-400 opacity-50"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
-                                        parent.appendChild(fallback);
-                                    }
-                                }}
-                            />
+                <div 
+                    key={`${currentSpk.id}-${currentIndex}`} 
+                    className="absolute inset-0 p-1 md:p-2 bg-slate-950 animate-slide-fade-in overflow-y-auto custom-scrollbar"
+                >
+                    {currentSpk.photos.length <= 6 ? (
+                        // Perfect packed grid untuk 1-6 foto (100% full, tidak ada kosong)
+                        <div className="grid grid-cols-12 grid-rows-12 gap-1 md:gap-2 h-full w-full">
+                            {currentSpk.photos.map((photo: any, idx: number) => (
+                                <div key={photo.id || idx} className={`relative overflow-hidden rounded-xl shadow-sm bg-slate-800 ${getPerfectGridClass(currentSpk.photos.length, idx)}`}>
+                                    <div className="absolute inset-0 bg-slate-800 animate-pulse" />
+                                    <img 
+                                        src={(() => {
+                                            const src = makeImageSrc(photo.imageUrl);
+                                            return src;
+                                        })()} 
+                                        alt={`SPK ${currentSpk.spkNumber} - Photo ${idx + 1}`}
+                                        loading="lazy"
+                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 hover:opacity-100"
+                                        onError={(e) => {
+                                            const target = e.currentTarget as HTMLImageElement;
+                                            const originalSrc = target.src;
+                                            if (originalSrc.includes('localhost:5000') || originalSrc.includes('localhost:3000')) {
+                                                const newSrc = originalSrc.replace(/http:\/\/localhost:(5000|3000)/, 'https://api.rylif-app.com');
+                                                if (target.getAttribute('data-tried-vps') !== 'true') {
+                                                    target.setAttribute('data-tried-vps', 'true');
+                                                    target.src = newSrc;
+                                                    return;
+                                                }
+                                            }
+                                            target.style.display = 'none';
+                                        }}
+                                    />
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    ) : (
+                        // Masonry flex-grow layout untuk foto > 6 (Otomatis mengisi baris sampai penuh)
+                        <div className="flex flex-wrap gap-1 md:gap-2 w-full content-start">
+                            {currentSpk.photos.map((photo: any, idx: number) => {
+                                const growFactors = [1, 2, 1.5, 3, 1.2];
+                                return (
+                                    <div 
+                                        key={photo.id || idx} 
+                                        className="relative overflow-hidden rounded-xl shadow-sm bg-slate-800 h-[100px] md:h-[150px]"
+                                        style={{ flexGrow: growFactors[idx % growFactors.length], flexBasis: "20%" }}
+                                    >
+                                        <div className="absolute inset-0 bg-slate-800 animate-pulse" />
+                                        <img 
+                                            src={(() => {
+                                                const src = makeImageSrc(photo.imageUrl);
+                                                return src;
+                                            })()} 
+                                            alt={`SPK ${currentSpk.spkNumber} - Photo ${idx + 1}`}
+                                            loading="lazy"
+                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 hover:opacity-100"
+                                            onError={(e) => {
+                                                const target = e.currentTarget as HTMLImageElement;
+                                                const originalSrc = target.src;
+                                                if (originalSrc.includes('localhost:5000') || originalSrc.includes('localhost:3000')) {
+                                                    const newSrc = originalSrc.replace(/http:\/\/localhost:(5000|3000)/, 'https://api.rylif-app.com');
+                                                    if (target.getAttribute('data-tried-vps') !== 'true') {
+                                                        target.setAttribute('data-tried-vps', 'true');
+                                                        target.src = newSrc;
+                                                        return;
+                                                    }
+                                                }
+                                                target.style.display = 'none';
+                                            }}
+                                        />
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
             ) : (
-                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-slate-100 dark:bg-slate-800">
-                    <ImageIcon className="w-12 h-12 mb-2 opacity-50" />
-                    <span>Tidak ada foto</span>
+                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100 dark:bg-slate-800">
+                    <ImageIcon className="w-12 h-12 mb-3 opacity-20" />
+                    <span className="font-medium text-sm">No documentation available</span>
                 </div>
             )}
 
-            {/* Gradient Overlay for Text Readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
+            {/* Ultra Premium Gradient Overlays */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-900/40 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/60 via-transparent to-transparent pointer-events-none" />
 
             {/* Content Layer */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 text-white pointer-events-auto flex flex-col gap-2">
-                <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1">
-                        <Link href={`/admin-area/logistic/spk?search=${currentSpk.spkNumber}`} className="text-lg md:text-2xl font-bold text-orange-400 hover:text-orange-300 hover:underline inline-block drop-shadow-md">
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-white pointer-events-auto flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                    <div className="flex-1 max-w-3xl">
+                        <div className="flex items-center gap-3 mb-2">
+                            <Badge className={`px-2.5 py-1 text-[10px] md:text-xs font-bold tracking-wider ${
+                                currentSpk.spkStatusClose 
+                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-0' 
+                                : 'bg-orange-500 hover:bg-orange-600 text-white border-0'
+                            }`}>
+                                {currentSpk.spkStatusClose ? 'CLOSED' : 'IN PROGRESS'}
+                            </Badge>
+                            <span className="text-slate-300 text-xs font-medium flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                {currentSpk.team?.namaTeam || "Tim Tidak Ditentukan"}
+                            </span>
+                        </div>
+
+                        <Link href={`/admin-area/logistic/spk?search=${currentSpk.spkNumber}`} className="text-2xl md:text-3xl font-bold text-white hover:text-orange-400 transition-colors inline-block tracking-tight drop-shadow-sm mb-1">
                             {currentSpk.spkNumber}
                         </Link>
                         
-                        {/* Nama Project - Lebih Besar di Desktop */}
-                        <div className="text-base md:text-xl font-bold text-white mt-1 md:mt-2 leading-snug drop-shadow-md line-clamp-2">
+                        <div className="text-sm md:text-lg text-slate-200 font-medium leading-relaxed drop-shadow-sm line-clamp-2 mb-3">
                             {currentSpk.salesOrder?.project?.name || "Nama Project Tidak Tersedia"}
                         </div>
                         
-                        {/* Info Customer & SO */}
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm text-slate-200 mt-2 font-medium">
-                            <span className="flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded-md backdrop-blur-md">
-                                <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                                {currentSpk.salesOrder?.customer?.name || "-"}
-                                {currentSpk.salesOrder?.customer?.branch ? ` - ${currentSpk.salesOrder.customer.branch}` : ""}
-                            </span>
-                            <span className="flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded-md backdrop-blur-md">
-                                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                        {/* Info Pills */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 text-xs text-slate-100 font-medium">
+                                <Building2 className="w-3.5 h-3.5 text-blue-300" />
+                                <span className="truncate max-w-[150px] md:max-w-[200px]">
+                                    {currentSpk.salesOrder?.customer?.name || "-"}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10 text-xs text-slate-100 font-medium">
+                                <FileText className="w-3.5 h-3.5 text-emerald-300" />
                                 {currentSpk.salesOrder?.soNumber || "-"}
-                            </span>
-                            <span className="flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded-md backdrop-blur-md">
-                                <Users2 className="w-3.5 h-3.5 text-orange-400" />
-                                {currentSpk.team?.namaTeam || "-"}
-                            </span>
+                            </div>
                         </div>
                     </div>
                     
-                    <Badge className={`px-2 py-1 ${
-                        currentSpk.spkStatusClose 
-                        ? 'bg-emerald-500/80 text-white border-emerald-400' 
-                        : 'bg-orange-500/80 text-white border-orange-400'
-                    }`}>
-                        {currentSpk.spkStatusClose ? 'CLOSED' : 'OPEN'}
-                    </Badge>
+                    {/* Circular Progress */}
+                    <div className="hidden md:flex flex-col items-center bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/10 min-w-[120px]">
+                        <div className="text-3xl font-bold text-white tracking-tighter mb-1">
+                            {currentSpk.progress}<span className="text-lg text-slate-400">%</span>
+                        </div>
+                        <div className="text-[10px] text-slate-300 uppercase tracking-widest font-semibold">Progress</div>
+                    </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="mt-2">
-                    <div className="flex justify-between items-center text-xs mb-1">
-                        <span className="font-bold text-white">{currentSpk.progress}% Progress</span>
-                        <span className="text-slate-300 italic truncate max-w-[200px] md:max-w-md">
-                            {currentSpk.progressComment || "No comment"}
+                {/* Mobile Progress Bar (Hidden on Desktop since we have circular progress) */}
+                <div className="md:hidden mt-2">
+                    <div className="flex justify-between items-center text-xs mb-1.5">
+                        <span className="font-bold text-white tracking-wide">{currentSpk.progress}% PROGRESS</span>
+                        <span className="text-slate-300 truncate max-w-[150px]">
+                            {currentSpk.progressComment || ""}
                         </span>
                     </div>
-                    <div className="h-2 w-full bg-slate-700/50 rounded-full overflow-hidden backdrop-blur-sm">
+                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                         <div 
-                            className={`h-full rounded-full transition-all duration-1000 ${
+                            className={`h-full rounded-full transition-all duration-1000 ease-out ${
                                 currentSpk.progress >= 100 ? 'bg-emerald-400' : 
-                                currentSpk.progress >= 50 ? 'bg-sky-400' : 
-                                currentSpk.progress > 0 ? 'bg-amber-400' : 'bg-slate-400'
+                                currentSpk.progress >= 50 ? 'bg-blue-400' : 
+                                currentSpk.progress > 0 ? 'bg-orange-400' : 'bg-slate-400'
                             }`}
                             style={{ width: `${currentSpk.progress}%` }}
                         />
                     </div>
                 </div>
+                
+                {/* Desktop Comment */}
+                <div className="hidden md:block text-sm text-slate-300 italic border-l-2 border-white/20 pl-3 py-0.5 mt-2 max-w-2xl">
+                    "{currentSpk.progressComment || "Tidak ada catatan progres tambahan."}"
+                </div>
             </div>
 
-            {/* Navigation Buttons */}
+            {/* Navigation Buttons - Enhanced */}
             {spksWithPhotos.length > 1 && (
                 <>
                     <button 
                         onClick={handlePrev}
-                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/60 transition-colors backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        disabled={isTransitioning}
+                        className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 p-3 md:p-4 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-orange-500 hover:scale-110 transition-all duration-300 opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-orange-500/50 z-30"
                         aria-label="Previous SPK"
                     >
-                        <ChevronLeft className="w-6 h-6" />
+                        <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                     <button 
                         onClick={handleNext}
-                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/60 transition-colors backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        disabled={isTransitioning}
+                        className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 p-3 md:p-4 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-orange-500 hover:scale-110 transition-all duration-300 opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-orange-500/50 z-30"
                         aria-label="Next SPK"
                     >
-                        <ChevronRight className="w-6 h-6" />
+                        <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
 
-                    {/* Dots Indicator */}
-                    <div className="absolute top-4 right-4 flex gap-1.5">
-                        {spksWithPhotos.map((_, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => setCurrentIndex(idx)}
-                                className={`h-1.5 rounded-full transition-all duration-300 ${
-                                    idx === currentIndex ? 'w-6 bg-orange-400' : 'w-1.5 bg-white/50 hover:bg-white/80'
-                                }`}
-                                aria-label={`Go to slide ${idx + 1}`}
-                            />
-                        ))}
+                    {/* Dots Indicator with Progress Bar */}
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 z-30">
+                        <div className="flex gap-1.5 bg-black/30 backdrop-blur-md rounded-full p-2">
+                            {spksWithPhotos.map((_, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => goToSlide(idx)}
+                                    disabled={isTransitioning}
+                                    className={`relative h-2 rounded-full transition-all duration-300 overflow-hidden ${
+                                        idx === currentIndex 
+                                            ? 'w-8 bg-orange-400 shadow-lg shadow-orange-400/50' 
+                                            : 'w-2 bg-white/40 hover:bg-white/70 hover:w-4'
+                                    } disabled:cursor-not-allowed`}
+                                    aria-label={`Go to slide ${idx + 1}`}
+                                >
+                                    {/* Progress bar untuk slide aktif */}
+                                    {idx === currentIndex && !isHovered && (
+                                        <div 
+                                            className="absolute inset-0 bg-orange-300 progress-bar"
+                                            style={{ 
+                                                animationPlayState: isHovered ? 'paused' : 'running'
+                                            }}
+                                        />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                        
+                        {/* Counter */}
+                        <div className="text-white text-xs font-bold bg-black/40 backdrop-blur-md rounded-full px-3 py-1 text-center">
+                            {currentIndex + 1} / {spksWithPhotos.length}
+                        </div>
                     </div>
                 </>
             )}

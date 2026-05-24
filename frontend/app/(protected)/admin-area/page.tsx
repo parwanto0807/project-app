@@ -70,38 +70,42 @@ export default function DashboardPage() {
 
   return (
     <AdminLayout title="Dashboard Admin" role={displayRole}>
-      {/* Page Header */}
-      <div className="space-y-3 sm:space-y-4 mb-2 sm:mb-4">
+      {/* Page Header with Enhanced Design */}
+      <div className="space-y-4 sm:space-y-5 mb-4 sm:mb-6">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/admin-area" className="flex items-center gap-1.5 sm:gap-2 pl-2">
+                <Link href="/admin-area" className="flex items-center gap-2 pl-2 hover:text-blue-600 transition-colors">
                   <Home className="h-4 w-4 text-gray-500 sm:h-4 sm:w-4" />
-                  <span className="text-sm sm:text-base">Home</span>
+                  <span className="text-sm sm:text-base font-medium">Home</span>
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage className="flex items-center gap-1.5 sm:gap-2 font-semibold">
+              <BreadcrumbPage className="flex items-center gap-2 font-bold">
                 <LayoutDashboard className="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />
-                <span className="text-sm sm:text-base">Dashboard</span>
+                <span className="text-sm sm:text-base bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Dashboard</span>
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
 
-        <div className="flex items-start sm:items-center justify-between">
-          <div>
-            <p className="pl-2 text-xs sm:text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-1.5 sm:gap-2">
-              <UserCircle className="h-4 w-4 text-green-500 sm:h-5 sm:w-5" />
-              Selamat datang kembali,&nbsp;
-              <span className="shine-text font-bold">
+        <div className="flex items-start sm:items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/20">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl shadow-lg shadow-green-500/30">
+              <UserCircle className="h-6 w-6 text-white sm:h-7 sm:w-7" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium">
+                Selamat datang kembali,
+              </p>
+              <p className="text-lg sm:text-xl font-black bg-gradient-to-r from-slate-900 to-blue-900 dark:from-white dark:to-blue-100 bg-clip-text text-transparent">
                 {displayName}!
-              </span>
-              <span className="hidden xs:inline">(Role: {displayRole})</span>
-            </p>
+              </p>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Role: {displayRole}</span>
+            </div>
           </div>
         </div>
       </div>
