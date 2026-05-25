@@ -28,29 +28,29 @@ import Pagination from "@/components/ui/paginationNew";
 import SpkFilter from "@/components/spk/spkDropDownFilter";
 import CreateButtonSPK from "@/components/spk/createSpkButton";
 import { Button } from "@/components/ui/button";
-import { 
-    Dialog, 
-    DialogContent, 
-    DialogHeader, 
-    DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog";
-import { 
-    Printer, 
-    Download, 
-    Loader2, 
-    FileText
+import {
+  Printer,
+  Download,
+  Loader2,
+  FileText
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import SPKSummaryPDF from "@/components/spk/SPKSummaryPDF";
 
 // Dynamic imports for react-pdf to avoid SSR issues
 const PDFDownloadLink = dynamic(
-    () => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
-    { ssr: false }
+  () => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
+  { ssr: false }
 );
 const PDFViewer = dynamic(
-    () => import("@react-pdf/renderer").then((mod) => mod.PDFViewer),
-    { ssr: false }
+  () => import("@react-pdf/renderer").then((mod) => mod.PDFViewer),
+  { ssr: false }
 );
 
 type SPK = {
@@ -181,7 +181,7 @@ export default function SpkPageAdmin() {
   const urlSearch = searchParams.get("search") || "";
   const urlFilter = searchParams.get("filter") || "on-progress";
   const urlTeam = searchParams.get("team") || "all";
-  const urlStatus = searchParams.get("status") || "all";
+  const urlStatus = searchParams.get("status") || "on-progress";
 
   // ===============================
   //    FETCH SPK DATA - DENGAN FILTER
@@ -194,14 +194,14 @@ export default function SpkPageAdmin() {
     try {
       setIsDataFetching(true);
 
-      ;(() => {})("🔄 Fetching data dengan params:", {
-        page: urlPage,
-        pageSize: urlPageSize,
-        searchTerm: urlSearch,
-        filterBy: urlFilter,
-        team: urlTeam,
-        status: urlStatus
-      });
+      // console.log("🔄 Fetching data dengan params:", {
+      //   page: urlPage,
+      //   pageSize: urlPageSize,
+      //   searchTerm: urlSearch,
+      //   filterBy: urlFilter,
+      //   team: urlTeam,
+      //   status: urlStatus
+      // });
 
       const result: SPKResponse = await fetchAllSpkAdmin({
         page: urlPage,
@@ -212,11 +212,11 @@ export default function SpkPageAdmin() {
         status: urlStatus
       });
 
-      ;(() => {})("✅ Data berhasil di-fetch:", {
-        dataCount: result.data.length,
-        pagination: result.pagination,
-        filterApplied: urlFilter
-      });
+      // console.log("✅ Data berhasil di-fetch:", {
+      //   dataCount: result.data.length,
+      //   pagination: result.pagination,
+      //   filterApplied: urlFilter
+      // });
 
       setDataSpk(result.data);
       setPaginationMeta(result.pagination);
@@ -278,7 +278,7 @@ export default function SpkPageAdmin() {
   // ===============================
   const handleStatusChange = useCallback((newStatus: string) => {
     const params = new URLSearchParams(searchParams);
-    if (newStatus && newStatus !== "all") {
+    if (newStatus && newStatus !== "on-progress") {
       params.set("status", newStatus);
     } else {
       params.delete("status");
@@ -395,7 +395,7 @@ export default function SpkPageAdmin() {
   // ===============================
   const availableTeams = useMemo(() => {
     if (allTeams.length > 0) return allTeams;
-    
+
     // Fallback ke data yang ada jika fetch gagal
     if (!Array.isArray(dataSpk)) return [];
 
@@ -643,8 +643,8 @@ export default function SpkPageAdmin() {
                       onItemsPerPageChange={handleItemsPerPageChange}
                       disabled={isDataFetching}
                     />
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="gap-2 border-primary/20 hover:bg-primary/5 text-primary"
                       onClick={handlePreparePrint}
                       disabled={isPreparingPdf || isDataFetching}
@@ -727,8 +727,8 @@ export default function SpkPageAdmin() {
                     disabled={isDataFetching}
                     className="w-full"
                   />
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full gap-2 border-primary/20 hover:bg-primary/5 text-primary"
                     onClick={handlePreparePrint}
                     disabled={isPreparingPdf || isDataFetching}
@@ -800,64 +800,64 @@ export default function SpkPageAdmin() {
 
             {/* MODAL PREVIEW PDF - SUMMARY REPORT */}
             <Dialog open={isSummaryPdfOpen} onOpenChange={setIsSummaryPdfOpen}>
-                <DialogContent className="max-w-5xl h-[90vh] overflow-hidden flex flex-col p-0 border-0 shadow-2xl rounded-2xl bg-white">
-                    <DialogHeader className="p-6 pb-4 border-b bg-slate-50">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg">
-                                    <FileText className="h-5 w-5 text-primary" />
-                                </div>
-                                <div>
-                                    <DialogTitle className="text-xl font-bold text-slate-900">
-                                        Preview Laporan Summary SPK
-                                    </DialogTitle>
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                        Menampilkan {printData.length} data sesuai filter saat ini
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-3 pr-8">
-                                <PDFDownloadLink
-                                    document={
-                                        <SPKSummaryPDF 
-                                            data={printData} 
-                                            teamName={urlTeam === 'all' ? 'Semua Tim' : urlTeam}
-                                            statusFilter={urlStatus === 'all' ? 'Semua Status' : urlStatus}
-                                        />
-                                    }
-                                    fileName={`SPK-Summary-${new Date().toISOString().split('T')[0]}.pdf`}
-                                >
-                                    {({ loading }) => (
-                                        <Button 
-                                            disabled={loading}
-                                            className="bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-md hover:shadow-lg active:scale-95"
-                                        >
-                                            {loading ? (
-                                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                            ) : (
-                                                <Download className="h-4 w-4 mr-2" />
-                                            )}
-                                            Unduh Laporan PDF
-                                        </Button>
-                                    )}
-                                </PDFDownloadLink>
-                            </div>
-                        </div>
-                    </DialogHeader>
-                    
-                    <div className="flex-1 bg-slate-200/50 p-4 overflow-hidden">
-                        <div className="w-full h-full rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-white">
-                            <PDFViewer width="100%" height="100%" className="border-0">
-                                <SPKSummaryPDF 
-                                    data={printData} 
-                                    teamName={urlTeam === 'all' ? 'Semua Tim' : urlTeam}
-                                    statusFilter={urlStatus === 'all' ? 'Semua Status' : urlStatus}
-                                />
-                            </PDFViewer>
-                        </div>
+              <DialogContent className="max-w-5xl h-[90vh] overflow-hidden flex flex-col p-0 border-0 shadow-2xl rounded-2xl bg-white">
+                <DialogHeader className="p-6 pb-4 border-b bg-slate-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <DialogTitle className="text-xl font-bold text-slate-900">
+                          Preview Laporan Summary SPK
+                        </DialogTitle>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Menampilkan {printData.length} data sesuai filter saat ini
+                        </p>
+                      </div>
                     </div>
-                </DialogContent>
+
+                    <div className="flex items-center gap-3 pr-8">
+                      <PDFDownloadLink
+                        document={
+                          <SPKSummaryPDF
+                            data={printData}
+                            teamName={urlTeam === 'all' ? 'Semua Tim' : urlTeam}
+                            statusFilter={urlStatus === 'all' ? 'Semua Status' : urlStatus}
+                          />
+                        }
+                        fileName={`SPK-Summary-${new Date().toISOString().split('T')[0]}.pdf`}
+                      >
+                        {({ loading }) => (
+                          <Button
+                            disabled={loading}
+                            className="bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-md hover:shadow-lg active:scale-95"
+                          >
+                            {loading ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                              <Download className="h-4 w-4 mr-2" />
+                            )}
+                            Unduh Laporan PDF
+                          </Button>
+                        )}
+                      </PDFDownloadLink>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="flex-1 bg-slate-200/50 p-4 overflow-hidden">
+                  <div className="w-full h-full rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-white">
+                    <PDFViewer width="100%" height="100%" className="border-0">
+                      <SPKSummaryPDF
+                        data={printData}
+                        teamName={urlTeam === 'all' ? 'Semua Tim' : urlTeam}
+                        statusFilter={urlStatus === 'all' ? 'Semua Status' : urlStatus}
+                      />
+                    </PDFViewer>
+                  </div>
+                </div>
+              </DialogContent>
             </Dialog>
           </div>
         </div>

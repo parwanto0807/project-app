@@ -269,7 +269,7 @@ export const submitClockOut = async (req, res) => {
     try {
       await NotificationService.broadcastToAdmins({
         title: "📌 Absen Keluar (Clock Out)",
-        body: `${karyawan.namaLengkap} telah melakukan Absen Keluar pada pukul ${new Date(updatedAbsensi.jamKeluar).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}.`,
+        body: `${karyawan.namaLengkap} telah melakukan Absen Keluar pada pukul ${new Date(updatedAbsensi.jamKeluar).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
         type: "attendance_clock_out",
         data: {
           id: updatedAbsensi.id,

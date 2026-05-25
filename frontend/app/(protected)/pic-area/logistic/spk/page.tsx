@@ -154,12 +154,12 @@ export default function SpkPageAdmin() {
     try {
       setIsDataFetching(true);
 
-      ;(() => {})("🔄 Fetching data dengan params:", {
-        page: urlPage,
-        pageSize: urlPageSize,
-        searchTerm: urlSearch,
-        filterBy: urlFilter
-      });
+      // console.log("🔄 Fetching data dengan params:", {
+      //   page: urlPage,
+      //   pageSize: urlPageSize,
+      //   searchTerm: urlSearch,
+      //   filterBy: urlFilter
+      // });
 
       const result: SPKResponse = await fetchAllSpkAdmin({
         page: urlPage,
@@ -168,11 +168,11 @@ export default function SpkPageAdmin() {
         filterBy: urlFilter, // Tambahkan filter ke API call
       });
 
-      ;(() => {})("✅ Data berhasil di-fetch:", {
-        dataCount: result.data.length,
-        pagination: result.pagination,
-        filterApplied: urlFilter
-      });
+      // console.log("✅ Data berhasil di-fetch:", {
+      //   dataCount: result.data.length,
+      //   pagination: result.pagination,
+      //   filterApplied: urlFilter
+      // });
 
       setDataSpk(result.data);
       setPaginationMeta(result.pagination);
