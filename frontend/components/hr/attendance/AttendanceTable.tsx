@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2, PlusCircle, Trash2, Loader2, Fingerprint } from "lucide-react";
+import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2, PlusCircle, Trash2, Loader2, Fingerprint, CornerDownRight } from "lucide-react";
 import { Fragment, useState, useEffect } from "react";
 import ValidateAttendanceDialog from "./ValidateAttendanceDialog";
 import { ManualAttendanceDialog } from "./ManualAttendanceDialog";
@@ -20,6 +20,7 @@ interface TableProps {
   isLoading: boolean;
   onViewDetail: (record: any) => void;
   onRefresh?: () => void;
+  groupByTeam?: boolean;
 }
 
 const JAM_STANDAR_KELUAR = "17:00";
@@ -45,7 +46,7 @@ function getDiscrepancyInfo(jamKeluar: string | null, firstSeen: string | null) 
   return `${durationStr} (Indikasi Mengulur Waktu)`;
 }
 
-export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: TableProps) {
+export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, groupByTeam }: TableProps) {
   const [validateRecord, setValidateRecord] = useState<any | null>(null);
   const [manualRecord, setManualRecord] = useState<any | null>(null);
   const [editRecord, setEditRecord] = useState<any | null>(null);
@@ -172,278 +173,335 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                   }
                 };
 
-                const groupedData: Record<string, any[]> = {};
-                data.forEach((row) => {
-                  const dateKey = getJakartaDateString(row.tanggal);
-                  if (!groupedData[dateKey]) groupedData[dateKey] = [];
-                  groupedData[dateKey].push(row);
-                });
+                const renderRow = (row: any, isSubGrouped: boolean = false) => {
+                  const suspicious = isSuspicious(row.jamMasuk, row.jamKeluar);
+                  const validated = row.isValidated;
+                  const needsValidation = row.jamKeluar && !validated;
 
-                const sortedDates = Object.keys(groupedData).sort((a, b) => b.localeCompare(a));
-
-                return sortedDates.map((date) => (
-                    <Fragment key={date}>
-                      <TableRow className="bg-gradient-to-r from-gray-50/80 to-white hover:bg-gray-50/90 transition-colors">
-                        <TableCell colSpan={12} className="py-2 border-l-2 border-cyan-400">
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className={`hover:bg-white/60 transition-colors group ${suspicious && !validated ? "bg-red-50/30" : ""}`}
+                    >
+                      {/* Karyawan */}
+                      <TableCell className={isSubGrouped ? "pl-14 border-l-2 border-indigo-100" : ""}>
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-cyan-500" />
-                          <span className="font-black text-[11px] uppercase tracking-widest text-gray-500">
-                            {(() => {
-                              const [y, m, d] = date.split('-');
-                              return format(new Date(Number(y), Number(m) - 1, Number(d)), "EEEE, dd MMMM yyyy", { locale: id });
-                            })()}
+                          <Avatar className="h-8 w-8 border border-white shadow-sm">
+                            <AvatarImage src={row.karyawan?.foto ? `${process.env.NEXT_PUBLIC_API_URL}${row.karyawan.foto}` : undefined} />
+                            <AvatarFallback className="bg-cyan-100 text-cyan-700 font-black text-[10px]">
+                              {row.karyawan?.namaLengkap?.substring(0, 2)?.toUpperCase() || "NA"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-bold text-xs text-gray-800 uppercase leading-none">{row.karyawan?.namaLengkap}</span>
+                            <div className="flex items-center gap-1.5 whitespace-nowrap">
+                              <span className="text-[10px] font-medium text-muted-foreground uppercase leading-none">{row.karyawan?.nik}</span>
+                              {row.karyawan?.teamKaryawan?.[0]?.team && (
+                                <>
+                                  <span className="text-gray-300 text-[10px] leading-none">•</span>
+                                  <span className="text-[9px] font-bold text-cyan-600 bg-cyan-50 px-1.5 py-0.5 rounded border border-cyan-100 uppercase">
+                                    {row.karyawan.teamKaryawan[0].team.namaTeam}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Lokasi Absen */}
+                      <TableCell className="font-medium text-[10px] text-gray-600">
+                        {row.karyawan?.attendanceLocation?.name || "Global"}
+                      </TableCell>
+
+                      {/* Tanggal */}
+                      <TableCell className="font-medium text-gray-600 text-xs whitespace-nowrap">
+                        {(() => {
+                          const [y, m, d] = getJakartaDateString(row.tanggal).split('-');
+                          return format(new Date(Number(y), Number(m) - 1, Number(d)), "dd MMM yyyy", { locale: id });
+                        })()}
+                      </TableCell>
+
+                      {/* Jam Masuk */}
+                      <TableCell>
+                        <span className="font-bold text-cyan-600 text-xs whitespace-nowrap">
+                          {row.jamMasuk ? formatJakarta(row.jamMasuk, true) : "--:--"}
+                        </span>
+                      </TableCell>
+
+                      {/* Jam Keluar */}
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          <span className={`font-bold text-xs ${suspicious && !validated ? "text-red-600" : "text-blue-600"}`}>
+                            {row.jamKeluar ? formatJakarta(row.jamKeluar, true) : "--:--"}
                           </span>
-                          <Badge variant="outline" className="ml-auto text-[9px] font-bold border-gray-200 text-gray-400">
-                            {groupedData[date].length} ABSENSI
+                          {suspicious && !validated && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                          {validated && row.jamKeluarDisetujui && row.jamKeluarDisetujui !== row.jamKeluar && (
+                            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5" title="Disetujui">
+                              <CheckCircle2 className="h-2.5 w-2.5" />
+                              {formatJakarta(row.jamKeluarDisetujui, true)}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Deteksi Kantor (first_seen_at) */}
+                      <TableCell>
+                        {row.first_seen_at ? (
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className="font-bold text-xs text-amber-700">{formatJakarta(row.first_seen_at, true)}</span>
+                            {(() => {
+                              const discStr = getDiscrepancyInfo(row.jamKeluar, row.first_seen_at);
+                              if (discStr) {
+                                return (
+                                  <span className="text-[9px] text-red-600 font-bold bg-red-50 px-1 py-0.5 rounded border border-red-100">
+                                    Selisih: {discStr}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
+                      </TableCell>
+
+                      {/* Durasi */}
+                      <TableCell className="font-bold text-gray-700 text-xs whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>{calculateDuration(row.jamMasuk, row.jamKeluar)}</span>
+                          {validated && row.jamKeluarDisetujui && row.jamKeluarDisetujui !== row.jamKeluar && (
+                            <span className="text-[10px] text-emerald-600 font-semibold" title="Durasi Disetujui">
+                              (✓ {calculateDuration(row.jamMasuk, row.jamKeluarDisetujui)})
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Lembur */}
+                      <TableCell>
+                        {row.jamLembur > 0 ? (
+                          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap">
+                            {row.jamLembur} JAM
                           </Badge>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
+                      </TableCell>
+
+                      {/* Status */}
+                      <TableCell>
+                        <div className="flex flex-row gap-1.5 items-center whitespace-nowrap">
+                          {getStatusBadge(row.status)}
+                          {row.isMissing && (
+                            <div title="Wajib Absen tapi tidak ada data" className="flex items-center gap-1 text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 shadow-sm animate-pulse">
+                              <AlertTriangle className="h-3 w-3" />
+                              <span className="text-[9px] font-bold tracking-tight">TIDAK ABSEN</span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Keterangan */}
+                      <TableCell>
+                        <span 
+                          className="text-xs text-gray-600 max-w-[120px] truncate block" 
+                          title={row.keterangan || "-"}
+                        >
+                          {row.keterangan || "-"}
+                        </span>
+                      </TableCell>
+
+                      {/* Validasi column */}
+                      <TableCell>
+                        <div className="flex items-center gap-1 whitespace-nowrap">
+                          {/* GPS & device */}
+                          {row.latMasuk && (
+                            <span title="GPS Valid">
+                              <MapPin className="h-3 w-3 text-emerald-500" />
+                            </span>
+                          )}
+                          {row.deviceMasuk && (
+                            <span title={`Masuk: ${row.deviceMasuk}`}>
+                              {row.deviceMasuk.includes("Fingerprint") ? (
+                                <Fingerprint className="h-3 w-3 text-indigo-500" />
+                              ) : (
+                                <Smartphone className="h-3 w-3 text-blue-500" />
+                              )}
+                            </span>
+                          )}
+                          {row.deviceKeluar && row.deviceKeluar !== row.deviceMasuk && (
+                            <span title={`Keluar: ${row.deviceKeluar}`}>
+                              {row.deviceKeluar.includes("Fingerprint") ? (
+                                <Fingerprint className="h-3 w-3 text-indigo-500" />
+                              ) : (
+                                <Smartphone className="h-3 w-3 text-blue-500" />
+                              )}
+                            </span>
+                          )}
+                          {(row.isMockedMasuk || row.isMockedKeluar) && (
+                            <span title="Mock GPS!">
+                              <AlertTriangle className="h-3 w-3 text-rose-500 animate-pulse" />
+                            </span>
+                          )}
+                          {/* Validation badge */}
+                          {validated ? (
+                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[9px] px-1.5 py-0">
+                              <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Valid
+                            </Badge>
+                          ) : suspicious ? (
+                            <Badge className="bg-red-50 text-red-600 border-red-200 border text-[9px] px-1.5 py-0 animate-pulse">
+                              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />Perlu Cek
+                            </Badge>
+                          ) : needsValidation ? (
+                            <Badge className="bg-amber-50 text-amber-600 border-amber-200 border text-[9px] px-1.5 py-0">
+                              Belum Valid
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {user?.email === "parwanto0807@gmail.com" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all h-7 px-2"
+                              onClick={() => handleDelete(row.id)}
+                              disabled={isDeleting === row.id}
+                            >
+                              {isDeleting === row.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                            </Button>
+                          )}
+                          {row.isMissing && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-amber-600 hover:bg-amber-50 rounded-lg transition-all h-7 px-2 text-[10px] uppercase font-bold"
+                              onClick={() => setManualRecord(row)}
+                            >
+                              Input Manual
+                            </Button>
+                          )}
+                          {!row.isMissing && (row.jamKeluar || row.jamKeluarDisetujui || !row.isValidated) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`rounded-lg transition-all h-7 px-2 text-[10px] uppercase font-bold ${
+                                suspicious && !validated
+                                  ? "text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  : validated
+                                  ? "text-emerald-600 hover:bg-emerald-50"
+                                  : "text-blue-600 hover:bg-blue-50"
+                              }`}
+                              onClick={() => setValidateRecord(row)}
+                            >
+                              <ShieldCheck className="h-3 w-3 mr-1" />
+                              {validated ? "Re-Validasi" : (row.jamKeluar ? "Validasi" : "Manual Out")}
+                            </Button>
+                          )}
+                          {!row.isMissing && user?.email === "parwanto0807@gmail.com" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-all h-7 px-2"
+                              onClick={() => setEditRecord(row)}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-cyan-500 hover:text-white rounded-lg transition-all h-7 px-2"
+                            onClick={() => onViewDetail(row)}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                    {groupedData[date].map((row) => {
-                      const suspicious = isSuspicious(row.jamMasuk, row.jamKeluar);
-                      const validated = row.isValidated;
-                      const needsValidation = row.jamKeluar && !validated;
+                  );
+                };
 
-                      return (
-                        <TableRow
-                          key={row.id}
-                          className={`hover:bg-white/60 transition-colors group ${suspicious && !validated ? "bg-red-50/30" : ""}`}
-                        >
-                          {/* Karyawan */}
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6 border border-white shadow-sm">
-                                <AvatarImage src={row.karyawan?.foto ? `${process.env.NEXT_PUBLIC_API_URL}${row.karyawan.foto}` : undefined} />
-                                <AvatarFallback className="bg-cyan-100 text-cyan-700 font-black text-[10px]">
-                                  {row.karyawan?.namaLengkap?.substring(0, 2)?.toUpperCase() || "NA"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex items-center gap-1.5 whitespace-nowrap">
-                                <span className="font-bold text-xs text-gray-800 uppercase">{row.karyawan?.namaLengkap}</span>
-                                <span className="text-[10px] font-medium text-muted-foreground uppercase">{row.karyawan?.nik}</span>
-                              </div>
-                            </div>
-                          </TableCell>
+                const groupedDataByDate: Record<string, any[]> = {};
+                data.forEach((row) => {
+                  const dateKey = getJakartaDateString(row.tanggal);
+                  if (!groupedDataByDate[dateKey]) groupedDataByDate[dateKey] = [];
+                  groupedDataByDate[dateKey].push(row);
+                });
 
-                          {/* Lokasi Absen */}
-                          <TableCell className="font-medium text-[10px] text-gray-600">
-                            {row.karyawan?.attendanceLocation?.name || "Global"}
-                          </TableCell>
+                const sortedDates = Object.keys(groupedDataByDate).sort((a, b) => b.localeCompare(a));
 
-                          {/* Tanggal */}
-                          <TableCell className="font-medium text-gray-600 text-xs whitespace-nowrap">
-                            {(() => {
-                              const [y, m, d] = getJakartaDateString(row.tanggal).split('-');
-                              return format(new Date(Number(y), Number(m) - 1, Number(d)), "dd MMM yyyy", { locale: id });
-                            })()}
-                          </TableCell>
-
-                          {/* Jam Masuk */}
-                          <TableCell>
-                            <span className="font-bold text-cyan-600 text-xs whitespace-nowrap">
-                              {row.jamMasuk ? formatJakarta(row.jamMasuk, true) : "--:--"}
+                return sortedDates.map((dateKey) => {
+                  const rowsForDate = groupedDataByDate[dateKey];
+                  
+                  return (
+                    <Fragment key={dateKey}>
+                      <TableRow className="bg-slate-200 hover:bg-slate-300 transition-colors shadow-sm">
+                        <TableCell colSpan={12} className="py-2 border-l-4 border-cyan-500">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2.5 w-2.5 rounded-full bg-cyan-600 shadow-sm" />
+                            <span className="font-black text-[12px] uppercase tracking-widest text-slate-800">
+                              {(() => {
+                                const [y, m, d] = dateKey.split('-');
+                                return format(new Date(Number(y), Number(m) - 1, Number(d)), "EEEE, dd MMMM yyyy", { locale: id });
+                              })()}
                             </span>
-                          </TableCell>
+                            <Badge variant="outline" className="ml-auto text-[10px] font-bold border-slate-300 text-slate-600 bg-white">
+                              {rowsForDate.length} ABSENSI
+                            </Badge>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {!groupByTeam ? (
+                        rowsForDate.map(row => renderRow(row))
+                      ) : (
+                        (() => {
+                          const groupedByTeam: Record<string, any[]> = {};
+                          rowsForDate.forEach((row) => {
+                            const teams = row.karyawan?.teamKaryawan;
+                            let teamName = "Tanpa Team";
+                            if (teams && teams.length > 0 && teams[0].team) {
+                              teamName = teams[0].team.namaTeam || "Unknown Team";
+                            }
+                            if (!groupedByTeam[teamName]) groupedByTeam[teamName] = [];
+                            groupedByTeam[teamName].push(row);
+                          });
 
-                          {/* Jam Keluar */}
-                          <TableCell>
-                            <div className="flex items-center gap-1.5 whitespace-nowrap">
-                              <span className={`font-bold text-xs ${suspicious && !validated ? "text-red-600" : "text-blue-600"}`}>
-                                {row.jamKeluar ? formatJakarta(row.jamKeluar, true) : "--:--"}
-                              </span>
-                              {suspicious && !validated && <AlertTriangle className="h-3 w-3 text-red-500" />}
-                              {validated && row.jamKeluarDisetujui && row.jamKeluarDisetujui !== row.jamKeluar && (
-                                <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5" title="Disetujui">
-                                  <CheckCircle2 className="h-2.5 w-2.5" />
-                                  {formatJakarta(row.jamKeluarDisetujui, true)}
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
+                          const sortedTeams = Object.keys(groupedByTeam).sort((a, b) => {
+                            if (a === "Tanpa Team") return 1;
+                            if (b === "Tanpa Team") return -1;
+                            return a.localeCompare(b);
+                          });
 
-                          {/* Deteksi Kantor (first_seen_at) */}
-                          <TableCell>
-                            {row.first_seen_at ? (
-                              <div className="flex items-center gap-1.5 whitespace-nowrap">
-                                <span className="font-bold text-xs text-amber-700">{formatJakarta(row.first_seen_at, true)}</span>
-                                {(() => {
-                                  const discStr = getDiscrepancyInfo(row.jamKeluar, row.first_seen_at);
-                                  if (discStr) {
-                                    return (
-                                      <span className="text-[9px] text-red-600 font-bold bg-red-50 px-1 py-0.5 rounded border border-red-100">
-                                        Selisih: {discStr}
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                              </div>
-                            ) : (
-                              <span className="text-gray-300 text-xs">—</span>
-                            )}
-                          </TableCell>
-
-                          {/* Durasi */}
-                          <TableCell className="font-bold text-gray-700 text-xs whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <span>{calculateDuration(row.jamMasuk, row.jamKeluar)}</span>
-                              {validated && row.jamKeluarDisetujui && row.jamKeluarDisetujui !== row.jamKeluar && (
-                                <span className="text-[10px] text-emerald-600 font-semibold" title="Durasi Disetujui">
-                                  (✓ {calculateDuration(row.jamMasuk, row.jamKeluarDisetujui)})
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-
-                          {/* Lembur */}
-                          <TableCell>
-                            {row.jamLembur > 0 ? (
-                              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap">
-                                {row.jamLembur} JAM
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-300 text-xs">—</span>
-                            )}
-                          </TableCell>
-
-                          {/* Status */}
-                          <TableCell>
-                            <div className="flex flex-row gap-1.5 items-center whitespace-nowrap">
-                              {getStatusBadge(row.status)}
-                              {row.isMissing && (
-                                <div title="Wajib Absen tapi tidak ada data" className="flex items-center gap-1 text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 shadow-sm animate-pulse">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  <span className="text-[9px] font-bold tracking-tight">TIDAK ABSEN</span>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-
-                          {/* Keterangan */}
-                          <TableCell>
-                            <span 
-                              className="text-xs text-gray-600 max-w-[120px] truncate block" 
-                              title={row.keterangan || "-"}
-                            >
-                              {row.keterangan || "-"}
-                            </span>
-                          </TableCell>
-
-                          {/* Validasi column */}
-                          <TableCell>
-                            <div className="flex items-center gap-1 whitespace-nowrap">
-                              {/* GPS & device */}
-                              {row.latMasuk && (
-                                <span title="GPS Valid">
-                                  <MapPin className="h-3 w-3 text-emerald-500" />
-                                </span>
-                              )}
-                              {row.deviceMasuk && (
-                                <span title={`Masuk: ${row.deviceMasuk}`}>
-                                  {row.deviceMasuk.includes("Fingerprint") ? (
-                                    <Fingerprint className="h-3 w-3 text-indigo-500" />
-                                  ) : (
-                                    <Smartphone className="h-3 w-3 text-blue-500" />
-                                  )}
-                                </span>
-                              )}
-                              {row.deviceKeluar && row.deviceKeluar !== row.deviceMasuk && (
-                                <span title={`Keluar: ${row.deviceKeluar}`}>
-                                  {row.deviceKeluar.includes("Fingerprint") ? (
-                                    <Fingerprint className="h-3 w-3 text-indigo-500" />
-                                  ) : (
-                                    <Smartphone className="h-3 w-3 text-blue-500" />
-                                  )}
-                                </span>
-                              )}
-                              {(row.isMockedMasuk || row.isMockedKeluar) && (
-                                <span title="Mock GPS!">
-                                  <AlertTriangle className="h-3 w-3 text-rose-500 animate-pulse" />
-                                </span>
-                              )}
-                              {/* Validation badge */}
-                              {validated ? (
-                                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[9px] px-1.5 py-0">
-                                  <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Valid
-                                </Badge>
-                              ) : suspicious ? (
-                                <Badge className="bg-red-50 text-red-600 border-red-200 border text-[9px] px-1.5 py-0 animate-pulse">
-                                  <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />Perlu Cek
-                                </Badge>
-                              ) : needsValidation ? (
-                                <Badge className="bg-amber-50 text-amber-600 border-amber-200 border text-[9px] px-1.5 py-0">
-                                  Belum Valid
-                                </Badge>
-                              ) : null}
-                            </div>
-                          </TableCell>
-
-                          {/* Actions */}
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {user?.email === "parwanto0807@gmail.com" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all h-7 px-2"
-                                  onClick={() => handleDelete(row.id)}
-                                  disabled={isDeleting === row.id}
-                                >
-                                  {isDeleting === row.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                                </Button>
-                              )}
-                              {row.isMissing && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-amber-600 hover:bg-amber-50 rounded-lg transition-all h-7 px-2 text-[10px] uppercase font-bold"
-                                  onClick={() => setManualRecord(row)}
-                                >
-                                  Input Manual
-                                </Button>
-                              )}
-                              {!row.isMissing && (row.jamKeluar || row.jamKeluarDisetujui || !row.isValidated) && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={`rounded-lg transition-all h-7 px-2 text-[10px] uppercase font-bold ${
-                                    suspicious && !validated
-                                      ? "text-red-600 hover:bg-red-50 hover:text-red-700"
-                                      : validated
-                                      ? "text-emerald-600 hover:bg-emerald-50"
-                                      : "text-blue-600 hover:bg-blue-50"
-                                  }`}
-                                  onClick={() => setValidateRecord(row)}
-                                >
-                                  <ShieldCheck className="h-3 w-3 mr-1" />
-                                  {validated ? "Re-Validasi" : (row.jamKeluar ? "Validasi" : "Manual Out")}
-                                </Button>
-                              )}
-                              {!row.isMissing && user?.email === "parwanto0807@gmail.com" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-all h-7 px-2"
-                                  onClick={() => setEditRecord(row)}
-                                >
-                                  Edit
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="hover:bg-cyan-500 hover:text-white rounded-lg transition-all h-7 px-2"
-                                onClick={() => onViewDetail(row)}
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </Fragment>
-                ));
+                          return sortedTeams.map(teamName => (
+                            <Fragment key={`${dateKey}-${teamName}`}>
+                              <TableRow className="border-none hover:bg-transparent">
+                                <TableCell colSpan={12} className="py-1.5 pl-6 pr-2">
+                                  <div className="flex items-center gap-2 py-2 px-4 bg-indigo-50/80 border-l-2 border-indigo-400 rounded-r-lg shadow-sm">
+                                    <CornerDownRight className="h-3.5 w-3.5 text-indigo-500" />
+                                    <span className="font-bold text-[10px] uppercase tracking-wider text-indigo-700">
+                                      TEAM: {teamName}
+                                    </span>
+                                    <Badge variant="outline" className="ml-auto text-[8px] font-bold border-indigo-200 text-indigo-600 bg-white">
+                                      {groupedByTeam[teamName].length}
+                                    </Badge>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                              {groupedByTeam[teamName].map(row => renderRow(row, true))}
+                            </Fragment>
+                          ));
+                        })()
+                      )}
+                    </Fragment>
+                  );
+                });
               })()
             )}
           </TableBody>
