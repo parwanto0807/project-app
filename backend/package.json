@@ -12,6 +12,7 @@
     "start": "node src/server.js"
   },
   "dependencies": {
+    "@quixo3/prisma-session-store": "^3.1.20",
     "axios": "^1.9.0",
     "bcryptjs": "^3.0.2",
     "cookie": "^1.0.2",
@@ -21,7 +22,7 @@
     "dotenv": "^16.5.0",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
-    "express-session": "^1.18.1",
+    "express-session": "^1.19.0",
     "express-validator": "^7.2.1",
     "firebase-admin": "^13.6.0",
     "google-auth-library": "^10.6.2",

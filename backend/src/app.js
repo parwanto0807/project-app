@@ -130,12 +130,23 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+import { PrismaSessionStore } from '@quixo3/prisma-session-store';
+import { prisma } from './config/db.js';
+
 // Session Configuration
 app.use(
   session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
+    store: new PrismaSessionStore(
+      prisma,
+      {
+        checkPeriod: 2 * 60 * 1000,  // ms (bersihkan sesi kedaluwarsa tiap 2 menit)
+        dbRecordIdIsSessionId: true,
+        dbRecordIdFunction: undefined,
+      }
+    ),
     cookie: {
       maxAge: 24 * 60 * 60 * 1000,
       httpOnly: true,
