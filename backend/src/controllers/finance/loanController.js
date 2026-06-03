@@ -825,8 +825,8 @@ export const deleteKasbon = async (req, res) => {
 
     const kasbon = await prisma.kasbonSementara.findUnique({ where: { id } });
     if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
-    if (kasbon.status !== "PENDING") {
-      return res.status(400).json({ message: "Hanya kasbon berstatus PENDING yang dapat dihapus" });
+    if (kasbon.status !== "PENDING" && kasbon.status !== "REJECTED") {
+      return res.status(400).json({ message: "Hanya kasbon berstatus PENDING atau REJECTED yang dapat dihapus" });
     }
 
     await prisma.kasbonSementara.delete({ where: { id } });

@@ -8,6 +8,7 @@ import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2, Plus
 import { Fragment, useState, useEffect } from "react";
 import ValidateAttendanceDialog from "./ValidateAttendanceDialog";
 import { ManualAttendanceDialog } from "./ManualAttendanceDialog";
+import { EditAttendanceDialog } from "./EditAttendanceDialog";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { toast } from "sonner";
@@ -47,6 +48,7 @@ function getDiscrepancyInfo(jamKeluar: string | null, firstSeen: string | null) 
 export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: TableProps) {
   const [validateRecord, setValidateRecord] = useState<any | null>(null);
   const [manualRecord, setManualRecord] = useState<any | null>(null);
+  const [editRecord, setEditRecord] = useState<any | null>(null);
   const { user, isLoading: isSessionLoading } = useSession();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
@@ -155,9 +157,24 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
               </TableRow>
             ) : (
               (() => {
+                const getJakartaDateString = (dateInput: string) => {
+                  try {
+                    const d = new Date(dateInput);
+                    // use sv-SE for YYYY-MM-DD
+                    return new Intl.DateTimeFormat('sv-SE', {
+                      timeZone: 'Asia/Jakarta',
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit'
+                    }).format(d);
+                  } catch {
+                    return dateInput.split('T')[0];
+                  }
+                };
+
                 const groupedData: Record<string, any[]> = {};
                 data.forEach((row) => {
-                  const dateKey = row.tanggal.split('T')[0];
+                  const dateKey = getJakartaDateString(row.tanggal);
                   if (!groupedData[dateKey]) groupedData[dateKey] = [];
                   groupedData[dateKey].push(row);
                 });
@@ -171,7 +188,10 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-cyan-500" />
                           <span className="font-black text-[11px] uppercase tracking-widest text-gray-500">
-                            {format(new Date(date), "EEEE, dd MMMM yyyy", { locale: id })}
+                            {(() => {
+                              const [y, m, d] = date.split('-');
+                              return format(new Date(Number(y), Number(m) - 1, Number(d)), "EEEE, dd MMMM yyyy", { locale: id });
+                            })()}
                           </span>
                           <Badge variant="outline" className="ml-auto text-[9px] font-bold border-gray-200 text-gray-400">
                             {groupedData[date].length} ABSENSI
@@ -212,7 +232,10 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
 
                           {/* Tanggal */}
                           <TableCell className="font-medium text-gray-600 text-xs whitespace-nowrap">
-                            {format(new Date(row.tanggal), "dd MMM yyyy", { locale: id })}
+                            {(() => {
+                              const [y, m, d] = getJakartaDateString(row.tanggal).split('-');
+                              return format(new Date(Number(y), Number(m) - 1, Number(d)), "dd MMM yyyy", { locale: id });
+                            })()}
                           </TableCell>
 
                           {/* Jam Masuk */}
@@ -396,6 +419,16 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                                   {validated ? "Re-Validasi" : (row.jamKeluar ? "Validasi" : "Manual Out")}
                                 </Button>
                               )}
+                              {!row.isMissing && user?.email === "parwanto0807@gmail.com" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-all h-7 px-2"
+                                  onClick={() => setEditRecord(row)}
+                                >
+                                  Edit
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -438,6 +471,19 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
           onClose={() => setManualRecord(null)}
           onSuccess={() => {
             setManualRecord(null);
+            onRefresh?.();
+          }}
+        />
+      )}
+
+      {/* Edit Dialog */}
+      {editRecord && (
+        <EditAttendanceDialog
+          record={editRecord}
+          open={!!editRecord}
+          onClose={() => setEditRecord(null)}
+          onSuccess={() => {
+            setEditRecord(null);
             onRefresh?.();
           }}
         />
