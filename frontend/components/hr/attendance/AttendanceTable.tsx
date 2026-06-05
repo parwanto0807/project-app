@@ -502,6 +502,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
                     </Fragment>
                   );
                 });
+              })()
             )}
           </TableBody>
         </Table>
