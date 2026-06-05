@@ -256,14 +256,24 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
         pending: 0,
         approved: 0,
         settled: 0,
+        totalDilunasi: 0,
+        sisaKasbon: 0,
         items: [],
       };
     }
     acc[empId].items.push(item);
-    acc[empId].total += Number(item.jumlah);
+    if (item.status === "APPROVED" || item.status === "SETTLED") {
+      acc[empId].total += Number(item.jumlah);
+    }
     if (item.status === "PENDING") acc[empId].pending += 1;
-    if (item.status === "APPROVED") acc[empId].approved += 1;
-    if (item.status === "SETTLED") acc[empId].settled += 1;
+    if (item.status === "APPROVED") {
+      acc[empId].approved += 1;
+      acc[empId].sisaKasbon += Number(item.jumlah);
+    }
+    if (item.status === "SETTLED") {
+      acc[empId].settled += 1;
+      acc[empId].totalDilunasi += Number(item.jumlah);
+    }
     return acc;
   }, {} as Record<string, any>);
 
@@ -353,16 +363,18 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
       <Table>
         <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50">
           <TableRow>
-            <TableHead className="font-bold text-gray-700 w-1/3">Karyawan</TableHead>
-            <TableHead className="font-bold text-gray-700 text-center w-1/4">Progress</TableHead>
-            <TableHead className="font-bold text-gray-700 w-1/6">Total Kasbon</TableHead>
-            <TableHead className="text-right font-bold text-gray-700 w-1/6">Aksi</TableHead>
+            <TableHead className="font-bold text-gray-700 w-[25%]">Karyawan</TableHead>
+            <TableHead className="font-bold text-gray-700 text-center w-[15%]">Progress</TableHead>
+            <TableHead className="font-bold text-gray-700 text-right w-[15%]">Total Kasbon</TableHead>
+            <TableHead className="font-bold text-gray-700 text-right w-[15%]">Dilunasi</TableHead>
+            <TableHead className="font-bold text-gray-700 text-right w-[15%]">Sisa Kasbon</TableHead>
+            <TableHead className="text-right font-bold text-gray-700 w-[15%]">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {kasbon.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+              <TableCell colSpan={6} className="text-center py-10 text-gray-500">
                 Belum ada data kasbon.
               </TableCell>
             </TableRow>
@@ -395,13 +407,19 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
                       total={empGroup.items.length} 
                     />
                   </TableCell>
-                  <TableCell className="font-bold text-amber-700">
-                    <div className="flex flex-col items-start">
-                      <span className="text-lg">{formatCurrency(empGroup.total)}</span>
-                      <span className="text-xs text-gray-500 font-medium">
-                        {empGroup.items.length} transaksi
+                  <TableCell className="font-bold text-amber-700 text-right">
+                    <div className="flex flex-col items-end">
+                      <span className="text-base">{formatCurrency(empGroup.total)}</span>
+                      <span className="text-[10px] text-gray-500 font-medium">
+                        {empGroup.items.length} trx
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell className="font-bold text-emerald-600 text-right">
+                    <span className="text-base">{formatCurrency(empGroup.totalDilunasi || 0)}</span>
+                  </TableCell>
+                  <TableCell className="font-bold text-blue-600 text-right">
+                    <span className="text-base">{formatCurrency(empGroup.sisaKasbon || 0)}</span>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button 
@@ -777,14 +795,14 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
               </div>
               <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 text-center border border-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-500 group-hover:h-2 transition-all"></div>
-                <p className="text-xs font-bold text-blue-500 uppercase tracking-widest mb-2">Disetujui</p>
-                <p className="text-4xl font-black text-slate-800 tracking-tight">{selectedEmployeeDetail?.approved || 0}</p>
+                <p className="text-xs font-bold text-blue-500 uppercase tracking-widest mb-2">Disetujui (Sisa Kasbon)</p>
+                <p className="text-2xl font-black text-slate-800 tracking-tight mt-1">{formatCurrency(selectedEmployeeDetail?.sisaKasbon || 0)}</p>
                 <p className="text-xs font-medium text-slate-400 mt-1">{selectedEmployeeDetail?.approved || 0} transaksi berjalan</p>
               </div>
               <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-5 text-center border border-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500 group-hover:h-2 transition-all"></div>
-                <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-2">Lunas</p>
-                <p className="text-4xl font-black text-slate-800 tracking-tight">{selectedEmployeeDetail?.settled || 0}</p>
+                <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-2">Lunas (Total Dilunasi)</p>
+                <p className="text-2xl font-black text-slate-800 tracking-tight mt-1">{formatCurrency(selectedEmployeeDetail?.totalDilunasi || 0)}</p>
                 <p className="text-xs font-medium text-slate-400 mt-1">{selectedEmployeeDetail?.settled || 0} transaksi selesai</p>
               </div>
             </div>
@@ -900,6 +918,11 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
                         </Button>
                       )}
                     </>
+                  )}
+                  {k.status === "REJECTED" && (
+                    <Button size="sm" variant="outline" className="text-red-500 border-red-100 hover:bg-red-50 hover:border-red-200 rounded-xl px-5 py-5 font-semibold transition-all ml-auto" onClick={() => { setDeletingId(k.id); setDeletingName(selectedEmployeeDetail?.employee?.namaLengkap); }}>
+                      <Trash2 className="w-4 h-4 mr-1.5" /> Hapus
+                    </Button>
                   )}
                 </div>
               </div>

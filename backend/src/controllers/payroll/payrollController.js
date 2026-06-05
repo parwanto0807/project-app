@@ -36,17 +36,10 @@ function hitungJamKerja(jamMasuk, jamKeluar) {
 }
 
 /**
- * Hitung menit keterlambatan dari jamMasuk vs jam standar masuk (07:00 default)
- * Jam standar masuk bisa dikonfigurasi, default 07:00
+ * Fitur keterlambatan dinonaktifkan karena belum ada jadwal kerja
  */
 function hitungMenitTerlambat(jamMasuk, jamStandarMasuk = "07:00") {
-  if (!jamMasuk) return 0;
-  const masuk = new Date(jamMasuk);
-  const [jamH, jamM] = jamStandarMasuk.split(":").map(Number);
-  const standar = new Date(masuk);
-  standar.setHours(jamH, jamM, 0, 0);
-  const diffMs = masuk.getTime() - standar.getTime();
-  return diffMs > 0 ? Math.floor(diffMs / (1000 * 60)) : 0;
+  return 0;
 }
 
 /**
@@ -63,7 +56,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
   const hariHadir = absensiList.filter((a) => a.status === "HADIR" || a.status === "TERLAMBAT").length;
   const hariAlfa  = absensiList.filter((a) => a.status === "ALFA").length;
   const hariIzin  = absensiList.filter((a) => ["IZIN", "SAKIT", "CUTI"].includes(a.status)).length;
-  const hariTerlambat = absensiList.filter((a) => a.status === "TERLAMBAT").length;
+  const hariTerlambat = 0; // Fitur keterlambatan dinonaktifkan
 
   // ── Jam kerja detail per hari ──
   // Prioritas: jamKerjaDisetujui (admin validated) > hitung dari jamKeluarDisetujui > hitung dari jamKeluar asli
@@ -76,9 +69,15 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
       // Belum divalidasi — hitung dari jam keluar asli
       jamKerja = hitungJamKerja(a.jamMasuk, a.jamKeluar);
     }
-    const menitTerlambat = a.status === "TERLAMBAT"
-      ? hitungMenitTerlambat(a.jamMasuk)
-      : 0;
+    const menitTerlambat = 0; // Keterlambatan dinonaktifkan
+    const threshold = config?.jamKerjaPerHari || 9;
+    let jamLembur = a.jamLembur || 0;
+    
+    // Auto calculate lembur jika jam kerja melebihi threshold (walaupun belum divalidasi)
+    if (jamKerja > threshold) {
+      jamLembur = Math.round((jamKerja - threshold) * 100) / 100;
+    }
+
     return {
       tanggal: a.tanggal,
       status: a.status,
@@ -86,7 +85,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
       jamKeluar: a.jamKeluar,
       jamKeluarDisetujui: a.jamKeluarDisetujui,
       jamKerja: Math.round(jamKerja * 100) / 100,
-      jamLembur: a.jamLembur || 0,
+      jamLembur: jamLembur,
       menitTerlambat,
       isValidated: a.isValidated || false,
     };
@@ -103,7 +102,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
   if (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") {
     // Gaji harian: Kalkulasi berdasarkan durasi jam kerja (pro-rate)
     const dailyRate = karyawan.gajiPokok > 0 ? karyawan.gajiPokok : (config?.gajiPerHari || 0);
-    const jamStandar = config?.jamKerjaPerHari || 8;
+    const jamStandar = config?.jamKerjaPerHari || 9;
     const hourlyRate = dailyRate / jamStandar;
     
     const lemburPerJam = config?.lemburPerJam || 0;
@@ -115,7 +114,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     gajiKerja = Math.round(normalHours * hourlyRate);
     const useLembur = overrides.hitungLembur !== false;
     upahLembur = useLembur ? Math.round(totalJamLembur * lemburPerJam) : 0;
-    potonganTerlambat = hariTerlambat * potonganPerTerlambat;
+    potonganTerlambat = 0; // Keterlambatan dinonaktifkan
   } else {
     // Gaji bulanan: Ambil data gaji pokok dari master karyawan (tetap)
     const lemburPerJam = config?.lemburPerJam || 0;
@@ -124,7 +123,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     gajiKerja = gajiPokok;
     const useLembur = overrides.hitungLembur !== false;
     upahLembur = useLembur ? Math.round(totalJamLembur * lemburPerJam) : 0;
-    potonganTerlambat = hariTerlambat * potonganPerTerlambat;
+    potonganTerlambat = 0; // Keterlambatan dinonaktifkan
   }
 
   // ── Potongan ──

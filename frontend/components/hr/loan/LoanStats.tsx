@@ -9,8 +9,9 @@ interface LoanStatsProps {
 }
 
 const LoanStats: React.FC<LoanStatsProps> = ({ loans }) => {
-  const totalLoanValue = loans.reduce((sum, l) => sum + Number(l.jumlahPinjaman), 0);
-  const totalRemaining = loans.reduce((sum, l) => sum + Number(l.sisaPinjaman), 0);
+  const approvedLoans = loans.filter((l) => l.status === "ACTIVE" || l.status === "COMPLETED");
+  const totalLoanValue = approvedLoans.reduce((sum, l) => sum + Number(l.jumlahPinjaman), 0);
+  const totalRemaining = approvedLoans.reduce((sum, l) => sum + Number(l.sisaPinjaman), 0);
   const totalPaid = totalLoanValue - totalRemaining;
   const activeLoans = loans.filter((l) => l.status === "ACTIVE").length;
 

@@ -2940,3 +2940,9 @@ model LeaveRequest {
   @@map("leave_requests")
 }
 
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String   @db.Text
+  expiresAt DateTime
+}

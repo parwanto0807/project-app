@@ -20,7 +20,15 @@ const KasbonStats: React.FC<KasbonStatsProps> = ({ kasbon }) => {
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   }).length;
   const nilaiTotal = kasbon
-    .filter((k) => k.status !== "REJECTED")
+    .filter((k) => k.status === "APPROVED" || k.status === "SETTLED")
+    .reduce((sum, k) => sum + Number(k.jumlah), 0);
+
+  const totalDilunasi = kasbon
+    .filter((k) => k.status === "SETTLED")
+    .reduce((sum, k) => sum + Number(k.jumlah), 0);
+
+  const sisaKasbon = kasbon
+    .filter((k) => k.status === "APPROVED")
     .reduce((sum, k) => sum + Number(k.jumlah), 0);
 
   const stats = [
@@ -37,14 +45,6 @@ const KasbonStats: React.FC<KasbonStatsProps> = ({ kasbon }) => {
       value: totalApproved,
       isCount: true,
       icon: CheckCircle2,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-    },
-    {
-      title: "Pengajuan Bulan Ini",
-      value: totalBulanIni,
-      isCount: true,
-      icon: XCircle,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
@@ -56,25 +56,49 @@ const KasbonStats: React.FC<KasbonStatsProps> = ({ kasbon }) => {
       color: "text-purple-600",
       bg: "bg-purple-50",
     },
+    {
+      title: "Total Dilunasi",
+      value: totalDilunasi,
+      isCount: false,
+      icon: CheckCircle2,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+    },
+    {
+      title: "Sisa Kasbon",
+      value: sisaKasbon,
+      isCount: false,
+      icon: Banknote,
+      color: "text-orange-600",
+      bg: "bg-orange-50",
+    },
+    {
+      title: "Pengajuan Bulan Ini",
+      value: totalBulanIni,
+      isCount: true,
+      icon: XCircle,
+      color: "text-indigo-600",
+      bg: "bg-indigo-50",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
       {stats.map((item, idx) => (
         <Card
           key={idx}
           className="border-none shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300"
         >
           <CardContent className="p-0">
-            <div className="flex items-center p-6">
+            <div className="flex items-center p-4">
               <div
-                className={`${item.bg} p-3 rounded-2xl mr-4 group-hover:scale-110 transition-transform duration-300`}
+                className={`${item.bg} p-2.5 rounded-xl mr-3 group-hover:scale-110 transition-transform duration-300`}
               >
-                <item.icon className={`h-6 w-6 ${item.color}`} />
+                <item.icon className={`h-5 w-5 ${item.color}`} />
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">{item.title}</p>
-                <h3 className="text-xl font-bold text-gray-800">
+              <div className="overflow-hidden">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider truncate">{item.title}</p>
+                <h3 className="text-sm md:text-base font-bold text-gray-800 truncate mt-0.5">
                   {item.isCount
                     ? item.value
                     : new Intl.NumberFormat("id-ID", {

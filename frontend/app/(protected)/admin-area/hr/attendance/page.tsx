@@ -26,6 +26,7 @@ export default function AttendanceMonitoringPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [groupByTeam, setGroupByTeam] = useState(false);
 
   const loadData = async (filters: any = {}) => {
     try {
@@ -67,10 +68,14 @@ export default function AttendanceMonitoringPage() {
   }, []);
 
   const handleFilter = (filters: any) => {
+    if (filters.groupByTeam !== undefined) {
+      setGroupByTeam(filters.groupByTeam);
+    }
     loadData(filters);
   };
 
   const handleReset = () => {
+    setGroupByTeam(false);
     loadData({ startDate: getStartDateStr(), endDate: getTodayStr() });
   };
 
@@ -123,6 +128,7 @@ export default function AttendanceMonitoringPage() {
               isLoading={isLoading} 
               onViewDetail={handleViewDetail}
               onRefresh={() => loadData()}
+              groupByTeam={groupByTeam}
             />
           </div>
         </div>

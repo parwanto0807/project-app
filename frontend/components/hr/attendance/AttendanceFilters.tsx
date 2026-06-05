@@ -3,7 +3,9 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Search, RotateCcw, Calendar as CalendarIcon, Users } from "lucide-react";
 import { useState } from "react";
 
 interface FilterProps {
@@ -27,9 +29,10 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
   const [status, setStatus] = useState("ALL");
   const [startDate, setStartDate] = useState(getStartDateStr());
   const [endDate, setEndDate] = useState(getTodayStr());
+  const [groupByTeam, setGroupByTeam] = useState(false);
 
   const handleApply = () => {
-    onFilter({ employeeName, status, startDate, endDate });
+    onFilter({ employeeName, status, startDate, endDate, groupByTeam });
   };
 
   const handleReset = () => {
@@ -37,6 +40,7 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
     setStatus("ALL");
     setStartDate(getStartDateStr());
     setEndDate(getTodayStr());
+    setGroupByTeam(false);
     onReset();
   };
 
@@ -80,8 +84,20 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
           onChange={(e) => setEndDate(e.target.value)}
         />
       </div>
+      
+      <div className="flex items-center gap-2 px-3 py-2 bg-white/50 rounded-xl">
+        <Switch 
+          id="group-by-team" 
+          checked={groupByTeam}
+          onCheckedChange={setGroupByTeam}
+        />
+        <Label htmlFor="group-by-team" className="text-xs font-bold text-gray-600 cursor-pointer flex items-center gap-1.5">
+          <Users className="h-3.5 w-3.5" />
+          Group by Team
+        </Label>
+      </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 ml-auto">
         <Button 
           onClick={handleApply}
           className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl shadow-lg shadow-cyan-500/20 px-6"
