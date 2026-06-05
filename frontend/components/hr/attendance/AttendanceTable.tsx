@@ -358,7 +358,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                           {/* Actions */}
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
-                              {user?.email === "parwanto0807@gmail.com" && (
+                              {(user?.role === "admin" || user?.role === "super") && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
