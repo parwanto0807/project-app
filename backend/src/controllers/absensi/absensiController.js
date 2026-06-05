@@ -171,10 +171,11 @@ export const createAbsensi = async (req, res) => {
 export const updateAbsensi = async (req, res) => {
   try {
     const { id } = req.params;
-    const { jamMasuk, jamKeluar, jamLembur, status, keterangan } = req.body;
+    const { tanggal, jamMasuk, jamKeluar, jamLembur, status, keterangan } = req.body;
     const absensi = await prisma.absensi.update({
       where: { id },
       data: {
+        tanggal: tanggal ? new Date(tanggal) : undefined,
         jamMasuk: jamMasuk ? new Date(jamMasuk) : undefined,
         jamKeluar: jamKeluar ? new Date(jamKeluar) : undefined,
         jamLembur: jamLembur !== undefined ? parseFloat(jamLembur) : undefined,
