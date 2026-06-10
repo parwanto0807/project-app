@@ -191,8 +191,8 @@ export interface Product {
     id: string;
     sku?: string;
     name: string;
-    unit?: string;
-    purchaseUnit?: string;
+    storageUnit?: string;
+    usageUnit?: string;
     // Add other product fields
 }
 
@@ -203,6 +203,8 @@ export interface PurchaseRequestDetail {
 
 export interface GoodsReceipt {
     id: string;
+    grNumber: string;
+    status: string;
     // Add other goods receipt fields
 }
 

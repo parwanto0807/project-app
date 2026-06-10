@@ -415,7 +415,7 @@ export default function PurchaseOrderPageAdmin() {
                 <div className="hidden lg:flex flex-row gap-3 w-full sm:w-auto items-center">
                   <SearchInput
                     onSearch={handleSearch}
-                    placeholder="Search PO Number, PR Number, Supplier..."
+                    placeholder="Search PO Number, PR, Supplier, Item..."
                     className="w-full sm:w-64"
                     isLoading={isLoading}
                     disabled={isLoading || isRefreshing}
@@ -455,7 +455,7 @@ export default function PurchaseOrderPageAdmin() {
               <div className="flex flex-col gap-3">
                 <SearchInput
                   onSearch={handleSearch}
-                  placeholder="Search PO Number, PR Number, Supplier..."
+                  placeholder="Search PO Number, PR, Supplier, Item..."
                   className="w-full"
                   isLoading={isLoading}
                   disabled={isLoading || isRefreshing}

@@ -78,7 +78,11 @@ export const mrController = {
         // 1. Cari MR berdasarkan Token
         const mr = await tx.materialRequisition.findUnique({
           where: { qrToken },
-          include: { items: true }
+          include: { 
+            items: {
+              include: { product: true }
+            } 
+          }
         });
 
         if (!mr || mr.status === 'ISSUED') {
@@ -96,7 +100,17 @@ export const mrController = {
 
         // 2. Loop setiap item untuk eksekusi FIFO
         for (const item of mr.items) {
-          let remainingToTake = Number(item.qtyRequested);
+          let requestedQty = Number(item.qtyRequested);
+          let conversionFromRequestedToBase = 1;
+          
+          if (item.unit === item.product?.usageUnit && item.product?.usageUnit !== item.product?.storageUnit) {
+             conversionFromRequestedToBase = 1 / (Number(item.product?.conversionToUsage) || 1);
+          } else if (item.unit === item.product?.purchaseUnit && item.product?.purchaseUnit !== item.product?.storageUnit) {
+             conversionFromRequestedToBase = Number(item.product?.conversionToStorage) || 1;
+          }
+          
+          let baseQtyDeduction = requestedQty * conversionFromRequestedToBase;
+          let remainingToTake = baseQtyDeduction;
           let totalCost = 0;
 
           // PRE-VALIDATION: Check if bookedStock is sufficient
@@ -184,9 +198,9 @@ export const mrController = {
               }
             },
             data: {
-              stockOut: { increment: qtyIssued },
-              stockAkhir: { decrement: qtyIssued },
-              bookedStock: { decrement: qtyIssued },
+              stockOut: { increment: baseQtyDeduction },
+              stockAkhir: { decrement: baseQtyDeduction },
+              bookedStock: { decrement: baseQtyDeduction },
               availableStock: { increment: 0 }, // availableStock stays same since we're reducing both stockAkhir and bookedStock
               inventoryValue: { set: newInventoryValue } // Clamped to prevent negative
             }
@@ -203,7 +217,7 @@ export const mrController = {
               warehouseId: mr.warehouseId,
               type: 'OUT',
               source: (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) ? 'TRANSFER' : 'PROJECT',
-              baseQty: qtyIssued,
+              baseQty: baseQtyDeduction,
               transQty: qtyIssued,
               transUnit: item.unit,
               stockAwalSnapshot: stockAwalSnapshot,

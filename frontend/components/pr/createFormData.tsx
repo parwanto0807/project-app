@@ -567,9 +567,15 @@ export function TabelInputPR({
                             // Check if SPK is selected
                             const isNonSpk = !formData.spkId || formData.spkId === "no-spk";
 
+                            // If PR Project and type is Material, default to PEMBELIAN_BARANG but force unit to usageUnit
                             updatedItem.sourceProduct = isNonSpk
                                 ? SourceProductType.PEMBELIAN_BARANG
-                                : (sourceProductMap[selectedProduct.type] ?? SourceProductType.PEMBELIAN_BARANG);
+                                : (selectedProduct.type === "Material" ? SourceProductType.PEMBELIAN_BARANG : (sourceProductMap[selectedProduct.type] ?? SourceProductType.PEMBELIAN_BARANG));
+
+                            // Override satuan if PR Project
+                            if (!isNonSpk && selectedProduct.usageUnit) {
+                                updatedItem.satuan = selectedProduct.usageUnit;
+                            }
 
                             return updatedItem;
                         }
@@ -1213,7 +1219,11 @@ export function TabelInputPR({
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <div className="py-2 px-3 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-md text-center font-bold text-sm cursor-help hover:bg-emerald-200 transition-colors">
-                                                                                {item.availableStock !== undefined ? item.availableStock : '-'}
+                                                                                {(() => {
+                                                                                    const selectedProduct = products.find(p => p.id === item.productId);
+                                                                                    const storageUnit = selectedProduct?.storageUnit || selectedProduct?.usageUnit || "pcs";
+                                                                                    return item.availableStock !== undefined ? `${item.availableStock} ${storageUnit}` : '-';
+                                                                                })()}
                                                                             </div>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent className="p-0 border-none shadow-xl">
@@ -1323,8 +1333,22 @@ export function TabelInputPR({
 
                                                                 const available = item.availableStock || 0;
                                                                 const qty = item.jumlah || 0;
-                                                                const isDeficit = qty > available;
-                                                                const deficitAmount = qty - available;
+                                                                
+                                                                let equivalentAvailable = available;
+                                                                const selectedProduct = products.find(p => p.id === item.productId);
+                                                                if (selectedProduct) {
+                                                                    if (item.satuan === selectedProduct.usageUnit && selectedProduct.usageUnit !== selectedProduct.storageUnit) {
+                                                                        equivalentAvailable = available * (Number(selectedProduct.conversionToUsage) || 1);
+                                                                    } else if (item.satuan === selectedProduct.purchaseUnit && selectedProduct.purchaseUnit !== selectedProduct.storageUnit) {
+                                                                        equivalentAvailable = available / (Number(selectedProduct.conversionToStorage) || 1);
+                                                                    }
+                                                                }
+
+                                                                // Limit decimals to 2 places to avoid floating point issues
+                                                                equivalentAvailable = Math.round(equivalentAvailable * 100) / 100;
+
+                                                                const isDeficit = qty > equivalentAvailable;
+                                                                const deficitAmount = qty - equivalentAvailable;
 
                                                                 if (isDeficit) {
                                                                     return (

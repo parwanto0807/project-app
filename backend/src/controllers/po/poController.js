@@ -444,6 +444,22 @@ export const getAllPO = async (req, res) => {
               nomorPr: { contains: search, mode: 'insensitive' }
             }
           }
+        },
+        {
+          lines: {
+            some: {
+              product: {
+                name: { contains: search, mode: 'insensitive' }
+              }
+            }
+          }
+        },
+        {
+          lines: {
+            some: {
+              description: { contains: search, mode: 'insensitive' }
+            }
+          }
         }
       ];
     }
@@ -504,13 +520,31 @@ export const getAllPO = async (req, res) => {
             select: {
               id: true,
               checkPurchaseExecution: true,
-              notGr: true // Include notGr field in response
+              notGr: true, // Include notGr field in response
+              quantity: true,
+              unitPrice: true,
+              totalAmount: true,
+              description: true,
+              product: {
+                select: {
+                  name: true,
+                  usageUnit: true,
+                  storageUnit: true
+                }
+              }
             }
           },
           PurchaseRequest: {
             select: {
               id: true,
               nomorPr: true
+            }
+          },
+          goodsReceipts: {
+            select: {
+              id: true,
+              grNumber: true,
+              status: true
             }
           },
           supplierInvoices: {

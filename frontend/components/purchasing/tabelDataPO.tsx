@@ -26,7 +26,9 @@ import {
     Calendar,
     DollarSign,
     Folder,
-    User
+    User,
+    ChevronDown,
+    ChevronUp
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -134,6 +136,9 @@ const TableSkeleton = () => {
         <>
             {Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={index} className="animate-pulse">
+                    <TableCell>
+                        <div className="h-8 w-8 bg-gray-200 rounded-md"></div>
+                    </TableCell>
                     <TableCell>
                         <div className="h-4 bg-gray-200 rounded w-24"></div>
                     </TableCell>
@@ -320,6 +325,17 @@ export default function PurchaseOrderTable({
 }: PurchaseOrderTableProps) {
     const router = useRouter();
     const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+    const toggleRow = (id: string) => {
+        const newExpandedRows = new Set(expandedRows);
+        if (newExpandedRows.has(id)) {
+            newExpandedRows.delete(id);
+        } else {
+            newExpandedRows.add(id);
+        }
+        setExpandedRows(newExpandedRows);
+    };
 
     const getBasePath = (role: string) => {
         if (role === 'pic') return "/pic-area/logistic/purchasing";
@@ -519,6 +535,7 @@ export default function PurchaseOrderTable({
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[50px]"></TableHead>
                             <TableHead className="w-[120px]">PO Number</TableHead>
                             <TableHead>Supplier</TableHead>
                             <TableHead className="hidden lg:table-cell">Warehouse</TableHead>
@@ -538,7 +555,7 @@ export default function PurchaseOrderTable({
                             <TableSkeleton />
                         ) : purchaseOrders.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8">
+                                <TableCell colSpan={13} className="text-center py-8">
                                     <div className="flex flex-col items-center justify-center text-gray-500">
                                         <FileText className="h-12 w-12 mb-3 opacity-20" />
                                         <p className="text-lg font-medium">No Purchase Orders</p>
@@ -549,15 +566,26 @@ export default function PurchaseOrderTable({
                         ) : (
                             purchaseOrders.map((po) => {
                                 const StatusIcon = statusConfig[po.status as keyof typeof statusConfig]?.icon || Clock;
+                                const isExpanded = expandedRows.has(po.id);
                                 return (
+                                    <React.Fragment key={po.id}>
                                     <TableRow
-                                        key={po.id}
                                         className={cn(
                                             highlightId === po.id && "bg-blue-50 dark:bg-blue-950/20",
                                             "hover:bg-muted/50 transition-colors",
                                             po.status === 'CANCELLED' && "bg-gray-50/80 text-gray-400 dark:bg-gray-900/50 dark:text-gray-600"
                                         )}
                                     >
+                                        <TableCell>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => toggleRow(po.id)}
+                                            >
+                                                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                            </Button>
+                                        </TableCell>
                                         <TableCell className="font-medium">
                                             <div className="flex flex-col gap-2">
                                                 <Link
@@ -588,6 +616,28 @@ export default function PurchaseOrderTable({
                                                                 {po.PurchaseRequest.nomorPr}
                                                             </Badge>
                                                         </Link>
+                                                    </div>
+                                                )}
+                                                {po.goodsReceipts && po.goodsReceipts.length > 0 && (
+                                                    <div className="flex flex-col gap-1.5 ml-6 mt-1">
+                                                        {po.goodsReceipts.map((gr, idx) => (
+                                                            <Link
+                                                                key={gr.id || idx}
+                                                                href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/inventory/goods-receipt?search=${encodeURIComponent(gr.grNumber)}`}
+                                                                className="group hover:opacity-80 transition-all font-medium"
+                                                            >
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={cn(
+                                                                        "font-medium text-xs flex items-center gap-1.5 px-3 py-1 w-fit cursor-pointer group-hover:underline underline-offset-4",
+                                                                        gr.status === 'CANCELLED' ? "bg-red-50 text-red-700 border-red-300 decoration-red-700" : "bg-emerald-50 text-emerald-700 border-emerald-300 decoration-emerald-700"
+                                                                    )}
+                                                                >
+                                                                    {gr.status === 'CANCELLED' ? <XCircle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
+                                                                    {gr.grNumber}
+                                                                </Badge>
+                                                            </Link>
+                                                        ))}
                                                     </div>
                                                 )}
                                             </div>
@@ -677,8 +727,8 @@ export default function PurchaseOrderTable({
                                                     );
                                                 }
 
-                                                // Return null if not WIP and no service items
-                                                return null;
+                                                // Return null if not WIP, no service items, and no GRs
+                                                return <span className="text-muted-foreground text-sm">—</span>;
                                             })()}
                                         </TableCell>
                                         <TableCell className="hidden xl:table-cell">
@@ -762,6 +812,48 @@ export default function PurchaseOrderTable({
                                             </div>
                                         </TableCell>
                                     </TableRow>
+                                    {isExpanded && (
+                                        <TableRow className="bg-muted/30">
+                                            <TableCell colSpan={13} className="p-4">
+                                                <div className="bg-white dark:bg-gray-900 rounded-md border p-4 shadow-sm">
+                                                    <h4 className="font-semibold mb-3 text-sm">Item Details</h4>
+                                                    <div className="overflow-x-auto">
+                                                        <Table className="bg-transparent">
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead className="text-xs w-[50px]">No</TableHead>
+                                                                    <TableHead className="text-xs">Product Name</TableHead>
+                                                                    <TableHead className="text-xs text-center">Quantity</TableHead>
+                                                                    <TableHead className="text-xs text-right">Unit Price</TableHead>
+                                                                    <TableHead className="text-xs text-right">Total Amount</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {po.lines && po.lines.length > 0 ? (
+                                                                    po.lines.map((line, idx) => (
+                                                                        <TableRow key={line.id} className="hover:bg-muted/50">
+                                                                            <TableCell className="text-xs">{idx + 1}</TableCell>
+                                                                            <TableCell className="text-xs font-medium">{line.product?.name || line.description}</TableCell>
+                                                                            <TableCell className="text-xs text-center">
+                                                                                {line.quantity} {line.product?.storageUnit || line.product?.usageUnit || ''}
+                                                                            </TableCell>
+                                                                            <TableCell className="text-xs text-right">{currencyFormatter.format(line.unitPrice)}</TableCell>
+                                                                            <TableCell className="text-xs text-right font-semibold">{currencyFormatter.format(line.totalAmount)}</TableCell>
+                                                                        </TableRow>
+                                                                    ))
+                                                                ) : (
+                                                                    <TableRow>
+                                                                        <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4">No items found</TableCell>
+                                                                    </TableRow>
+                                                                )}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </React.Fragment>
                                 );
                             }))}
                     </TableBody>

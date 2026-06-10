@@ -2248,11 +2248,12 @@ export const approveGR = async (req, res) => {
       // Process each item with qtyPassed > 0
       for (const item of existingGR.items) {
         const qtyPassed = parseFloat(item.qtyPassed);
-        // FIX: For TRANSFER source type, allow 1:1 conversion (no conversion) regarding input qty vs stock qty
-        // to prevent inflating stock when transferring between warehouses.
-        const conversion = existingGR.sourceType === 'TRANSFER' 
-            ? 1 
-            : (parseFloat(item.product.conversionToStorage) || 1);
+        let conversion = 1;
+        if (item.unit === item.product?.usageUnit && item.product?.usageUnit !== item.product?.storageUnit) {
+           conversion = 1 / (parseFloat(item.product?.conversionToUsage) || 1);
+        } else if (item.unit === item.product?.purchaseUnit && item.product?.purchaseUnit !== item.product?.storageUnit) {
+           conversion = parseFloat(item.product?.conversionToStorage) || 1;
+        }
         const qtyConverted = qtyPassed * conversion;
         
         if (qtyPassed > 0) {

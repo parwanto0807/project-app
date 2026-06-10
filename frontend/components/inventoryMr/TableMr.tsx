@@ -56,6 +56,8 @@ import {
     Grid,
     List,
     Plus,
+    ChevronDown,
+    ChevronUp,
 } from "lucide-react"
 
 import { format, isToday, isThisWeek, isThisMonth } from "date-fns"
@@ -190,6 +192,19 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         scannedToken: string;
         mr: MaterialRequisition;
     } | null>(null)
+    const [expandedRows, setExpandedRows] = React.useState<Set<string>>(new Set());
+
+    const toggleRow = (id: string) => {
+        setExpandedRows(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
 
     const itemsPerPage = 10
 
@@ -876,187 +891,238 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                             const uniqueUnits = [...new Set(mr.items.map(i => i.unit || ''))].filter(u => u);
                                             const unitDisplay = uniqueUnits.length === 1 ? uniqueUnits[0] : (uniqueUnits.length > 1 ? '(Beragam)' : '');
 
+                                            const isExpanded = expandedRows.has(mr.id);
+
                                             return (
-                                                <TableRow
-                                                    key={mr.id}
-                                                    className="group hover:bg-blue-500/[0.02] dark:hover:bg-blue-400/[0.03] transition-all duration-500 border-b border-slate-100 dark:border-white/5"
-                                                >
-                                                    {columnVisibility.mrNumber && (
-                                                        <TableCell className="py-5 px-6">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`p-3 rounded-xl ${statusConfig.bg}`}>
-                                                                    <FileText className="h-6 w-6 text-blue-600" />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
-                                                                        {mr.mrNumber}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-                                                    )}
-
-                                                    {columnVisibility.date && (
-                                                        <TableCell className="py-5 px-6">
-                                                            <div className="space-y-1">
-                                                                <p className="font-semibold text-slate-800 dark:text-white">
-                                                                    {format(new Date(mr.issuedDate), "dd MMM yyyy", { locale: id })}
-                                                                </p>
-                                                                <p className="text-sm text-slate-500 dark:text-slate-300 flex items-center gap-1">
-                                                                    <Clock className="h-3.5 w-3.5" />
-                                                                    {format(new Date(mr.issuedDate), "HH:mm", { locale: id })} WIB
-                                                                </p>
-                                                            </div>
-                                                        </TableCell>
-                                                    )}
-
-                                                    {columnVisibility.project && (
-                                                        <TableCell className="py-5 px-6">
-                                                            <div className="flex items-center gap-2">
-                                                                <Building className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                                                                <span className="font-bold text-slate-800 dark:text-white text-wrap uppercase">{mr.project?.name || mr.projectId}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                    )}
-
-                                                    {columnVisibility.requestedBy && (
-                                                        <TableCell className="py-5 px-6">
-                                                            <div className="space-y-1">
-                                                                <div className="flex items-center gap-2">
-                                                                    <User className="h-4 w-4 text-slate-500" />
-                                                                    <p className="font-semibold text-slate-800 dark:text-white">{mr.requestedBy?.name || "N/A"}</p>
-                                                                </div>
-                                                                <p className="text-sm text-slate-500 dark:text-slate-300 pl-6">{mr.requestedBy?.department}</p>
-                                                            </div>
-                                                        </TableCell>
-                                                    )}
-
-                                                    {columnVisibility.warehouse && (
-                                                        <TableCell className="py-5 px-6">
-                                                            <div className="flex items-center gap-2">
-                                                                <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                                                                <span className="font-semibold text-slate-800 dark:text-white">{mr.Warehouse?.name || "N/A"}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                    )}
-
-                                                    {columnVisibility.items && (
-                                                        <TableCell className="py-5 px-6">
-                                                            <div className="space-y-1">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="bg-gradient-to-r from-emerald-100 to-emerald-50 rounded-lg px-3 py-1.5">
-                                                                        <span className="font-bold text-emerald-700">
-                                                                            {mr.items.length} items
-                                                                        </span>
+                                                <React.Fragment key={mr.id}>
+                                                    <TableRow
+                                                        className={`group hover:bg-blue-500/[0.02] dark:hover:bg-blue-400/[0.03] transition-all duration-500 border-b border-slate-100 dark:border-white/5 ${isExpanded ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+                                                    >
+                                                        {columnVisibility.mrNumber && (
+                                                            <TableCell className="py-5 px-6">
+                                                                <div className="flex items-center gap-3">
+                                                                    <Button 
+                                                                        variant="ghost" 
+                                                                        size="icon" 
+                                                                        onClick={() => toggleRow(mr.id)}
+                                                                        className="h-8 w-8 rounded-full"
+                                                                    >
+                                                                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                                    </Button>
+                                                                    <div className={`p-3 rounded-xl ${statusConfig.bg}`}>
+                                                                        <FileText className="h-6 w-6 text-blue-600" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+                                                                            {mr.mrNumber}
+                                                                        </p>
                                                                     </div>
                                                                 </div>
-                                                                <p className="text-sm text-slate-500 dark:text-slate-300">
-                                                                    Total Qty: <span className="font-semibold text-slate-700 dark:text-white">
-                                                                        {mr.items.reduce((sum, item) => sum + Number(item.qtyRequested), 0).toLocaleString()} {unitDisplay}
-                                                                    </span>
-                                                                </p>
-                                                            </div>
-                                                        </TableCell>
-                                                    )}
+                                                            </TableCell>
+                                                        )}
 
-                                                    {columnVisibility.notes && (
-                                                        <TableCell className="py-5 px-6">
-                                                            {mr.notes ? (
-                                                                <div className="flex items-start gap-2 max-w-[200px]">
-                                                                    <FileText className="h-4 w-4 text-slate-400 mt-0.5" />
-                                                                    <p className="text-sm text-slate-600 dark:text-slate-300 italic truncate" title={mr.notes}>
-                                                                        {mr.notes}
+                                                        {columnVisibility.date && (
+                                                            <TableCell className="py-5 px-6">
+                                                                <div className="space-y-1">
+                                                                    <p className="font-semibold text-slate-800 dark:text-white">
+                                                                        {format(new Date(mr.issuedDate), "dd MMM yyyy", { locale: id })}
+                                                                    </p>
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-300 flex items-center gap-1">
+                                                                        <Clock className="h-3.5 w-3.5" />
+                                                                        {format(new Date(mr.issuedDate), "HH:mm", { locale: id })} WIB
                                                                     </p>
                                                                 </div>
-                                                            ) : (
-                                                                <span className="text-slate-400">-</span>
-                                                            )}
-                                                        </TableCell>
-                                                    )}
+                                                            </TableCell>
+                                                        )}
 
-                                                    {columnVisibility.status && (
-                                                        <TableCell className="py-5 px-6">
-                                                            <div className="flex items-center gap-2">
-                                                                <Badge
-                                                                    className={`
-                                                                    ${statusConfig.bg} 
-                                                                    ${statusConfig.color} 
-                                                                    ${statusConfig.border}
-                                                                    border
-                                                                    font-semibold
-                                                                    text-sm
-                                                                    px-4 py-2.5
-                                                                    rounded-xl
-                                                                    flex items-center gap-2
-                                                                    w-fit
-                                                                    backdrop-blur-sm
-                                                                    shadow-sm
-                                                                `}
-                                                                    variant="outline"
-                                                                >
-                                                                    <StatusIcon className="h-4 w-4" />
-                                                                    {statusConfig.label}
-                                                                </Badge>
-                                                            </div>
-                                                        </TableCell>
-                                                    )}
-
-                                                    {columnVisibility.actions && (
-                                                        <TableCell className="py-5 px-6">
-                                                            <TooltipProvider>
-                                                                <div className="flex justify-end gap-2">
-                                                                    {mr.status === "PENDING" && (
-                                                                        <TableButtonWithTooltip
-                                                                            title="Approve Requisition"
-                                                                            icon={CheckCheck}
-                                                                            onClick={() => handleApprove(mr)}
-                                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 font-semibold"
-                                                                            variant="default"
-                                                                        />
-                                                                    )}
-
-                                                                    <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
-                                                                        <SheetTrigger asChild>
-                                                                            <TableButtonWithTooltip
-                                                                                title="Lihat Detail"
-                                                                                icon={Eye}
-                                                                                onClick={() => handleViewDetails(mr)}
-                                                                                className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                                                                            />
-                                                                        </SheetTrigger>
-                                                                        <MRDetailSheet
-                                                                            mr={selectedMR}
-                                                                            onScanQRCode={handleScanQRCode}
-                                                                        />
-                                                                    </Sheet>
-
-                                                                    <TableButtonWithTooltip
-                                                                        title="Download PDF"
-                                                                        icon={Download}
-                                                                        onClick={() => { }}
-                                                                        className="border-purple-100 text-purple-600 hover:bg-purple-50"
-                                                                    />
-
-                                                                    <TableButtonWithTooltip
-                                                                        title="Print Requisition"
-                                                                        icon={Printer}
-                                                                        onClick={() => { }}
-                                                                        className="border-amber-100 text-amber-600 hover:bg-amber-50"
-                                                                    />
-
-                                                                    {mr.status === "PENDING" && (
-                                                                        <TableButtonWithTooltip
-                                                                            title="Reject Requisition"
-                                                                            icon={AlertTriangle}
-                                                                            onClick={() => { }}
-                                                                            className="border-red-100 text-red-500 hover:bg-red-50"
-                                                                        />
-                                                                    )}
+                                                        {columnVisibility.project && (
+                                                            <TableCell className="py-5 px-6">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Building className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                                                    <span className="font-bold text-slate-800 dark:text-white text-wrap uppercase">{mr.project?.name || mr.projectId}</span>
                                                                 </div>
-                                                            </TooltipProvider>
-                                                        </TableCell>
+                                                            </TableCell>
+                                                        )}
+
+                                                        {columnVisibility.requestedBy && (
+                                                            <TableCell className="py-5 px-6">
+                                                                <div className="space-y-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <User className="h-4 w-4 text-slate-500" />
+                                                                        <p className="font-semibold text-slate-800 dark:text-white">{mr.requestedBy?.name || "N/A"}</p>
+                                                                    </div>
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-300 pl-6">{mr.requestedBy?.department}</p>
+                                                                </div>
+                                                            </TableCell>
+                                                        )}
+
+                                                        {columnVisibility.warehouse && (
+                                                            <TableCell className="py-5 px-6">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                                                    <span className="font-semibold text-slate-800 dark:text-white">{mr.Warehouse?.name || "N/A"}</span>
+                                                                </div>
+                                                            </TableCell>
+                                                        )}
+
+                                                        {columnVisibility.items && (
+                                                            <TableCell className="py-5 px-6">
+                                                                <div className="space-y-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="bg-gradient-to-r from-emerald-100 to-emerald-50 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-emerald-200 transition-colors" onClick={() => toggleRow(mr.id)}>
+                                                                            <span className="font-bold text-emerald-700 flex items-center gap-1">
+                                                                                {mr.items.length} items
+                                                                                {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-300">
+                                                                        Total Qty: <span className="font-semibold text-slate-700 dark:text-white">
+                                                                            {mr.items.reduce((sum, item) => sum + Number(item.qtyRequested), 0).toLocaleString()} {unitDisplay}
+                                                                        </span>
+                                                                    </p>
+                                                                </div>
+                                                            </TableCell>
+                                                        )}
+
+                                                        {columnVisibility.notes && (
+                                                            <TableCell className="py-5 px-6">
+                                                                {mr.notes ? (
+                                                                    <div className="flex items-start gap-2 max-w-[200px]">
+                                                                        <FileText className="h-4 w-4 text-slate-400 mt-0.5" />
+                                                                        <p className="text-sm text-slate-600 dark:text-slate-300 italic truncate" title={mr.notes}>
+                                                                            {mr.notes}
+                                                                        </p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-slate-400">-</span>
+                                                                )}
+                                                            </TableCell>
+                                                        )}
+
+                                                        {columnVisibility.status && (
+                                                            <TableCell className="py-5 px-6">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Badge
+                                                                        className={`
+                                                                        ${statusConfig.bg} 
+                                                                        ${statusConfig.color} 
+                                                                        ${statusConfig.border}
+                                                                        border
+                                                                        font-semibold
+                                                                        text-sm
+                                                                        px-4 py-2.5
+                                                                        rounded-xl
+                                                                        flex items-center gap-2
+                                                                        w-fit
+                                                                        backdrop-blur-sm
+                                                                        shadow-sm
+                                                                    `}
+                                                                        variant="outline"
+                                                                    >
+                                                                        <StatusIcon className="h-4 w-4" />
+                                                                        {statusConfig.label}
+                                                                    </Badge>
+                                                                </div>
+                                                            </TableCell>
+                                                        )}
+
+                                                        {columnVisibility.actions && (
+                                                            <TableCell className="py-5 px-6">
+                                                                <TooltipProvider>
+                                                                    <div className="flex justify-end gap-2">
+                                                                        {mr.status === "PENDING" && (
+                                                                            <TableButtonWithTooltip
+                                                                                title="Approve Requisition"
+                                                                                icon={CheckCheck}
+                                                                                onClick={() => handleApprove(mr)}
+                                                                                className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 font-semibold"
+                                                                                variant="default"
+                                                                            />
+                                                                        )}
+
+                                                                        <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
+                                                                            <SheetTrigger asChild>
+                                                                                <TableButtonWithTooltip
+                                                                                    title="Lihat Detail"
+                                                                                    icon={Eye}
+                                                                                    onClick={() => handleViewDetails(mr)}
+                                                                                    className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                                                                />
+                                                                            </SheetTrigger>
+                                                                            <MRDetailSheet
+                                                                                mr={selectedMR}
+                                                                                onScanQRCode={handleScanQRCode}
+                                                                            />
+                                                                        </Sheet>
+
+                                                                        <TableButtonWithTooltip
+                                                                            title="Download PDF"
+                                                                            icon={Download}
+                                                                            onClick={() => { }}
+                                                                            className="border-purple-100 text-purple-600 hover:bg-purple-50"
+                                                                        />
+
+                                                                        <TableButtonWithTooltip
+                                                                            title="Print Requisition"
+                                                                            icon={Printer}
+                                                                            onClick={() => { }}
+                                                                            className="border-amber-100 text-amber-600 hover:bg-amber-50"
+                                                                        />
+
+                                                                        {mr.status === "PENDING" && (
+                                                                            <TableButtonWithTooltip
+                                                                                title="Reject Requisition"
+                                                                                icon={AlertTriangle}
+                                                                                onClick={() => { }}
+                                                                                className="border-red-100 text-red-500 hover:bg-red-50"
+                                                                            />
+                                                                        )}
+                                                                    </div>
+                                                                </TooltipProvider>
+                                                            </TableCell>
+                                                        )}
+                                                    </TableRow>
+                                                    
+                                                    {isExpanded && (
+                                                        <TableRow className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-white/5">
+                                                            <TableCell colSpan={Object.values(columnVisibility).filter(Boolean).length}>
+                                                                <div className="py-4 px-6 md:pl-20">
+                                                                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                                                                        <Table>
+                                                                            <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
+                                                                                <TableRow>
+                                                                                    <TableHead className="font-semibold w-12 text-center text-slate-500">No</TableHead>
+                                                                                    <TableHead className="font-semibold text-slate-500">Kode Barang</TableHead>
+                                                                                    <TableHead className="font-semibold text-slate-500">Nama Barang</TableHead>
+                                                                                    <TableHead className="font-semibold text-right text-slate-500">Qty Diminta</TableHead>
+                                                                                    <TableHead className="font-semibold text-right text-slate-500">Qty Diberikan</TableHead>
+                                                                                    <TableHead className="font-semibold text-slate-500">Satuan</TableHead>
+                                                                                </TableRow>
+                                                                            </TableHeader>
+                                                                            <TableBody>
+                                                                                {mr.items.map((item, idx) => (
+                                                                                    <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/80">
+                                                                                        <TableCell className="text-center font-medium text-slate-500">{idx + 1}</TableCell>
+                                                                                        <TableCell>
+                                                                                            <span className="font-mono text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                                                                                                {item.product?.code}
+                                                                                            </span>
+                                                                                        </TableCell>
+                                                                                        <TableCell className="font-medium text-slate-800 dark:text-slate-200">{item.product?.name}</TableCell>
+                                                                                        <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400">{item.qtyRequested.toLocaleString()}</TableCell>
+                                                                                        <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">{item.qtyIssued.toLocaleString()}</TableCell>
+                                                                                        <TableCell className="text-slate-600 dark:text-slate-400">{item.unit}</TableCell>
+                                                                                    </TableRow>
+                                                                                ))}
+                                                                            </TableBody>
+                                                                        </Table>
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
                                                     )}
-                                                </TableRow>
+                                                </React.Fragment>
                                             )
                                         })
                                     )}

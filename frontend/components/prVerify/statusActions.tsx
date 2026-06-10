@@ -517,23 +517,29 @@ export function PurchaseRequestSheet({
                 const requestedQty = Number(detail.jumlah) || 0;
 
                 // Calculate available stock based on context
-                let availableStock = 0;
+                let availableStockInStorageUnit = 0;
 
                 if (selectedPurchaseRequest?.spkId && detailStock?.breakdown) {
                     // If SPK exists, only count stock from WIP warehouses
-                    availableStock = detailStock.breakdown
+                    availableStockInStorageUnit = detailStock.breakdown
                         .filter(wh => wh.isWip)
                         .reduce((sum, wh) => sum + (wh.availableStock || 0), 0);
                 } else {
                     // Otherwise use total available stock
-                    availableStock = detailStock?.available || 0;
+                    availableStockInStorageUnit = detailStock?.available || 0;
                 }
 
-                if (requestedQty > availableStock) {
+                let effectiveAvailableStock = availableStockInStorageUnit;
+                if (detail.satuan === detail.product?.usageUnit && detail.product?.usageUnit !== detail.product?.storageUnit) {
+                    const conversionToUsage = detail.product?.conversionToUsage || 1;
+                    effectiveAvailableStock = availableStockInStorageUnit * conversionToUsage;
+                }
+
+                if (requestedQty > effectiveAvailableStock) {
                     itemsExceedingStock.push({
                         name: detail.product?.name || 'Unknown',
                         requested: requestedQty,
-                        available: availableStock
+                        available: effectiveAvailableStock
                     });
                 }
             });
