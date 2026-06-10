@@ -1062,6 +1062,20 @@ class InvoiceController {
           {
             internalNotes: { contains: searchTerm, mode: "insensitive" },
           },
+          {
+            items: {
+              some: {
+                name: { contains: searchTerm, mode: "insensitive" },
+              },
+            },
+          },
+          {
+            items: {
+              some: {
+                description: { contains: searchTerm, mode: "insensitive" },
+              },
+            },
+          },
         ];
       }
 

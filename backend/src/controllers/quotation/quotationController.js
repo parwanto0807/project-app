@@ -300,6 +300,9 @@ export const getQuotations = async (req, res) => {
           { customer: { branch: { contains: words[0], mode: "insensitive" } } },
           { customer: { email: { contains: words[0], mode: "insensitive" } } },
           { customer: { code: { contains: words[0], mode: "insensitive" } } },
+          { lines: { some: { description: { contains: words[0], mode: "insensitive" } } } },
+          { lines: { some: { product: { name: { contains: words[0], mode: "insensitive" } } } } },
+          { lines: { some: { product: { code: { contains: words[0], mode: "insensitive" } } } } },
         ];
       } else {
         // Multiple words search - cari yang mengandung semua kata
@@ -310,6 +313,9 @@ export const getQuotations = async (req, res) => {
             { customer: { branch: { contains: word, mode: "insensitive" } } },
             { customer: { email: { contains: word, mode: "insensitive" } } },
             { customer: { code: { contains: word, mode: "insensitive" } } },
+            { lines: { some: { description: { contains: word, mode: "insensitive" } } } },
+            { lines: { some: { product: { name: { contains: word, mode: "insensitive" } } } } },
+            { lines: { some: { product: { code: { contains: word, mode: "insensitive" } } } } },
           ],
         }));
       }

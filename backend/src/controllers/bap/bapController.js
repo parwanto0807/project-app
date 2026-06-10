@@ -39,6 +39,24 @@ export const getAllBAP = async (req, res) => {
           workDescription: { contains: req.query.search, mode: "insensitive" },
         },
         { location: { contains: req.query.search, mode: "insensitive" } },
+        {
+          salesOrder: {
+            items: {
+              some: {
+                name: { contains: req.query.search, mode: "insensitive" },
+              },
+            },
+          },
+        },
+        {
+          salesOrder: {
+            items: {
+              some: {
+                description: { contains: req.query.search, mode: "insensitive" },
+              },
+            },
+          },
+        },
       ];
     }
 
@@ -414,6 +432,13 @@ export const updateBAP = async (req, res) => {
         photos: true,
       },
     });
+
+    if (bap.salesOrderId) {
+      await prisma.salesOrder.update({
+        where: { id: bap.salesOrderId },
+        data: { status: "BAST" },
+      });
+    }
 
     res.json(updatedBAP);
   } catch (error) {
