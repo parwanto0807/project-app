@@ -130,12 +130,14 @@ export const mrController = {
             throw new Error(`Stok untuk produk ${item.productId} tidak ditemukan di gudang ini`);
           }
 
-          // Check if there's enough booked stock (this should have been reserved during approval)
-          if (Number(stockBalance.bookedStock) < remainingToTake) {
-            throw new Error(
-              `Stok yang di-booking (${stockBalance.bookedStock}) tidak mencukupi untuk produk ${item.productId}. ` +
-              `Dibutuhkan: ${remainingToTake}. Stok tersedia: ${stockBalance.availableStock}`
-            );
+          let bookedToTake = Math.min(Number(stockBalance.bookedStock), remainingToTake);
+          let unbookedToTake = remainingToTake - bookedToTake;
+
+          if (Number(stockBalance.availableStock) < unbookedToTake) {
+              throw new Error(
+                `Stok tidak mencukupi untuk produk ${item.productId}. ` +
+                `Dibutuhkan tambahan: ${unbookedToTake}. Stok tersedia: ${stockBalance.availableStock}`
+              );
           }
 
           // Now get only valid FIFO batches
@@ -200,8 +202,8 @@ export const mrController = {
             data: {
               stockOut: { increment: baseQtyDeduction },
               stockAkhir: { decrement: baseQtyDeduction },
-              bookedStock: { decrement: baseQtyDeduction },
-              availableStock: { increment: 0 }, // availableStock stays same since we're reducing both stockAkhir and bookedStock
+              bookedStock: { decrement: bookedToTake },
+              availableStock: { decrement: unbookedToTake }, // Decrement availableStock if we took from it
               inventoryValue: { set: newInventoryValue } // Clamped to prevent negative
             }
           });

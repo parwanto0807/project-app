@@ -984,21 +984,34 @@ export default function TabelMonitoring({
                                                             <TooltipContent className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl p-3 min-w-[200px]">
                                                                 <div className="text-xs space-y-3">
                                                                     <div>
-                                                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Conversion Rate</p>
-                                                                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
-                                                                            <span>1 {item.purchaseUnit || 'Unit'}</span>
-                                                                            <ArrowRight className="w-3 h-3" />
-                                                                            <span>{item.conversionToStorage || 1} {item.storageUnit}</span>
+                                                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Konversi Pembelian</p>
+                                                                        <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
+                                                                            <span className="flex items-center gap-1">1 {item.purchaseUnit || 'Unit'} <ArrowRight className="w-2.5 h-2.5 mx-0.5 text-slate-400" /> {item.conversionToStorage || 1} {item.storageUnit}</span>
+                                                                            <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                                                                                {(item.availableStock / (item.conversionToStorage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })} {item.purchaseUnit || 'Unit'}
+                                                                            </span>
                                                                         </div>
                                                                     </div>
 
+                                                                    {item.usageUnit && item.usageUnit !== item.storageUnit && (
+                                                                        <div>
+                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Konversi Pemakaian</p>
+                                                                            <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
+                                                                                <span className="flex items-center gap-1">1 {item.storageUnit || 'Unit'} <ArrowRight className="w-2.5 h-2.5 mx-0.5 text-slate-400" /> {item.conversionToUsage || 1} {item.usageUnit}</span>
+                                                                                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                                                                    {(item.availableStock * (item.conversionToUsage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })} {item.usageUnit}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
                                                                     <div>
-                                                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Actual / Equivalent</p>
+                                                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Stok Fisik Gudang</p>
                                                                         <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-800">
                                                                             <p className="text-lg font-black text-emerald-700 dark:text-emerald-400 leading-none">
-                                                                                {(item.availableStock / (item.conversionToStorage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                                                                                {displayValue(item.availableStock)}
                                                                             </p>
-                                                                            <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-0.5">{item.purchaseUnit || 'Unit'}</p>
+                                                                            <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-0.5">{item.storageUnit || 'Unit'}</p>
                                                                         </div>
                                                                     </div>
                                                                 </div>
