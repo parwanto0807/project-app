@@ -54,24 +54,22 @@ export const submitClockIn = async (req, res) => {
       return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
     }
 
-    if (!karyawan.attendanceLocation) {
-      return res.status(400).json({ message: "Lokasi absensi belum diatur untuk karyawan ini. Hubungi Admin." });
-    }
+    // 2. Verifikasi Geofencing (Hanya jika lokasi diatur)
+    if (karyawan.attendanceLocation) {
+      const distance = calculateDistance(
+        lat,
+        lon,
+        karyawan.attendanceLocation.latitude,
+        karyawan.attendanceLocation.longitude
+      );
 
-    // 2. Verifikasi Geofencing
-    const distance = calculateDistance(
-      lat,
-      lon,
-      karyawan.attendanceLocation.latitude,
-      karyawan.attendanceLocation.longitude
-    );
-
-    if (distance > karyawan.attendanceLocation.radius) {
-      return res.status(403).json({
-        message: `Anda berada di luar radius absensi (${Math.round(distance)}m dari lokasi).`,
-        distance: Math.round(distance),
-        requiredRadius: karyawan.attendanceLocation.radius
-      });
+      if (distance > karyawan.attendanceLocation.radius) {
+        return res.status(403).json({
+          message: `Anda berada di luar radius absensi (${Math.round(distance)}m dari lokasi).`,
+          distance: Math.round(distance),
+          requiredRadius: karyawan.attendanceLocation.radius
+        });
+      }
     }
 
     // 3. Cek apakah ada sesi absen yang masih aktif (masuk tapi belum keluar)
@@ -200,21 +198,19 @@ export const submitClockOut = async (req, res) => {
 
     if (!karyawan) return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
 
-    if (!karyawan.attendanceLocation) {
-      return res.status(400).json({ message: "Lokasi absensi belum diatur. Hubungi Admin." });
-    }
+    // Verifikasi Geofencing (Hanya jika lokasi diatur)
+    if (karyawan.attendanceLocation) {
+      const distance = calculateDistance(
+        lat, lon,
+        karyawan.attendanceLocation.latitude,
+        karyawan.attendanceLocation.longitude
+      );
 
-    // Verifikasi Geofencing
-    const distance = calculateDistance(
-      lat, lon,
-      karyawan.attendanceLocation.latitude,
-      karyawan.attendanceLocation.longitude
-    );
-
-    if (distance > karyawan.attendanceLocation.radius) {
-      return res.status(403).json({
-        message: `Anda berada di luar radius absensi (${Math.round(distance)}m).`,
-      });
+      if (distance > karyawan.attendanceLocation.radius) {
+        return res.status(403).json({
+          message: `Anda berada di luar radius absensi (${Math.round(distance)}m).`,
+        });
+      }
     }
 
     // ── Cari record absensi yang sudah clock-in tapi belum clock-out ──
