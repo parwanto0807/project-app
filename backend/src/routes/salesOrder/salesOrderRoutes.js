@@ -46,6 +46,9 @@ router.put("/sales-orders/:id/with-items", salesOrder.updateWithItems);
 
 router.put("/:id/cancel", salesOrder.cancelSalesOrder);
 
+// Force update status SO (SuperAdmin/Specific User only)
+router.put("/:id/force-status", authenticateToken, salesOrder.forceStatus);
+
 // Hapus SO (cascade hapus items & documents)
 router.delete("/sales-orders/remove/:id", salesOrder.remove);
 

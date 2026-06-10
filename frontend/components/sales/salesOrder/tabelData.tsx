@@ -132,6 +132,7 @@ interface SalesOrderTableProps {
     onDeleteOrder?: (id: string) => Promise<void> | void;
     role: string;
     highlightId: string | null;
+    userEmail?: string;
 }
 
 function mapToFormData(order: SalesOrder): SalesOrderFormData {
@@ -183,10 +184,13 @@ export function useBodyScrollLock(locked: boolean) {
     }, [locked]);
 }
 
-function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void; role: string }) {
+function ActionsCell({ order, onDeleteSuccess, role, userEmail }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void; role: string; userEmail?: string }) {
     const router = useRouter()
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
+    const [showForceStatusDialog, setShowForceStatusDialog] = React.useState(false)
+    const [forceStatus, setForceStatus] = React.useState(order.status)
     const [isDeleting, setIsDeleting] = React.useState(false)
+    const [isForcing, setIsForcing] = React.useState(false)
     const searchParams = useSearchParams();
     const page = Number(searchParams.get("page")) || 1;
     const highlightStatus = searchParams.get("status") || "";
@@ -194,7 +198,7 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
     const searchUrl = searchParams.get("search") || "";
 
     // Lock body scroll ketika dialog terbuka
-    useBodyScrollLock(showDeleteDialog);
+    useBodyScrollLock(showDeleteDialog || showForceStatusDialog);
 
     const handleDeleteOrder = async () => {
         setIsDeleting(true)
@@ -210,11 +214,8 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
             }
 
             setShowDeleteDialog(false)
-
-            // Panggil callback untuk update state lokal
             onDeleteSuccess(order.id)
 
-            // Optional: refresh data dari server setelah 500ms
             setTimeout(() => {
                 router.refresh()
             }, 500)
@@ -224,6 +225,31 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
             setShowDeleteDialog(false)
         } finally {
             setIsDeleting(false)
+        }
+    }
+
+    const handleForceStatus = async () => {
+        setIsForcing(true)
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/${order.id}/force-status`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ status: forceStatus, userEmail }),
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            setShowForceStatusDialog(false)
+            
+            // Refresh via route param to trigger data refetch
+            router.refresh()
+        } catch (error) {
+            console.error("Error forcing status:", error)
+        } finally {
+            setIsForcing(false)
         }
     }
 
@@ -258,9 +284,21 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
         setShowDeleteDialog(true)
     }
 
+    function handleForceStatusClick(e: React.MouseEvent) {
+        e.stopPropagation()
+        e.preventDefault()
+        setForceStatus(order.status)
+        setShowForceStatusDialog(true)
+    }
+
     function cancelDelete(e: React.MouseEvent) {
         e.stopPropagation()
         setShowDeleteDialog(false)
+    }
+
+    function cancelForceStatus(e: React.MouseEvent) {
+        e.stopPropagation()
+        setShowForceStatusDialog(false)
     }
 
     return (
@@ -311,6 +349,13 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                         <Trash2 className="h-3 w-3" />
                         Delete
                     </DropdownMenuItem>
+
+                    {userEmail === "parwanto0807@gmail.com" && (
+                        <DropdownMenuItem onClick={handleForceStatusClick}>
+                            <FaToolbox className="h-3 w-3" />
+                            Force Status
+                        </DropdownMenuItem>
+                    )}
                 </DropdownMenuContent>
             </DropdownMenu>
 
@@ -338,6 +383,51 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                                     disabled={isDeleting}
                                 >
                                     {isDeleting ? "Deleting..." : "Delete"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showForceStatusDialog && (
+                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border p-6 w-11/12 max-w-md">
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                                <FaToolbox className="h-4 w-4 text-orange-500" />
+                                Force Status (Super Admin)
+                            </h3>
+                            <p className="text-muted-foreground text-sm">
+                                Ganti status secara paksa untuk SO <span className="font-semibold">{order.soNumber}</span>.
+                            </p>
+                            <div className="py-4">
+                                <select 
+                                    className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={forceStatus}
+                                    onChange={(e) => setForceStatus(e.target.value as OrderStatus)}
+                                >
+                                    {Object.keys(statusConfig).map((st) => (
+                                        <option key={st} value={st}>
+                                            {statusConfig[st as OrderStatus].label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={cancelForceStatus}
+                                    disabled={isForcing}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="default"
+                                    onClick={handleForceStatus}
+                                    disabled={isForcing || forceStatus === order.status}
+                                >
+                                    {isForcing ? "Updating..." : "Update Status"}
                                 </Button>
                             </div>
                         </div>
@@ -679,6 +769,7 @@ export function SalesOrderTable({
     onDeleteSuccess,
     role,
     highlightId,
+    userEmail,
 }: SalesOrderTableProps) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [expanded, setExpanded] = React.useState<ExpandedState>({})
@@ -1331,6 +1422,7 @@ export function SalesOrderTable({
                             order={row.original}
                             onDeleteSuccess={handleDeleteSuccess}
                             role={role}
+                            userEmail={userEmail}
                         />
                         {/* Button Create SPK */}
                         <TooltipProvider>
@@ -1625,6 +1717,7 @@ export function SalesOrderTable({
                                                     order={order}
                                                     onDeleteSuccess={handleDeleteSuccess}
                                                     role={role}
+                                                    userEmail={userEmail}
                                                 />
 
 

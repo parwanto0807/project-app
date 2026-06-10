@@ -102,6 +102,9 @@ interface CreateSalesOrderFormProps {
 }
 
 
+const globalProductCache: Record<string, ProductOption[]> = {};
+const globalProductPromiseCache: Record<string, Promise<any>> = {};
+
 // Interface untuk state per item
 interface ItemState {
   selectedApiType: "PRODUCT" | "SERVICE" | "CUSTOM" | undefined;
@@ -251,26 +254,41 @@ export function CreateSalesOrderForm({
 
   // Fetch products untuk item tertentu
   const fetchProductsForItem = React.useCallback(async (index: number, type: "PRODUCT" | "SERVICE" | "CUSTOM" | undefined) => {
-    try {
-      const accessToken = localStorage.getItem("accessToken");
-      const response = await fetchAllProductsByType(accessToken ?? undefined, type);
+    if (type === "CUSTOM" || !type) {
+      setItemsState(prev => {
+        const newState = [...prev];
+        newState[index] = { ...newState[index], productOptions: [] };
+        return newState;
+      });
+      return;
+    }
 
-      // Cek jika response success dan data tersedia
-      if (!response.success || !response.data) {
-        throw new Error(response.message || "Failed to fetch products");
+    try {
+      if (!globalProductCache[type]) {
+        if (!globalProductPromiseCache[type]) {
+          const accessToken = localStorage.getItem("accessToken");
+          globalProductPromiseCache[type] = fetchAllProductsByType(accessToken ?? undefined, type).then(response => {
+            if (!response.success || !response.data) {
+              throw new Error(response.message || "Failed to fetch products");
+            }
+            const options = response.data.map((p: ProductOption) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              usageUnit: p.usageUnit ?? null,
+            }));
+            globalProductCache[type] = options;
+            return options;
+          });
+        }
+        await globalProductPromiseCache[type];
       }
+
+      const options = globalProductCache[type];
 
       setItemsState(prev => {
         const newState = [...prev];
-        newState[index] = {
-          ...newState[index],
-          productOptions: response.data.map((p: ProductOption) => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            usageUnit: p.usageUnit ?? null,
-          }))
-        };
+        newState[index] = { ...newState[index], productOptions: options };
         return newState;
       });
     } catch (error) {

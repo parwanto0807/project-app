@@ -122,6 +122,9 @@ function getBasePath(role?: string) {
     return paths[role ?? "admin"] || "/admin-area/sales/salesOrder"
 }
 
+const globalProductCache: Record<string, ProductOption[]> = {};
+const globalProductPromiseCache: Record<string, Promise<any>> = {};
+
 // Fungsi untuk mengecek apakah role memiliki akses harga
 const hasPriceAccess = (role?: string) => {
     return role === "admin" || role === "super";
@@ -239,16 +242,24 @@ export function UpdateSalesOrderForm({
         }
 
         try {
-            const accessToken = localStorage.getItem("accessToken");
-            const response = await fetchAllProductsByType(accessToken ?? undefined, itemType);
+            if (!globalProductCache[itemType]) {
+                if (!globalProductPromiseCache[itemType]) {
+                    const accessToken = localStorage.getItem("accessToken");
+                    globalProductPromiseCache[itemType] = fetchAllProductsByType(accessToken ?? undefined, itemType).then(response => {
+                        const options = response.data.map((p: ApiProduct): ProductOption => ({
+                            id: p.id,
+                            name: p.name,
+                            description: p.description,
+                            usageUnit: p.usageUnit ?? null,
+                        }));
+                        globalProductCache[itemType] = options;
+                        return options;
+                    });
+                }
+                await globalProductPromiseCache[itemType];
+            }
 
-            // Based on the error, the response has a 'data' property instead of 'products'
-            const options = response.data.map((p: ApiProduct): ProductOption => ({
-                id: p.id,
-                name: p.name,
-                description: p.description,
-                usageUnit: p.usageUnit ?? null,
-            }));
+            const options = globalProductCache[itemType];
 
             setItemsState(prev => {
                 const newState = [...prev];

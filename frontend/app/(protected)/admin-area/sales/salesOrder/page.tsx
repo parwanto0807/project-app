@@ -457,6 +457,7 @@ export default function SalesOrderPageAdmin() {
                   isLoading={false} // Tidak perlu loading indicator di table untuk subsequent fetches
                   role={user?.role || "admin"}
                   highlightId={highlightId}
+                  userEmail={user?.email}
                 />
               </div>
             )}

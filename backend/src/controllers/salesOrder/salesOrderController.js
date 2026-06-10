@@ -1536,3 +1536,25 @@ export const cancelSalesOrder = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const forceStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userEmail = req.user?.email || req.body.userEmail;
+
+    if (userEmail !== 'parwanto0807@gmail.com') {
+      return res.status(403).json({ message: 'Forbidden: Only parwanto0807@gmail.com can force update SO status' });
+    }
+
+    const updatedSO = await prisma.salesOrder.update({
+      where: { id },
+      data: { status },
+    });
+
+    return res.status(200).json({ message: 'Status updated successfully', data: updatedSO });
+  } catch (error) {
+    console.error('Error forcing SO status:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
