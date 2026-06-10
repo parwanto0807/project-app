@@ -20,6 +20,7 @@ interface EditAttendanceDialogProps {
 
 export function EditAttendanceDialog({ record, open, onClose, onSuccess }: EditAttendanceDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [tanggal, setTanggal] = useState("");
   const [jamMasuk, setJamMasuk] = useState("");
   const [jamKeluar, setJamKeluar] = useState("");
   const [status, setStatus] = useState("HADIR");
@@ -27,6 +28,11 @@ export function EditAttendanceDialog({ record, open, onClose, onSuccess }: EditA
 
   useEffect(() => {
     if (record && open) {
+      if (record.tanggal) {
+        setTanggal(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta' }).format(new Date(record.tanggal)));
+      } else {
+        setTanggal("");
+      }
       if (record.jamMasuk) {
         setJamMasuk(format(new Date(record.jamMasuk), "HH:mm"));
       } else {
@@ -47,13 +53,15 @@ export function EditAttendanceDialog({ record, open, onClose, onSuccess }: EditA
       setIsLoading(true);
       
       // Construct date objects
-      const tgl = new Date(record.tanggal).toISOString().split('T')[0];
+      const tgl = tanggal || new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta' }).format(new Date(record.tanggal));
+      const tanggalISO = new Date(`${tgl}T00:00:00+07:00`).toISOString();
       const masukISO = jamMasuk ? new Date(`${tgl}T${jamMasuk}:00+07:00`).toISOString() : null;
       const keluarISO = jamKeluar ? new Date(`${tgl}T${jamKeluar}:00+07:00`).toISOString() : null;
 
       const { updateAbsensiAction } = await import("@/lib/action/hr/absensi");
       
       const res = await updateAbsensiAction(record.id, {
+        tanggal: tanggalISO,
         jamMasuk: masukISO,
         jamKeluar: keluarISO,
         status,
@@ -85,6 +93,10 @@ export function EditAttendanceDialog({ record, open, onClose, onSuccess }: EditA
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Tanggal</Label>
+            <Input type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} className="col-span-3" />
+          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Jam Masuk</Label>
             <Input type="time" value={jamMasuk} onChange={e => setJamMasuk(e.target.value)} className="col-span-3" />

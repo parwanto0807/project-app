@@ -365,7 +365,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
                       {/* Actions */}
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {user?.email === "parwanto0807@gmail.com" && (
+                          {(user?.role === "admin" || user?.role === "super") && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -403,7 +403,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
                               {validated ? "Re-Validasi" : (row.jamKeluar ? "Validasi" : "Manual Out")}
                             </Button>
                           )}
-                          {!row.isMissing && user?.email === "parwanto0807@gmail.com" && (
+                          {!row.isMissing && (user?.role === "admin" || user?.role === "super") && (
                             <Button
                               variant="ghost"
                               size="sm"

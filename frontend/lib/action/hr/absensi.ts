@@ -150,7 +150,7 @@ export async function deleteAbsensi(id: string) {
   }
 }
 
-export async function updateAbsensiAction(id: string, data: { jamMasuk?: string | null; jamKeluar?: string | null; status?: string; keterangan?: string }) {
+export async function updateAbsensiAction(id: string, data: { tanggal?: string | null; jamMasuk?: string | null; jamKeluar?: string | null; status?: string; keterangan?: string }) {
   try {
     const cookieStore = await cookies();
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}`, {
