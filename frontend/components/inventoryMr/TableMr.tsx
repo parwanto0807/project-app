@@ -211,11 +211,16 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
     // Filter data
     const filteredData = data.filter((mr) => {
+        const searchLower = search.toLowerCase()
         const matchesSearch =
-            mr.mrNumber.toLowerCase().includes(search.toLowerCase()) ||
-            mr.requestedBy?.name?.toLowerCase().includes(search.toLowerCase()) ||
-            mr.Warehouse?.name?.toLowerCase().includes(search.toLowerCase()) ||
-            mr.project?.name?.toLowerCase().includes(search.toLowerCase())
+            mr.mrNumber.toLowerCase().includes(searchLower) ||
+            mr.requestedBy?.name?.toLowerCase().includes(searchLower) ||
+            mr.Warehouse?.name?.toLowerCase().includes(searchLower) ||
+            mr.project?.name?.toLowerCase().includes(searchLower) ||
+            mr.items?.some(item => 
+                item.product?.name?.toLowerCase().includes(searchLower) ||
+                item.product?.code?.toLowerCase().includes(searchLower)
+            )
 
         const matchesStatus = statusFilter === "all" || mr.status === statusFilter
         let matchesDate = true
@@ -568,7 +573,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                         <div className="relative w-full">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
                             <Input
-                                placeholder="Cari MR Number, Nama, Project, atau Gudang..."
+                                placeholder="Cari MR Number, Nama, Project, Gudang, atau Detail Item..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="pl-12 h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/50 backdrop-blur-sm dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 shadow-sm"

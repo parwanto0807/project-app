@@ -961,13 +961,17 @@ export default function TabelMonitoring({
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="space-y-1">
-                                                        <p className="text-sm font-bold text-yellow-500 dark:text-yellow-300">{displayValue(item.onPR)}</p>
+                                                        <p className="text-sm font-bold text-yellow-500 dark:text-yellow-300">
+                                                            {displayValue(item.onPR)} <span className="text-[10px] font-medium text-yellow-600/70 dark:text-yellow-400/70 ml-0.5">{item.onPR !== 0 ? item.storageUnit : ''}</span>
+                                                        </p>
                                                         <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Purchase Req</p>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="space-y-1">
-                                                        <p className="text-sm font-bold text-orange-400 dark:text-orange-500">{displayValue(item.bookedStock)}</p>
+                                                        <p className="text-sm font-bold text-orange-400 dark:text-orange-500">
+                                                            {displayValue(item.bookedStock)} <span className="text-[10px] font-medium text-orange-600/70 dark:text-orange-400/70 ml-0.5">{item.bookedStock !== 0 ? item.storageUnit : ''}</span>
+                                                        </p>
                                                         <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Booked PR</p>
                                                     </div>
                                                 </TableCell>

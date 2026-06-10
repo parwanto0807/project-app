@@ -78,11 +78,19 @@ export default function MaterialRequisitionPage() {
     const filteredMR = useMemo(() => {
         if (!urlSearchTerm) return allMR;
 
-        return allMR.filter((mr) =>
-            `${mr.mrNumber} ${mr.projectName || ""} ${mr.status}`
+        return allMR.filter((mr) => {
+            const term = urlSearchTerm.toLowerCase();
+            const matchesBasic = `${mr.mrNumber} ${mr.projectName || ""} ${mr.status}`
                 .toLowerCase()
-                .includes(urlSearchTerm.toLowerCase())
-        );
+                .includes(term);
+                
+            const matchesItems = mr.items?.some((item: any) => 
+                item.product?.name?.toLowerCase().includes(term) ||
+                item.product?.code?.toLowerCase().includes(term)
+            );
+            
+            return matchesBasic || matchesItems;
+        });
     }, [allMR, urlSearchTerm]);
 
     /* =========================

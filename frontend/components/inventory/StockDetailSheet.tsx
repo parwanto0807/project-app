@@ -44,13 +44,16 @@ export default function StockDetailSheet({
 }: StockDetailSheetProps) {
     const [history, setHistory] = useState<StockHistoryItem[]>([]);
     const [bookings, setBookings] = useState<StockBookingItem[]>([]);
+    const [onPOItems, setOnPOItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingBookings, setLoadingBookings] = useState(false);
+    const [loadingOnPO, setLoadingOnPO] = useState(false);
 
     useEffect(() => {
         if (isOpen && item) {
             fetchHistory();
             fetchBookings();
+            fetchOnPO();
         }
     }, [isOpen, item, period, warehouseId]);
 
@@ -77,6 +80,21 @@ export default function StockDetailSheet({
             console.error("Failed to fetch bookings", error);
         } finally {
             setLoadingBookings(false);
+        }
+    };
+
+    const fetchOnPO = async () => {
+        if (!item) return;
+        setLoadingOnPO(true);
+        try {
+            // We use the same getStockOnPO action
+            const { getStockOnPO } = await import('@/lib/action/inventory/inventoryAction');
+            const data = await getStockOnPO(item.productId, warehouseId);
+            setOnPOItems(data.onPOItems || []);
+        } catch (error) {
+            console.error("Failed to fetch on PO items", error);
+        } finally {
+            setLoadingOnPO(false);
         }
     };
 
@@ -174,17 +192,18 @@ export default function StockDetailSheet({
                                     <div className="flex justify-between items-start mb-2 pl-3">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <a
-                                                    // href={`/admin-area/logistic/pr/${booking.prId}`}
-                                                    className="text-sm font-bold text-amber-600 hover:text-amber-700 hover:underline"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    {booking.prNumber}
-                                                </a>
-                                                <Badge variant="outline" className="text-[10px]">{booking.status}</Badge>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                    <a
+                                                        href={`/admin-area/logistic/pr/update/${booking.prId}`}
+                                                        className="text-sm font-bold text-amber-600 hover:text-amber-700 hover:underline"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        title="Buka Dokumen Purchase Request"
+                                                    >
+                                                        {booking.prNumber}
+                                                    </a>
+                                                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-600 border-amber-200">Purchase Request ({booking.status})</Badge>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-slate-500">
                                                 <User className="w-3 h-3" />
                                                 <span>{booking.requestor}</span>
                                                 {booking.project && booking.project !== '-' && (
@@ -210,6 +229,77 @@ export default function StockDetailSheet({
                                         </div>
                                         <div className="text-xs text-slate-400">
                                             Belum Terpenuhi: {formatNumber(booking.totalRequested - booking.jumlahTerpenuhi)}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* On PO Section */}
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-slate-400" />
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Purchase Orders (On PO)</h3>
+                        </div>
+                        {item.onPR > 0 && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
+                                {formatNumber(item.onPR)} On PO
+                            </Badge>
+                        )}
+                    </div>
+
+                    {loadingOnPO ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                            <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                            <p className="text-xs">Loading PO items...</p>
+                        </div>
+                    ) : onPOItems.length === 0 ? (
+                        <div className="text-center py-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                            <p className="text-sm text-slate-500 font-medium">No active PO items</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {onPOItems.map((po, index) => (
+                                <div key={index} className="group relative bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+                                    <div className="absolute left-0 top-4 bottom-4 w-1 bg-green-200 dark:bg-green-800 rounded-r-full group-hover:bg-green-500 transition-colors" />
+
+                                    <div className="flex justify-between items-start mb-2 pl-3">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <a
+                                                    href={`/admin-area/logistic/purchasing/${po.poId}`}
+                                                    className="text-sm font-bold text-green-600 hover:text-green-700 hover:underline"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title="Buka Dokumen Purchase Order"
+                                                >
+                                                    {po.poNumber}
+                                                </a>
+                                                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-600 border-green-200">Purchase Order ({po.status})</Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                <User className="w-3 h-3" />
+                                                <span>{po.supplier}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className="text-lg font-black text-green-600">
+                                                {formatNumber(po.onPOQty)}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">{po.unit}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pl-3 border-t border-slate-50 dark:border-slate-800 pt-2 mt-2">
+                                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                                            <WarehouseIcon className="w-3 h-3" />
+                                            {po.warehouseName}
+                                        </div>
+                                        <div className="text-xs text-slate-400">
+                                            Belum Diterima: {formatNumber(po.originalQtyRemaining)} {po.originalUnit}
                                         </div>
                                     </div>
                                 </div>
@@ -260,14 +350,21 @@ export default function StockDetailSheet({
                                             <WarehouseIcon className="w-3 h-3" />
                                             {hist.warehouse || "Unknown"}
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <span className={cn(
-                                                "text-lg font-black",
-                                                hist.type.includes("IN") ? "text-emerald-600" : "text-rose-600"
-                                            )}>
-                                                {hist.type.includes("IN") ? "+" : "-"}{formatNumber(hist.qty)}
-                                            </span>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase">{hist.unit}</span>
+                                        <div className="flex flex-col items-end">
+                                            <div className="flex items-center gap-1">
+                                                <span className={cn(
+                                                    "text-lg font-black",
+                                                    hist.type.includes("IN") ? "text-emerald-600" : "text-rose-600"
+                                                )}>
+                                                    {hist.type.includes("IN") ? "+" : "-"}{formatNumber(hist.qty)}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">{hist.unit}</span>
+                                            </div>
+                                            {hist.stockAkhirSnapshot !== undefined && (
+                                                <span className="text-[10px] text-slate-500 font-medium">
+                                                    Saldo: {formatNumber(hist.stockAkhirSnapshot)} {hist.unit}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 

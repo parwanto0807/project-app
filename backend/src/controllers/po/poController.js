@@ -158,14 +158,33 @@ export const createPOFromApprovedPR = async (prId, tx) => {
         totalAmount: subtotal,
         sisaBudget: subtotal,
         lines: {
-          create: pembelianBarangItems.map(item => ({
-            productId: item.productId,
-            description: item.product?.name || 'Item',
-            quantity: item.jumlah,
-            unitPrice: item.estimasiHargaSatuan || 0,
-            totalAmount: item.estimasiTotalHarga || 0,
-            prDetailId: item.id
-          }))
+          create: pembelianBarangItems.map(item => {
+            const product = item.product;
+            let qtyInPurchaseUnit = Number(item.jumlah);
+            
+            if (product && item.satuan) {
+              if (item.satuan === product.usageUnit && item.satuan !== product.purchaseUnit) {
+                 const convUsage = Number(product.conversionToUsage) || 1;
+                 const convStorage = Number(product.conversionToStorage) || 1;
+                 // usage -> storage -> purchase
+                 qtyInPurchaseUnit = (Number(item.jumlah) / convUsage) / convStorage;
+              } else if (item.satuan === product.storageUnit && item.satuan !== product.purchaseUnit) {
+                 const convStorage = Number(product.conversionToStorage) || 1;
+                 qtyInPurchaseUnit = Number(item.jumlah) / convStorage;
+              }
+            }
+            
+            const unitPrice = qtyInPurchaseUnit > 0 ? (Number(item.estimasiTotalHarga) || 0) / qtyInPurchaseUnit : 0;
+
+            return {
+              productId: item.productId,
+              description: item.product?.name || 'Item',
+              quantity: qtyInPurchaseUnit,
+              unitPrice: unitPrice,
+              totalAmount: item.estimasiTotalHarga || 0,
+              prDetailId: item.id
+            };
+          })
         }
       },
       include: {
@@ -389,7 +408,7 @@ export const createPOFromPR = async (prId, userId, tx) => {
   // 1. Ambil data PR
   const pr = await db.purchaseRequest.findUnique({
     where: { id: prId },
-    include: { items: true }
+    include: { details: { include: { product: true } } }
   });
 
   if (!pr) throw new Error("Purchase Request tidak ditemukan");
@@ -409,14 +428,30 @@ export const createPOFromPR = async (prId, userId, tx) => {
       supplierId: "DEFAULT_SUPPLIER_ID", // Perlu diupdate manual oleh purchasing
       warehouseId: "DEFAULT_WAREHOUSE_ID", // Perlu diupdate manual oleh purchasing
       lines: {
-        create: pr.items.map(item => ({
-          productId: item.productId,
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: 0, // Akan diisi saat editing draft
-          totalAmount: 0,
-          prDetailId: item.id
-        }))
+        create: pr.details.map(item => {
+          const product = item.product;
+          let qtyInPurchaseUnit = Number(item.jumlah);
+          
+          if (product && item.satuan) {
+            if (item.satuan === product.usageUnit && item.satuan !== product.purchaseUnit) {
+               const convUsage = Number(product.conversionToUsage) || 1;
+               const convStorage = Number(product.conversionToStorage) || 1;
+               qtyInPurchaseUnit = (Number(item.jumlah) / convUsage) / convStorage;
+            } else if (item.satuan === product.storageUnit && item.satuan !== product.purchaseUnit) {
+               const convStorage = Number(product.conversionToStorage) || 1;
+               qtyInPurchaseUnit = Number(item.jumlah) / convStorage;
+            }
+          }
+          
+          return {
+            productId: item.productId,
+            description: product?.name || 'Item',
+            quantity: qtyInPurchaseUnit,
+            unitPrice: 0, // Akan diisi saat editing draft
+            totalAmount: 0,
+            prDetailId: item.id
+          };
+        })
       },
       sisaBudget: 0
     }

@@ -19,4 +19,7 @@ router.get('/latest-stock', stockMonitoringController.getLatestStockBalance);
 // Route untuk stock bookings (siapa yang booking stock)
 router.get('/bookings', stockMonitoringController.getStockBookings);
 
+// Route to get detailed stock on PO
+router.get('/on-po', stockMonitoringController.getStockOnPO);
+
 export default router;

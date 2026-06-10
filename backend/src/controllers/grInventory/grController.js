@@ -142,7 +142,19 @@ export const getAllGoodsReceipts = async (req, res) => {
         { vendorDeliveryNote: { contains: search, mode: 'insensitive' } },
         { vehicleNumber: { contains: search, mode: 'insensitive' } },
         { driverName: { contains: search, mode: 'insensitive' } },
-        { notes: { contains: search, mode: 'insensitive' } }
+        { notes: { contains: search, mode: 'insensitive' } },
+        {
+          items: {
+            some: {
+              product: {
+                OR: [
+                  { name: { contains: search, mode: 'insensitive' } },
+                  { code: { contains: search, mode: 'insensitive' } }
+                ]
+              }
+            }
+          }
+        }
       ];
     }
 
@@ -2374,10 +2386,17 @@ export const approveGR = async (req, res) => {
           if (existingBalance) {
             const currentStockAkhir = parseFloat(existingBalance.stockAkhir) || 0;
             const currentBooked = parseFloat(existingBalance.bookedStock) || 0;
+            const currentOnPR = parseFloat(existingBalance.onPR) || 0;
             const newStockAkhir = currentStockAkhir + qtyConverted;
             
             let newAvailable = newStockAkhir - currentBooked;
             if (newAvailable < 0) newAvailable = 0;
+
+            let newOnPR = currentOnPR;
+            if (existingGR.sourceType !== 'TRANSFER') {
+               newOnPR = currentOnPR - qtyConverted;
+               if (newOnPR < 0) newOnPR = 0;
+            }
 
             await tx.stockBalance.update({
               where: { id: existingBalance.id },
@@ -2386,7 +2405,7 @@ export const approveGR = async (req, res) => {
                 stockAkhir: { set: newStockAkhir },
                 bookedStock: { set: currentBooked },
                 availableStock: { set: newAvailable },
-                ...(existingGR.sourceType !== 'TRANSFER' && { onPR: { decrement: qtyConverted } }),
+                ...(existingGR.sourceType !== 'TRANSFER' && { onPR: { set: newOnPR } }),
                 inventoryValue: { increment: transactionValue }
               }
             });

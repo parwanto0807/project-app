@@ -1082,6 +1082,9 @@ export class PurchaseRequestController {
               });
 
               if (stockBalance) {
+                const currentBooked = Number(stockBalance.bookedStock) || 0;
+                const newBooked = Math.max(0, currentBooked - allocatedQty);
+
                 // Reverse the booking: decrease bookedStock, increase availableStock
                 await tx.stockBalance.update({
                   where: {
@@ -1092,7 +1095,7 @@ export class PurchaseRequestController {
                     }
                   },
                   data: {
-                    bookedStock: { decrement: allocatedQty },
+                    bookedStock: { set: newBooked },
                     availableStock: { increment: allocatedQty }
                   }
                 });
@@ -1454,6 +1457,19 @@ export class PurchaseRequestController {
 
             const productId = detail.productId;
             let remainingNeeded = Number(detail.jumlah);
+            
+            // Convert requested quantity from its unit to storageUnit
+            const product = detail.product;
+            if (product && detail.satuan) {
+              if (detail.satuan === product.usageUnit && detail.satuan !== product.storageUnit) {
+                const convUsage = Number(product.conversionToUsage) || 1;
+                remainingNeeded = remainingNeeded / convUsage;
+              } else if (detail.satuan === product.purchaseUnit && detail.satuan !== product.storageUnit) {
+                const convStorage = Number(product.conversionToStorage) || 1;
+                remainingNeeded = remainingNeeded * convStorage;
+              }
+            }
+
             let totalCost = 0;
             let totalAllocatedQty = 0;
             
@@ -1575,19 +1591,26 @@ export class PurchaseRequestController {
 
                 // --- UPDATE STOCK BALANCE ---
                 // Increase Booked, Decrease Available
-                await tx.stockBalance.update({
+                const currentBalance = await tx.stockBalance.findUnique({
                   where: { 
-                     productId_warehouseId_period: {
-                        productId,
-                        warehouseId,
-                        period
-                     }
-                  },
-                  data: {
-                    bookedStock: { increment: takeQty },
-                    availableStock: { decrement: takeQty }
+                     productId_warehouseId_period: { productId, warehouseId, period }
                   }
                 });
+
+                if (currentBalance) {
+                  const currentAvailable = Number(currentBalance.availableStock) || 0;
+                  const newAvailable = Math.max(0, currentAvailable - takeQty);
+
+                  await tx.stockBalance.update({
+                    where: { 
+                       productId_warehouseId_period: { productId, warehouseId, period }
+                    },
+                    data: {
+                      bookedStock: { increment: takeQty },
+                      availableStock: { set: newAvailable }
+                    }
+                  });
+                }
 
                 // Add to final allocations list
                 finalAllocations.push({

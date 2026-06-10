@@ -82,7 +82,7 @@ export function GrFilters({ initialFilters }: GrFiltersProps) {
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                        placeholder="Search by GR number, vendor, delivery note..."
+                        placeholder="Search by GR number, vendor, delivery note, item detail..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="pl-9"

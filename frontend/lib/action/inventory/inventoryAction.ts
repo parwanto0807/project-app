@@ -75,6 +75,8 @@ export interface StockHistoryItem {
     warehouse: string;
     notes: string;
     referenceNo: string;
+    stockAkhirSnapshot: number;
+    baseQty: number;
 }
 
 export async function getStockHistory(
@@ -142,5 +144,46 @@ export async function getStockBookings(
     } catch (error) {
         console.error("Server Action Error [getStockBookings]:", error);
         return { totalBooked: 0, bookings: [] };
+    }
+}
+
+export interface StockOnPOItem {
+    poNumber: string;
+    poId: string;
+    poDate: string;
+    supplier: string;
+    productName: string;
+    productCode: string;
+    unit: string;
+    originalUnit: string;
+    originalQtyRemaining: number;
+    onPOQty: number;
+    warehouseName: string;
+    warehouseId?: string;
+    status: string;
+}
+
+export async function getStockOnPO(
+    productId: string,
+    warehouseId?: string
+): Promise<{ totalOnPO: number; onPOItems: StockOnPOItem[] }> {
+    try {
+        const params: any = { productId };
+        if (warehouseId && warehouseId !== 'all') {
+            params.warehouseId = warehouseId;
+        }
+
+        const res = await serverApi.get<ApiResponse<{ totalOnPO: number; onPOItems: StockOnPOItem[] }>>(
+            '/api/inventory/on-po',
+            { params }
+        );
+
+        if (res.data && res.data.success) {
+            return res.data.data || { totalOnPO: 0, onPOItems: [] };
+        }
+        return { totalOnPO: 0, onPOItems: [] };
+    } catch (error) {
+        console.error("Server Action Error [getStockOnPO]:", error);
+        return { totalOnPO: 0, onPOItems: [] };
     }
 }

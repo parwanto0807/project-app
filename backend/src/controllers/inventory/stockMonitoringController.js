@@ -311,7 +311,9 @@ export const stockMonitoringController = {
         price: parseFloat(item.pricePerUnit),
         warehouse: item.warehouse?.name,
         notes: item.notes,
-        referenceNo: item.referenceNo
+        referenceNo: item.referenceNo,
+        stockAkhirSnapshot: parseFloat(item.stockAkhirSnapshot || 0),
+        baseQty: parseFloat(item.baseQty || item.transQty)
       }));
 
       return res.status(200).json({
@@ -459,12 +461,14 @@ export const stockMonitoringController = {
         return res.status(400).json({ success: false, message: "ProductId is required" });
       }
 
-      // Query all APPROVED PRs with warehouse allocations for this product
+      // Query all non-cancelled PRs with warehouse allocations for this product
       const bookings = await prisma.purchaseRequestDetail.findMany({
         where: {
           productId: productId,
           purchaseRequest: {
-            status: 'APPROVED' // Only approved PRs have active bookings
+            status: {
+              notIn: ['DRAFT', 'REJECTED', 'REVISION_NEEDED', 'COMPLETED'] // Include APPROVED, SUBMITTED
+            }
           },
           warehouseAllocation: {
             not: null
@@ -493,33 +497,56 @@ export const stockMonitoringController = {
             select: {
               name: true,
               code: true,
-              storageUnit: true
+              storageUnit: true,
+              purchaseUnit: true,
+              conversionToStorage: true
             }
           }
         }
       });
 
-      // Filter out bookings that are already fully fulfilled
+      // Filter active bookings where jumlah > jumlahDipesan
       const activeBookings = bookings.filter(detail => {
         const jumlah = Number(detail.jumlah);
-        const jumlahTerpenuhi = Number(detail.jumlahTerpenuhi || 0);
-        // Only show if not yet fully fulfilled
-        return jumlahTerpenuhi < jumlah;
+        const jumlahDipesan = Number(detail.jumlahDipesan || 0);
+        // Only show if not yet fully ordered
+        return jumlahDipesan < jumlah;
       });
 
       // Filter and format bookings for specific warehouse (if provided)
       const detailedBookings = activeBookings
         .map(detail => {
-          const allocations = detail.warehouseAllocation;
+          let allocations = [];
+          if (typeof detail.warehouseAllocation === 'string') {
+            try { allocations = JSON.parse(detail.warehouseAllocation); } catch (e) {}
+          } else if (Array.isArray(detail.warehouseAllocation)) {
+            allocations = detail.warehouseAllocation;
+          }
           
-          // If warehouseId specified, find allocation for that warehouse
-          if (warehouseId && warehouseId !== 'all') {
-            const warehouseAlloc = allocations.find(
-              alloc => alloc.warehouseId === warehouseId
-            );
+          if (!allocations || allocations.length === 0) return null;
+
+          const prQty = Number(detail.jumlah || 0);
+          const prOrdered = Number(detail.jumlahDipesan || 0);
+          const prRemaining = prQty - prOrdered;
+
+          return allocations.map(alloc => {
+            if (warehouseId && warehouseId !== 'all' && alloc.warehouseId !== warehouseId) {
+              return null;
+            }
+
+            // Cap the booked quantity at the remaining unordered PR quantity
+            const bookedQty = Math.min(Number(alloc.allocatedQty || 0), prRemaining);
+            if (bookedQty <= 0) return null;
+
+            // Conversion handling
+            let conversion = 1;
+            const prUnit = detail.unit || detail.product.purchaseUnit;
+            if (prUnit !== detail.product.storageUnit) {
+              conversion = Number(detail.product.conversionToStorage) || 1;
+            }
             
-            if (!warehouseAlloc) return null;
-            
+            const bookedQtyInStorageUnit = bookedQty * conversion;
+
             return {
               prNumber: detail.purchaseRequest.nomorPr,
               prId: detail.purchaseRequest.id,
@@ -529,31 +556,16 @@ export const stockMonitoringController = {
               productName: detail.product.name,
               productCode: detail.product.code,
               unit: detail.product.storageUnit,
-              bookedQty: Number(detail.jumlah), // Qty dari PR
-              warehouseName: warehouseAlloc.warehouseName,
-              totalRequested: Number(detail.jumlah),
-              jumlahTerpenuhi: Number(detail.jumlahTerpenuhi || 0),
-              status: detail.purchaseRequest.status
-            };
-          } else {
-            // Return all allocations for this PR
-            return allocations.map(alloc => ({
-              prNumber: detail.purchaseRequest.nomorPr,
-              prId: detail.purchaseRequest.id,
-              prDate: detail.purchaseRequest.tanggalPr,
-              requestor: detail.purchaseRequest.karyawan?.namaLengkap || 'Unknown',
-              project: detail.purchaseRequest.project?.name || '-',
-              productName: detail.product.name,
-              productCode: detail.product.code,
-              unit: detail.product.storageUnit,
-              bookedQty: Number(detail.jumlah), // Qty dari PR
-              warehouseName: alloc.warehouseName,
+              originalUnit: prUnit,
+              originalQtyRemaining: bookedQty,
+              bookedQty: bookedQtyInStorageUnit,
+              warehouseName: alloc.warehouseName || 'Unknown',
               warehouseId: alloc.warehouseId,
-              totalRequested: Number(detail.jumlah),
-              jumlahTerpenuhi: Number(detail.jumlahTerpenuhi || 0),
-              status: detail.purchaseRequest.status
-            }));
-          }
+              status: detail.purchaseRequest.status,
+              totalRequested: prQty,
+              jumlahTerpenuhi: Number(detail.jumlahTerpenuhi || 0)
+            };
+          });
         })
         .flat()
         .filter(Boolean); // Remove nulls
@@ -576,6 +588,116 @@ export const stockMonitoringController = {
 
     } catch (error) {
       console.error("Stock Bookings Error:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: "SERVER_ERROR",
+        message: error.message 
+      });
+    }
+  },
+
+  getStockOnPO: async (req, res) => {
+    try {
+      const { productId, warehouseId } = req.query;
+
+      if (!productId) {
+        return res.status(400).json({ success: false, message: "ProductId is required" });
+      }
+
+      // Query active PO lines
+      const activePOLines = await prisma.purchaseOrderLine.findMany({
+        where: {
+          productId: productId,
+          purchaseOrder: {
+            status: {
+              in: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'PARTIALLY_RECEIVED']
+            }
+          }
+        },
+        include: {
+          purchaseOrder: {
+            select: {
+              id: true,
+              poNumber: true,
+              orderDate: true,
+              status: true,
+              supplier: {
+                select: { name: true }
+              },
+              warehouse: {
+                select: { id: true, name: true }
+              }
+            }
+          },
+          product: {
+            select: {
+              name: true,
+              code: true,
+              storageUnit: true,
+              purchaseUnit: true,
+              conversionToStorage: true
+            }
+          }
+        }
+      });
+
+      // Filter and format lines
+      const detailedOnPO = activePOLines
+        .map(line => {
+          const po = line.purchaseOrder;
+          
+          // Filter by warehouse if specified
+          if (warehouseId && warehouseId !== 'all' && po.warehouse?.id !== warehouseId) {
+            return null;
+          }
+
+          const qtyOrdered = Number(line.quantity || 0);
+          const qtyReceived = Number(line.receivedQuantity || 0);
+          const qtyRemaining = qtyOrdered - qtyReceived;
+
+          if (qtyRemaining <= 0) return null;
+
+          // Conversion to storage unit
+          let conversion = 1;
+          const poUnit = line.unit || line.product.purchaseUnit;
+          if (poUnit !== line.product.storageUnit) {
+             conversion = Number(line.product.conversionToStorage) || 1;
+          }
+          
+          const onPOQtyInStorageUnit = qtyRemaining * conversion;
+
+          return {
+            poNumber: po.poNumber,
+            poId: po.id,
+            poDate: po.orderDate,
+            supplier: po.supplier?.name || 'Unknown',
+            productName: line.product.name,
+            productCode: line.product.code,
+            unit: line.product.storageUnit, // We display in storage unit
+            originalUnit: poUnit,
+            originalQtyRemaining: qtyRemaining,
+            onPOQty: onPOQtyInStorageUnit, // Equivalent to bookedQty
+            warehouseName: po.warehouse?.name || 'Unknown',
+            warehouseId: po.warehouse?.id,
+            status: po.status
+          };
+        })
+        .filter(Boolean);
+
+      const totalOnPO = detailedOnPO.reduce((sum, item) => sum + item.onPOQty, 0);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          productId,
+          warehouseId: warehouseId || 'all',
+          totalOnPO,
+          onPOItems: detailedOnPO
+        }
+      });
+
+    } catch (error) {
+      console.error("Stock On PO Error:", error);
       return res.status(500).json({ 
         success: false, 
         error: "SERVER_ERROR",
