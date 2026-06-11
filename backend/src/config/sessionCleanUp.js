@@ -1,8 +1,6 @@
 // config/sessionCleanUp.js
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from './db.js';
 
 const sessionCleanupJob = () => {
   ;(() => {})('🔄 Setting up session cleanup job...');

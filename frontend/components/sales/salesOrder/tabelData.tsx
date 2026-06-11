@@ -1224,7 +1224,7 @@ export function SalesOrderTable({
             baseColumns.push({
                 id: "totalPR",
                 header: ({ column }) => (
-                    <DataTableColumnHeader column={column} title="Total PR" className="text-right" />
+                    <DataTableColumnHeader column={column} title="Total PR / LPP" className="text-right" />
                 ),
                 cell: ({ row }) => {
                     const order = row.original as SalesOrder;
@@ -1331,6 +1331,7 @@ export function SalesOrderTable({
                     });
                 } */
 
+        /* 
         if (isAdminOrSuper) {
             baseColumns.push({
                 id: "pertanggungjawaban",
@@ -1395,6 +1396,7 @@ export function SalesOrderTable({
                 },
             });
         }
+        */
 
         if (isAdminOrSuper) {
             // Kolom indikator tren

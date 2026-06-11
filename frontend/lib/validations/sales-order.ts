@@ -7,6 +7,7 @@ export type OrderStatus =
   | "CONFIRMED"
   | "IN_PROGRESS_SPK"
   | "FULFILLED"
+  | "BAST"
   | "PARTIALLY_INVOICED"
   | "INVOICED"
   | "PARTIALLY_PAID"

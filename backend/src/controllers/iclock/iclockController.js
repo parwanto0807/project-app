@@ -1,6 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../config/db.js";
 import { NotificationService } from "../../utils/firebase/notificationService.js";
-const prisma = new PrismaClient();
 
 // Fungsi bantuan untuk menghitung selisih jam
 const getHoursDiff = (date1, date2) => {

@@ -12,6 +12,7 @@ interface ActionButtonsProps {
   onCreateLpp: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  hideLpp?: boolean;
 }
 
 export function ActionButtons({
@@ -23,6 +24,7 @@ export function ActionButtons({
   onCreateLpp,
   onEdit,
   onDelete,
+  hideLpp = false,
 }: ActionButtonsProps) {
 
   const canEdit = (role === "admin" || role === "pic") &&
@@ -51,7 +53,7 @@ export function ActionButtons({
           Preview Pdf
         </Button>
 
-        {pr.spkId && (
+        {!hideLpp && pr.spkId && (
           <Button
             onClick={onCreateLpp}
             disabled={pr.status !== "COMPLETED"}

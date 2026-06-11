@@ -51,8 +51,7 @@ export class PurchaseRequestController {
       const baseWhere = { ...where };
       delete baseWhere.spkId;
 
-      const [purchaseRequests, responseCount, totalAll, totalUmum, totalProject] = await Promise.all([
-        prisma.purchaseRequest.findMany({
+      const purchaseRequests = await prisma.purchaseRequest.findMany({
           where,
           include: {
             project: { select: { id: true, name: true } },
@@ -141,12 +140,11 @@ export class PurchaseRequestController {
           orderBy: { createdAt: "desc" },
           skip,
           take: limit,
-        }),
-        prisma.purchaseRequest.count({ where }),
-        prisma.purchaseRequest.count({ where: baseWhere }),
-        prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: null } }),
-        prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: { not: null } } }),
-      ]);
+      });
+      const responseCount = await prisma.purchaseRequest.count({ where });
+      const totalAll = await prisma.purchaseRequest.count({ where: baseWhere });
+      const totalUmum = await prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: null } });
+      const totalProject = await prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: { not: null } } });
 
       res.json({
         success: true,

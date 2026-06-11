@@ -43,6 +43,7 @@ interface ExpandableRowProps {
     onPrClick?: (pr: PurchaseRequestWithRelations) => void;
     onSettleBudget?: (prId: string) => void;
     highlightId: string;
+    hideLpp?: boolean;
 }
 
 // 🟢 Komponen dengan forwardRef - PERBAIKAN: forward ref ke TableRow
@@ -64,6 +65,7 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
             onPrClick,
             onSettleBudget,
             highlightId,
+            hideLpp = false,
         },
         ref
     ) => {
@@ -562,17 +564,19 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                         </div>
                     </TableCell>
 
-                    <TableCell className="font-semibold text-right max-w-[20px]">
-                        {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.details?.length ? (
-                            <Badge variant="outline" className="ml-2">
-                                {
-                                    pr.uangMuka[0].pertanggungjawaban[0].details
-                                        ?.length
-                                }{" "}
-                                rincian LPP
-                            </Badge>
-                        ) : null}
-                    </TableCell>
+                    {!hideLpp && (
+                        <TableCell className="font-semibold text-right max-w-[20px]">
+                            {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.details?.length ? (
+                                <Badge variant="outline" className="ml-2">
+                                    {
+                                        pr.uangMuka[0].pertanggungjawaban[0].details
+                                            ?.length
+                                    }{" "}
+                                    rincian LPP
+                                </Badge>
+                            ) : null}
+                        </TableCell>
+                    )}
 
                     <TableCell onClick={(e) => e.stopPropagation()}>
                         <ActionButtons
@@ -584,6 +588,7 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                             onCreateLpp={onCreateLpp}
                             onEdit={onEdit}
                             onDelete={onDelete}
+                            hideLpp={hideLpp}
                         />
                     </TableCell>
                 </MotionTableRow>

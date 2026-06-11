@@ -472,6 +472,26 @@ export function PurchaseRequestSheet({
                 }));
 
                 setStockData(newStockData);
+
+                // Auto-select GUDANG WIP PROJECT
+                const defaultSelections: Record<string, string[]> = {};
+                selectedPurchaseRequest.details.forEach(detail => {
+                    if (detail.id && detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK) {
+                        const detailStock = newStockData[detail.id];
+                        if (detailStock && detailStock.breakdown) {
+                            const wipWarehouse = detailStock.breakdown.find((wh: any) => 
+                                wh.isWip || wh.warehouseName?.toUpperCase().includes('WIP PROJECT')
+                            );
+                            if (wipWarehouse) {
+                                defaultSelections[detail.id] = [wipWarehouse.warehouseId];
+                            }
+                        }
+                    }
+                });
+                
+                if (Object.keys(defaultSelections).length > 0) {
+                    setWarehouseSelections(prev => ({ ...prev, ...defaultSelections }));
+                }
             }
         };
 
