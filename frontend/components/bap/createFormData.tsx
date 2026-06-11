@@ -919,9 +919,9 @@ export function CreateBAPForm({
                                     <Button
                                         type="button"
                                         onClick={addBAPPhoto}
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
-                                        className="border-orange-500 text-orange-700 dark:text-orange-200 hover:bg-orange-50 hover:text-orange-400 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
+                                        className="border border-white bg-transparent text-white hover:bg-white/20 hover:text-white text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                                     >
                                         <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                                         Manual
@@ -931,10 +931,10 @@ export function CreateBAPForm({
                                         <Button
                                             type="button"
                                             onClick={() => setDialogOpen(true)}
-                                            variant="outline"
+                                            variant="ghost"
                                             size="sm"
                                             disabled={fetchingPhotos || isAddingManual}
-                                            className="border-blue-500 text-green-700 dark:text-green-200 hover:bg-blue-50 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
+                                            className="border border-white bg-transparent text-white hover:bg-white/20 hover:text-white text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                                         >
                                             {fetchingPhotos ? (
                                                 <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />

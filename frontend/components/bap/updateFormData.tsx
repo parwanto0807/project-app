@@ -581,11 +581,8 @@ export function UpdateBAPForm({
                 try {
                     const result = await getReportsBySpkId(spkId);
 
-                    if (result.success) {
-                        const allPhotos: SpkPhoto[] = result.data.flatMap(
-                            (report: SpkFieldReport) => report.photos || []
-                        );
-                        setSpkPhotos(allPhotos);
+                    if (result.success && result.data && Array.isArray(result.data)) {
+                        setSpkPhotos(result.data as any);
                     } else {
                         setSpkPhotos([]);
                     }
@@ -1049,10 +1046,10 @@ export function UpdateBAPForm({
                                     <Button
                                         type="button"
                                         onClick={addBAPPhoto}
-                                        variant="outline"
+                                        variant="ghost"
                                         disabled={isDialogOpen}
                                         size="sm"
-                                        className="border-white text-white hover:bg-white/20 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
+                                        className="border border-white bg-transparent text-white hover:bg-white/20 hover:text-white text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                                     >
                                         <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                                         Tambah Manual
@@ -1062,10 +1059,10 @@ export function UpdateBAPForm({
                                         <Button
                                             type="button"
                                             onClick={() => setDialogOpen(true)}
-                                            variant="outline"
+                                            variant="ghost"
                                             size="sm"
                                             disabled={fetchingPhotos || isAddingManual}
-                                            className="border-white text-white hover:bg-white/20 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
+                                            className="border border-white bg-transparent text-white hover:bg-white/20 hover:text-white text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                                         >
                                             {fetchingPhotos ? (
                                                 <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 animate-spin" />
