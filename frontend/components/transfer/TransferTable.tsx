@@ -29,13 +29,15 @@ import {
     CheckCircle2,
     Clock,
     FileText,
-    XCircle
+    XCircle,
+    Edit,
+    Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { StockTransfer, TransferStatus } from '@/types/tfType';
 import { cn } from '@/lib/utils';
 import { TransferDetailSheet } from './TransferDetailSheet';
-import { useCreateTransferGR } from '@/hooks/use-tf';
+import { useCreateTransferGR, useCancelTransfer, useDeletePermanentTransfer } from '@/hooks/use-tf';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,6 +64,7 @@ interface TransferTableProps {
         totalPages: number;
     };
     onPageChange?: (page: number) => void;
+    initialSearchQuery?: string;
 }
 
 const statusConfig: Record<TransferStatus, {
@@ -102,12 +105,14 @@ const statusConfig: Record<TransferStatus, {
     },
 };
 
-export function TransferTable({ data, isLoading, pagination, onPageChange }: TransferTableProps) {
+export function TransferTable({ data, isLoading, pagination, onPageChange, initialSearchQuery = '' }: TransferTableProps) {
     const router = useRouter();
     const createGR = useCreateTransferGR();
+    const cancelTF = useCancelTransfer();
+    const deletePermanentTF = useDeletePermanentTransfer();
     const [selectedTransfer, setSelectedTransfer] = useState<StockTransfer | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [dateFilter, setDateFilter] = useState<string>('all');
 
@@ -303,6 +308,12 @@ export function TransferTable({ data, isLoading, pagination, onPageChange }: Tra
                                             Items
                                         </div>
                                     </TableHead>
+                                    <TableHead className="font-semibold text-gray-700">
+                                        <div className="flex items-center gap-1">
+                                            <FileText className="h-3.5 w-3.5" />
+                                            Catatan
+                                        </div>
+                                    </TableHead>
                                     <TableHead className="font-semibold text-gray-700">Status</TableHead>
                                     <TableHead className="font-semibold text-gray-700 text-right">Actions</TableHead>
                                 </TableRow>
@@ -359,6 +370,9 @@ export function TransferTable({ data, isLoading, pagination, onPageChange }: Tra
                                                         {transfer.items?.length || 0} items
                                                     </Badge>
                                                 </div>
+                                            </TableCell>
+                                            <TableCell className="text-gray-600 max-w-[350px] truncate" title={transfer.notes || '-'}>
+                                                {transfer.notes || '-'}
                                             </TableCell>
                                             <TableCell>
                                                 <Badge
@@ -426,6 +440,64 @@ export function TransferTable({ data, isLoading, pagination, onPageChange }: Tra
                                                                 </Button>
                                                             )}
                                                         </BlobProvider>
+                                                    )}
+
+                                                    {transfer.status === 'DRAFT' && (
+                                                        <>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 hover:text-blue-700 hover:border-blue-300 transition-colors"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    router.push(`/admin-area/inventory/transfer/edit/${transfer.id}`);
+                                                                }}
+                                                            >
+                                                                <Edit className="h-4 w-4 mr-1" />
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 hover:border-red-300 transition-colors"
+                                                                disabled={cancelTF.isPending}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (confirm('Apakah Anda yakin ingin menghapus transfer ini?')) {
+                                                                        cancelTF.mutate(transfer.id);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {cancelTF.isPending ? (
+                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                ) : (
+                                                                    <Trash2 className="h-4 w-4 mr-1" />
+                                                                )}
+                                                                Delete
+                                                            </Button>
+                                                        </>
+                                                    )}
+
+                                                    {transfer.status === 'CANCELLED' && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 hover:border-red-300 transition-colors"
+                                                            disabled={deletePermanentTF.isPending}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (confirm('PERINGATAN: Apakah Anda yakin ingin menghapus transfer ini secara PERMANEN beserta dokumen GR & MR yang terkait?')) {
+                                                                    deletePermanentTF.mutate(transfer.id);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {deletePermanentTF.isPending ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="h-4 w-4 mr-1" />
+                                                            )}
+                                                            Delete Permanent
+                                                        </Button>
                                                     )}
 
                                                     <Button

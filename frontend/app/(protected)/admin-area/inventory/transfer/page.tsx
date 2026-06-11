@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,12 @@ import { useTransfers } from '@/hooks/use-tf';
 
 export default function TransferPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const search = searchParams.get('search') || '';
     const [page, setPage] = useState(1);
     const limit = 10;
     
-    const { data: transfersData, isLoading } = useTransfers({ page, limit });
+    const { data: transfersData, isLoading } = useTransfers({ page, limit, search });
 
     // API returns: { success: true, data: [...], pagination: {...} }
     // data is DIRECTLY the array, not nested!
@@ -78,7 +80,7 @@ export default function TransferPage() {
                             <CardTitle>Transfer List</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <TransferTable data={transfers} isLoading={isLoading} pagination={pagination} onPageChange={setPage} />
+                            <TransferTable data={transfers} isLoading={isLoading} pagination={pagination} onPageChange={setPage} initialSearchQuery={search} />
                         </CardContent>
                     </Card>
                 </div>

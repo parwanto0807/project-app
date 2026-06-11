@@ -63,6 +63,28 @@ export async function createTransferAction(input: CreateTransferInput) {
 }
 
 /**
+ * Update stock transfer
+ */
+export async function updateTransferAction(id: string, input: CreateTransferInput) {
+    try {
+        const result = await fetchAPI<StockTransfer>(`/api/tf/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(input),
+        });
+
+        revalidatePath('/admin-area/inventory/transfer');
+        revalidatePath(`/admin-area/inventory/transfer/${id}`);
+        return result;
+    } catch (error: any) {
+        return {
+            success: false,
+            data: undefined,
+            error: error.message || 'Failed to update transfer'
+        } as ApiResponse<StockTransfer>;
+    }
+}
+
+/**
  * Get all transfers with filters
  */
 export async function getTransfersAction(filters?: TransferFilter) {
@@ -189,5 +211,25 @@ export async function createTransferGRAction(id: string) {
             data: undefined,
             error: error.message || 'Failed to create GR'
         } as ApiResponse<any>;
+    }
+}
+
+/**
+ * Permanently delete a cancelled stock transfer
+ */
+export async function deletePermanentTransferAction(id: string) {
+    try {
+        const result = await fetchAPI<StockTransfer>(`/api/tf/${id}/permanent`, {
+            method: 'DELETE',
+        });
+
+        revalidatePath('/admin-area/inventory/transfer');
+        return result;
+    } catch (error: any) {
+        return {
+            success: false,
+            data: undefined,
+            error: error.message || 'Failed to permanently delete transfer'
+        } as ApiResponse<StockTransfer>;
     }
 }

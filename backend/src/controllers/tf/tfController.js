@@ -425,6 +425,187 @@ export const getTransferById = async (req, res) => {
 };
 
 /**
+ * @desc Update draft stock transfer
+ * @route PUT /api/tf/:id
+ */
+export const updateTransfer = async (req, res) => {
+  const { id } = req.params;
+  const { fromWarehouseId, toWarehouseId, senderId, notes, items } = req.body;
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Get existing transfer with items
+      const existingTransfer = await tx.stockTransfer.findUnique({
+        where: { id },
+        include: {
+          items: true,
+          fromWarehouse: true,
+          toWarehouse: true
+        }
+      });
+
+      if (!existingTransfer) {
+        throw new Error('Transfer tidak ditemukan');
+      }
+
+      if (existingTransfer.status !== 'DRAFT') {
+        throw new Error('Hanya transfer dengan status DRAFT yang dapat diedit');
+      }
+
+      const periodDate = new Date();
+      periodDate.setDate(1);
+      periodDate.setHours(0, 0, 0, 0);
+      periodDate.setMinutes(0);
+      periodDate.setSeconds(0);
+      periodDate.setMilliseconds(0);
+
+      // 2. Rollback previous stock booking
+      for (const oldItem of existingTransfer.items) {
+        await tx.stockBalance.updateMany({
+          where: {
+            productId: oldItem.productId,
+            warehouseId: existingTransfer.fromWarehouseId,
+            period: periodDate
+          },
+          data: {
+            bookedStock: { decrement: parseFloat(oldItem.quantity) },
+            availableStock: { increment: parseFloat(oldItem.quantity) }
+          }
+        });
+      }
+
+      // 3. Delete old items
+      await tx.stockTransferItem.deleteMany({
+        where: { stockTransferId: id }
+      });
+
+      // 4. Update Transfer Header
+      const updatedTransfer = await tx.stockTransfer.update({
+        where: { id },
+        data: {
+          fromWarehouseId,
+          toWarehouseId,
+          senderId,
+          notes,
+          items: {
+            create: items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unit: item.unit
+            }))
+          }
+        },
+        include: {
+          items: { include: { product: true } },
+          fromWarehouse: true,
+          toWarehouse: true,
+          sender: true
+        }
+      });
+
+      // 5. Apply new stock booking
+      for (const item of items) {
+        const updateResult = await tx.stockBalance.updateMany({
+          where: {
+            productId: item.productId,
+            warehouseId: fromWarehouseId,
+            period: periodDate
+          },
+          data: {
+            bookedStock: { increment: parseFloat(item.quantity) },
+            availableStock: { decrement: parseFloat(item.quantity) }
+          }
+        });
+        if (updateResult.count === 0) {
+          console.warn(`⚠️ No StockBalance found for Product ${item.productId} in Warehouse ${fromWarehouseId} for period ${periodDate}`);
+        }
+      }
+
+      // 6. Update linked Material Requisition
+      const existingMR = await tx.materialRequisition.findFirst({
+        where: { notes: { contains: `[${existingTransfer.transferNumber}]` } },
+        include: { items: true }
+      });
+
+      if (existingMR) {
+        await tx.materialRequisitionItem.deleteMany({
+          where: { materialRequisitionId: existingMR.id }
+        });
+        await tx.materialRequisition.update({
+          where: { id: existingMR.id },
+          data: {
+            warehouseId: fromWarehouseId,
+            requestedById: senderId,
+            notes: `AUTO-GENERATED-TRANSFER: Internal Stock Transfer [${existingTransfer.transferNumber}] to: ${updatedTransfer.toWarehouse?.name || toWarehouseId}. ${notes ? `(${notes})` : ''}`,
+            items: {
+              create: items.map(item => ({
+                productId: item.productId,
+                qtyRequested: item.quantity,
+                qtyIssued: 0,
+                unit: item.unit
+              }))
+            }
+          }
+        });
+      }
+
+      // 7. Update linked Goods Receipt
+      const existingGR = await tx.goodsReceipt.findFirst({
+        where: { vendorDeliveryNote: existingTransfer.transferNumber },
+        include: { items: true }
+      });
+
+      if (existingGR) {
+        const senderKaryawan = await tx.karyawan.findUnique({
+          where: { id: senderId },
+          select: { userId: true }
+        });
+        const receivedById = senderKaryawan?.userId || existingGR.receivedById;
+
+        await tx.goodsReceiptItem.deleteMany({
+          where: { goodsReceiptId: existingGR.id }
+        });
+
+        await tx.goodsReceipt.update({
+          where: { id: existingGR.id },
+          data: {
+            warehouseId: toWarehouseId,
+            receivedById,
+            notes: `AUTO-GENERATED-TRANSFER: Incoming Transfer from: ${updatedTransfer.fromWarehouse?.name || fromWarehouseId} [${existingTransfer.transferNumber}]. ${notes || ''}`,
+            items: {
+              create: items.map(item => ({
+                productId: item.productId,
+                qtyPlanReceived: item.quantity,
+                qtyReceived: 0,
+                qtyPassed: 0,
+                qtyRejected: 0,
+                unit: item.unit,
+                status: 'RECEIVED',
+                qcStatus: 'PENDING'
+              }))
+            }
+          }
+        });
+      }
+
+      return updatedTransfer;
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Transfer berhasil diupdate'
+    });
+  } catch (error) {
+    console.error('Error updating transfer:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
  * @desc Update transfer status
  * @route PATCH /api/tf/:id/status
  */
@@ -659,6 +840,89 @@ export const cancelTransfer = async (req, res) => {
     });
   } catch (error) {
     console.error('Error cancelling transfer:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc Permanently delete a cancelled transfer and its related documents
+ * @route DELETE /api/tf/:id/permanent
+ */
+export const deletePermanentTransfer = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const transfer = await tx.stockTransfer.findUnique({
+        where: { id },
+        include: { items: true }
+      });
+
+      if (!transfer) {
+        throw new Error('Transfer tidak ditemukan');
+      }
+
+      if (transfer.status !== 'CANCELLED') {
+        throw new Error('Hanya transfer berstatus CANCELLED yang dapat dihapus permanen');
+      }
+
+      // Rollback stock booking since cancel might not have done it
+      const periodDate = new Date();
+      periodDate.setDate(1);
+      periodDate.setHours(0, 0, 0, 0);
+      periodDate.setMinutes(0);
+      periodDate.setSeconds(0);
+      periodDate.setMilliseconds(0);
+
+      for (const item of transfer.items) {
+        await tx.stockBalance.updateMany({
+          where: {
+            productId: item.productId,
+            warehouseId: transfer.fromWarehouseId,
+            period: periodDate
+          },
+          data: {
+            bookedStock: { decrement: parseFloat(item.quantity) },
+            availableStock: { increment: parseFloat(item.quantity) }
+          }
+        });
+      }
+
+      // Find and delete MR
+      const existingMR = await tx.materialRequisition.findFirst({
+        where: { notes: { contains: `[${transfer.transferNumber}]` } }
+      });
+      if (existingMR) {
+        await tx.materialRequisitionItem.deleteMany({ where: { materialRequisitionId: existingMR.id } });
+        await tx.materialRequisition.delete({ where: { id: existingMR.id } });
+      }
+
+      // Find and delete GR
+      const existingGR = await tx.goodsReceipt.findFirst({
+        where: { vendorDeliveryNote: transfer.transferNumber }
+      });
+      if (existingGR) {
+        await tx.goodsReceiptItem.deleteMany({ where: { goodsReceiptId: existingGR.id } });
+        await tx.goodsReceipt.delete({ where: { id: existingGR.id } });
+      }
+
+      // Delete Transfer Items and Transfer
+      await tx.stockTransferItem.deleteMany({ where: { transferId: id } });
+      await tx.stockTransfer.delete({ where: { id } });
+
+      return transfer;
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Transfer berhasil dihapus permanen'
+    });
+  } catch (error) {
+    console.error('Error permanently deleting transfer:', error);
     res.status(500).json({
       success: false,
       error: error.message

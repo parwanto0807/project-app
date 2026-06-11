@@ -59,6 +59,10 @@ interface MaterialRequisition {
     Warehouse?: {
         name: string
     }
+    PurchaseOrder?: {
+        poNumber: string
+    }
+    sourceType?: string
     project?: {
         name: string
     }
@@ -77,6 +81,11 @@ interface MaterialRequisitionItem {
     product: {
         name: string
         code: string
+    }
+    purchaseRequestDetail?: {
+        purchaseRequest?: {
+            nomorPr: string
+        }
     }
     qtyRequested: number
     qtyIssued: number
@@ -280,6 +289,42 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                                         <p className="font-mono font-semibold text-blue-700 text-sm tracking-wide">
                                             {mr.qrToken}
                                         </p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <FileText className="h-4 w-4 text-slate-400" />
+                                        <h3 className="text-sm font-semibold text-slate-600">Dokumen Pendukung</h3>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {mr.PurchaseOrder && (
+                                            <div className="flex justify-between items-center bg-slate-50 rounded-lg p-2.5 border border-slate-200">
+                                                <span className="text-sm text-slate-500">PO Number</span>
+                                                <span className="font-semibold text-sm text-slate-800">{mr.PurchaseOrder.poNumber}</span>
+                                            </div>
+                                        )}
+                                        {mr.items && mr.items.some(item => item.purchaseRequestDetail?.purchaseRequest?.nomorPr) && (
+                                            <div className="flex justify-between items-center bg-slate-50 rounded-lg p-2.5 border border-slate-200">
+                                                <span className="text-sm text-slate-500">PR Number</span>
+                                                <span className="font-semibold text-sm text-slate-800">
+                                                    {Array.from(new Set(mr.items.map(i => i.purchaseRequestDetail?.purchaseRequest?.nomorPr).filter(Boolean))).join(", ")}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {mr.notes && mr.notes.includes('[TF-') && (
+                                            <div className="flex justify-between items-center bg-slate-50 rounded-lg p-2.5 border border-slate-200">
+                                                <span className="text-sm text-slate-500">Stock Transfer</span>
+                                                <a href={`/admin-area/inventory/transfer?search=${mr.notes.match(/\[(TF-[A-Z0-9-]+)\]/)?.[1] || ''}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-sm text-indigo-600 hover:underline">
+                                                    {mr.notes.match(/\[(TF-[A-Z0-9-]+)\]/)?.[1]}
+                                                </a>
+                                            </div>
+                                        )}
+                                        {!mr.PurchaseOrder && 
+                                         (!mr.items || !mr.items.some(item => item.purchaseRequestDetail?.purchaseRequest?.nomorPr)) && 
+                                         !(mr.notes?.includes('[TF-')) && (
+                                            <p className="text-sm text-slate-500 italic">Tidak ada dokumen pendukung</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

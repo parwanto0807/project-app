@@ -671,12 +671,26 @@ export const mrController = {
                 isWip: true  // ✅ Added for posting button
               }
             },
+            PurchaseOrder: {
+              select: {
+                poNumber: true
+              }
+            },
             items: {
               include: {
                 product: {
                   select: {
                     name: true,
                     code: true
+                  }
+                },
+                purchaseRequestDetail: {
+                  include: {
+                    purchaseRequest: {
+                      select: {
+                        nomorPr: true
+                      }
+                    }
                   }
                 }
               }

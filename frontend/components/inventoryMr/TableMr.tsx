@@ -100,6 +100,7 @@ interface MaterialRequisition {
     issuedById?: string
     createdAt: Date
     updatedAt: Date
+    sourceType?: string
     Warehouse?: {
         name: string
         isWip?: boolean
@@ -114,6 +115,9 @@ interface MaterialRequisition {
     preparedBy?: {
         name: string
     }
+    PurchaseOrder?: {
+        poNumber: string
+    }
     notes?: string | null
 }
 
@@ -122,6 +126,11 @@ interface MaterialRequisitionItem {
     product: {
         name: string
         code: string
+    }
+    purchaseRequestDetail?: {
+        purchaseRequest?: {
+            nomorPr: string
+        }
     }
     qtyRequested: number
     qtyIssued: number
@@ -374,7 +383,29 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">{mr.mrNumber}</h3>
-                                    <p className="text-sm text-slate-500 dark:text-slate-300">
+                                    {mr.PurchaseOrder && (
+                                        <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                            {mr.PurchaseOrder.poNumber}
+                                        </p>
+                                    )}
+                                    {mr.items && mr.items.some(item => item.purchaseRequestDetail?.purchaseRequest?.nomorPr) && (
+                                        <div className="flex flex-wrap gap-1 mt-0.5">
+                                            {Array.from(new Set(mr.items.map(i => i.purchaseRequestDetail?.purchaseRequest?.nomorPr).filter(Boolean))).map((prNumber, idx, arr) => (
+                                                <span key={prNumber as string}>
+                                                    <a href={`/admin-area/logistic/pr?search=${prNumber}&tab=all`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                                        {prNumber}
+                                                    </a>
+                                                    {idx < arr.length - 1 && <span className="text-xs text-slate-400">, </span>}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {mr.notes && mr.notes.includes('[TF-') && (
+                                        <a href={`/admin-area/inventory/transfer?search=${mr.notes.match(/\[(TF-[A-Z0-9-]+)\]/)?.[1] || ''}`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline block mt-0.5">
+                                            {mr.notes.match(/\[(TF-[A-Z0-9-]+)\]/)?.[1]}
+                                        </a>
+                                    )}
+                                    <p className="text-sm text-slate-500 dark:text-slate-300 mt-0.5">
                                         {format(new Date(mr.issuedDate), "dd MMM yyyy • HH:mm", { locale: id })}
                                     </p>
                                 </div>
@@ -921,6 +952,28 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                         <p className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
                                                                             {mr.mrNumber}
                                                                         </p>
+                                                                        {mr.PurchaseOrder && (
+                                                                            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                                                                {mr.PurchaseOrder.poNumber}
+                                                                            </p>
+                                                                        )}
+                                                                        {mr.items && mr.items.some(item => item.purchaseRequestDetail?.purchaseRequest?.nomorPr) && (
+                                                                            <div className="flex flex-wrap gap-1 mt-0.5">
+                                                                                {Array.from(new Set(mr.items.map(i => i.purchaseRequestDetail?.purchaseRequest?.nomorPr).filter(Boolean))).map((prNumber, idx, arr) => (
+                                                                                    <span key={prNumber as string}>
+                                                                                        <a href={`/admin-area/logistic/pr?search=${prNumber}&tab=all`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                                                                            {prNumber}
+                                                                                        </a>
+                                                                                        {idx < arr.length - 1 && <span className="text-xs text-slate-400">, </span>}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                        {mr.notes && mr.notes.includes('[TF-') && (
+                                                                            <a href={`/admin-area/inventory/transfer?search=${mr.notes.match(/\[(TF-[A-Z0-9-]+)\]/)?.[1] || ''}`} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline block mt-0.5">
+                                                                                {mr.notes.match(/\[(TF-[A-Z0-9-]+)\]/)?.[1]}
+                                                                            </a>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             </TableCell>

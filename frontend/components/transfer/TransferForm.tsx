@@ -34,7 +34,7 @@ import {
     Check,
     ChevronsUpDown
 } from 'lucide-react';
-import { useCreateTransfer } from '@/hooks/use-tf';
+import { useCreateTransfer, useUpdateTransfer } from '@/hooks/use-tf';
 import { createTransferSchema, type CreateTransferInput } from '@/schemas/tf';
 import { getWarehouses } from '@/lib/action/wh/whAction';
 import { fetchAllKaryawan } from '@/lib/action/master/karyawan';
@@ -42,6 +42,7 @@ import { getInventoryMonitoring } from '@/lib/action/inventory/inventoryAction';
 import { toast } from 'sonner';
 
 interface TransferFormProps {
+    initialData?: any;
     onSuccess?: () => void;
     onCancel?: () => void;
 }
@@ -67,8 +68,10 @@ interface ProductOption {
     unit: string;
 }
 
-export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
+export function TransferForm({ initialData, onSuccess, onCancel }: TransferFormProps) {
     const createMutation = useCreateTransfer();
+    const updateMutation = useUpdateTransfer();
+    const isEditing = !!initialData;
     const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
     const [karyawans, setKaryawans] = useState<KaryawanOption[]>([]);
     const [products, setProducts] = useState<ProductOption[]>([]);
@@ -101,13 +104,40 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
         handleSubmit,
         watch,
         setValue,
+        reset,
         formState: { errors },
     } = useForm<CreateTransferInput>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            items: [{ productId: '', quantity: 1, unit: 'pcs', notes: '' }],
+            fromWarehouseId: initialData?.fromWarehouseId || '',
+            toWarehouseId: initialData?.toWarehouseId || '',
+            senderId: initialData?.senderId || '',
+            notes: initialData?.notes || '',
+            items: initialData?.items?.length ? initialData.items.map((item: any) => ({
+                productId: item.productId,
+                quantity: parseFloat(item.quantity) || 1,
+                unit: item.unit || 'pcs',
+                notes: item.notes || ''
+            })) : [{ productId: '', quantity: 1, unit: 'pcs', notes: '' }],
         },
     });
+
+    useEffect(() => {
+        if (initialData) {
+            reset({
+                fromWarehouseId: initialData.fromWarehouseId || '',
+                toWarehouseId: initialData.toWarehouseId || '',
+                senderId: initialData.senderId || '',
+                notes: initialData.notes || '',
+                items: initialData.items?.length ? initialData.items.map((item: any) => ({
+                    productId: item.productId,
+                    quantity: parseFloat(item.quantity) || 1,
+                    unit: item.unit || 'pcs',
+                    notes: item.notes || ''
+                })) : [{ productId: '', quantity: 1, unit: 'pcs', notes: '' }],
+            });
+        }
+    }, [initialData, reset]);
 
     const { fields, append, remove } = useFieldArray({
         control,
@@ -247,7 +277,13 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
     }, [fromWarehouseId, products, availableProducts]);
 
     const onSubmit = async (data: CreateTransferInput) => {
-        const result = await createMutation.mutateAsync(data);
+        let result;
+        if (isEditing && initialData?.id) {
+            result = await updateMutation.mutateAsync({ id: initialData.id, input: data });
+        } else {
+            result = await createMutation.mutateAsync(data);
+        }
+        
         if (result.success) {
             onSuccess?.();
         }
@@ -263,8 +299,12 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                         <ArrowRightLeft className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h3 className="text-2xl font-bold text-white">Transfer Antar Gudang</h3>
-                        <p className="text-white/90 text-sm mt-1">Pindahkan stok dari satu gudang ke gudang lainnya</p>
+                        <h3 className="text-2xl font-bold text-white">
+                            {isEditing ? 'Edit Transfer Antar Gudang' : 'Transfer Antar Gudang'}
+                        </h3>
+                        <p className="text-white/90 text-sm mt-1">
+                            {isEditing ? 'Perbarui informasi transfer stok antar gudang' : 'Pindahkan stok dari satu gudang ke gudang lainnya'}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -623,7 +663,7 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                         type="button"
                         variant="outline"
                         onClick={onCancel}
-                        disabled={createMutation.isPending}
+                        disabled={createMutation.isPending || updateMutation.isPending}
                         className="px-8 py-6 text-base font-semibold"
                     >
                         Batal
@@ -631,11 +671,13 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                 )}
                 <Button
                     type="submit"
-                    disabled={createMutation.isPending || isLoadingData}
+                    disabled={createMutation.isPending || updateMutation.isPending || isLoadingData}
                     className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all px-8 py-6 text-base font-semibold"
                 >
-                    {createMutation.isPending && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
-                    {createMutation.isPending ? 'Membuat Transfer...' : 'Buat Transfer - GR - MR'}
+                    {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
+                    {isEditing
+                        ? (updateMutation.isPending ? 'Menyimpan...' : 'Simpan Perubahan')
+                        : (createMutation.isPending ? 'Membuat Transfer...' : 'Buat Transfer - GR - MR')}
                 </Button>
             </div>
         </form>
