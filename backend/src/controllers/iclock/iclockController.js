@@ -72,67 +72,81 @@ export const cdataPost = async (req, res) => {
             continue;
           }
 
-          const startOfDay = new Date(checkTime);
-          startOfDay.setHours(0, 0, 0, 0);
+          // 1. Cari sesi aktif dari shift sebelumnya (maksimal 24 jam ke belakang) yang belum clock out
+          const cutoff = new Date(checkTime.getTime() - 24 * 60 * 60 * 1000);
           
-          const endOfDay = new Date(checkTime);
-          endOfDay.setHours(23, 59, 59, 999);
-
-          let absensiHariIni = await prisma.absensi.findFirst({
+          let activeSession = await prisma.absensi.findFirst({
             where: {
               karyawanId: karyawan.id,
-              tanggal: {
-                gte: startOfDay,
-                lte: endOfDay
-              }
-            }
+              jamMasuk: { gte: cutoff, lte: checkTime },
+              jamKeluar: null
+            },
+            orderBy: { jamMasuk: "desc" }
           });
 
-          if (!absensiHariIni) {
-              await prisma.absensi.create({
-                data: {
-                  karyawanId: karyawan.id,
-                  tanggal: startOfDay,
-                  jamMasuk: checkTime,
-                  deviceMasuk: `Fingerprint (${SN || "Unknown Device"})`,
-                  catatanValidasi: "Auto-generated via Mesin Fingerprint (ADMS)"
-                }
-              });
-            successCount++;
+          if (activeSession && getHoursDiff(checkTime, activeSession.jamMasuk) > (1 / 60)) {
+             // Ada absen masuk yang belum diakhiri (bisa dari hari sebelumnya), update sebagai keluar
+             await prisma.absensi.update({
+               where: { id: activeSession.id },
+               data: {
+                 jamKeluar: checkTime,
+                 deviceKeluar: `Fingerprint (${SN || "Unknown Device"})`
+               }
+             });
+             successCount++;
 
-            // Send notification for Clock In
-            try {
-              await NotificationService.broadcastToAdmins({
-                title: "👋 Absen Masuk (Clock In) via Fingerprint",
-                body: `${karyawan.namaLengkap} telah melakukan Absen Masuk pada pukul ${checkTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
-                type: "attendance_clock_in",
-                data: {
-                  karyawanId: karyawan.id,
-                  karyawanName: karyawan.namaLengkap,
-                  time: checkTime.toISOString(),
-                  click_action: "FLUTTER_NOTIFICATION_CLICK",
-                },
-              });
-            } catch (err) {}
-
-          } else {
-            // Kita ubah jeda minimal menjadi 1 menit (1/60 jam) agar mudah ditest
-            if (absensiHariIni.jamMasuk && getHoursDiff(checkTime, absensiHariIni.jamMasuk) > (1 / 60)) {
-               await prisma.absensi.update({
-                 where: { id: absensiHariIni.id },
+             // Send notification for Clock Out
+             try {
+               await NotificationService.broadcastToAdmins({
+                 title: "👋 Absen Keluar (Clock Out) via Fingerprint",
+                 body: `${karyawan.namaLengkap} telah melakukan Absen Keluar pada pukul ${checkTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
+                 type: "attendance_clock_out",
                  data: {
-                   jamKeluar: checkTime,
-                   deviceKeluar: `Fingerprint (${SN || "Unknown Device"})`
+                   karyawanId: karyawan.id,
+                   karyawanName: karyawan.namaLengkap,
+                   time: checkTime.toISOString(),
+                   click_action: "FLUTTER_NOTIFICATION_CLICK",
+                 },
+               });
+             } catch (err) {}
+          } else {
+            // 2. Jika tidak ada sesi aktif, kita cek apakah sudah ada absen hari ini
+            const startOfDay = new Date(checkTime);
+            startOfDay.setHours(0, 0, 0, 0);
+            
+            const endOfDay = new Date(checkTime);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            let absensiHariIni = await prisma.absensi.findFirst({
+              where: {
+                karyawanId: karyawan.id,
+                tanggal: {
+                  gte: startOfDay,
+                  lte: endOfDay
+                }
+              },
+              orderBy: { jamMasuk: 'desc' }
+            });
+
+            if (!absensiHariIni) {
+               // Belum ada absen sama sekali hari ini -> Buat Clock In baru
+               await prisma.absensi.create({
+                 data: {
+                   karyawanId: karyawan.id,
+                   tanggal: startOfDay,
+                   jamMasuk: checkTime,
+                   deviceMasuk: `Fingerprint (${SN || "Unknown Device"})`,
+                   catatanValidasi: "Auto-generated via Mesin Fingerprint (ADMS)"
                  }
                });
                successCount++;
 
-               // Send notification for Clock Out
+               // Send notification for Clock In
                try {
                  await NotificationService.broadcastToAdmins({
-                   title: "👋 Absen Keluar (Clock Out) via Fingerprint",
-                   body: `${karyawan.namaLengkap} telah melakukan Absen Keluar pada pukul ${checkTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
-                   type: "attendance_clock_out",
+                   title: "👋 Absen Masuk (Clock In) via Fingerprint",
+                   body: `${karyawan.namaLengkap} telah melakukan Absen Masuk pada pukul ${checkTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
+                   type: "attendance_clock_in",
                    data: {
                      karyawanId: karyawan.id,
                      karyawanName: karyawan.namaLengkap,
@@ -141,6 +155,34 @@ export const cdataPost = async (req, res) => {
                    },
                  });
                } catch (err) {}
+            } else {
+               // Sudah ada absen hari ini (mungkin activeSession terlewat atau jamKeluar sudah terisi)
+               // Fallback: Jika ada absen hari ini yg belum keluar, jadikan keluar
+               if (absensiHariIni.jamMasuk && !absensiHariIni.jamKeluar && getHoursDiff(checkTime, absensiHariIni.jamMasuk) > (1 / 60)) {
+                  await prisma.absensi.update({
+                    where: { id: absensiHariIni.id },
+                    data: {
+                      jamKeluar: checkTime,
+                      deviceKeluar: `Fingerprint (${SN || "Unknown Device"})`
+                    }
+                  });
+                  successCount++;
+
+                  // Send notification for Clock Out
+                  try {
+                    await NotificationService.broadcastToAdmins({
+                      title: "👋 Absen Keluar (Clock Out) via Fingerprint",
+                      body: `${karyawan.namaLengkap} telah melakukan Absen Keluar pada pukul ${checkTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
+                      type: "attendance_clock_out",
+                      data: {
+                        karyawanId: karyawan.id,
+                        karyawanName: karyawan.namaLengkap,
+                        time: checkTime.toISOString(),
+                        click_action: "FLUTTER_NOTIFICATION_CLICK",
+                      },
+                    });
+                  } catch (err) {}
+               }
             }
           }
         }
