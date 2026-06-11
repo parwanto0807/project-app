@@ -176,8 +176,8 @@ export const updateAbsensi = async (req, res) => {
       where: { id },
       data: {
         tanggal: tanggal ? new Date(tanggal) : undefined,
-        jamMasuk: jamMasuk ? new Date(jamMasuk) : undefined,
-        jamKeluar: jamKeluar ? new Date(jamKeluar) : undefined,
+        jamMasuk: jamMasuk === undefined ? undefined : (jamMasuk === null ? null : new Date(jamMasuk)),
+        jamKeluar: jamKeluar === undefined ? undefined : (jamKeluar === null ? null : new Date(jamKeluar)),
         jamLembur: jamLembur !== undefined ? parseFloat(jamLembur) : undefined,
         status,
         keterangan,
