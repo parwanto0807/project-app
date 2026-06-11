@@ -444,6 +444,12 @@ export const employeeFormSchema = z.object({
 
   gajiPokok: z.coerce.number().nonnegative().nullable().optional(),
   tunjangan: z.coerce.number().nonnegative().nullable().optional(),
+  tunjanganJabatan: z.coerce.number().nonnegative().nullable().optional(),
+  tunjanganKeluarga: z.coerce.number().nonnegative().nullable().optional(),
+  tunjanganMakan: z.coerce.number().nonnegative().nullable().optional(),
+  tunjanganTransport: z.coerce.number().nonnegative().nullable().optional(),
+  tunjanganKehadiran: z.coerce.number().nonnegative().nullable().optional(),
+  tunjanganShift: z.coerce.number().nonnegative().nullable().optional(),
   potongan: z.coerce.number().nonnegative().nullable().optional(),
 
   isActive: z.boolean().default(true),

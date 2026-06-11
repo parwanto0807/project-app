@@ -45,6 +45,12 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             userId: undefined,
             gajiPokok: 0,
             tunjangan: 0,
+            tunjanganJabatan: 0,
+            tunjanganKeluarga: 0,
+            tunjanganMakan: 0,
+            tunjanganTransport: 0,
+            tunjanganKehadiran: 0,
+            tunjanganShift: 0,
             potongan: 0,
             isActive: true,       // ✅ boolean harus fix, bukan undefined
             wajibAbsen: true,
@@ -470,7 +476,25 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                     <FormItem><FormLabel>Gaji Pokok</FormLabel><FormControl><Input type="number" placeholder="Contoh: 5000000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="tunjangan" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Tunjangan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 1000000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Tunjangan Lain-lain (Tetap)</FormLabel><FormControl><Input type="number" placeholder="Contoh: 1000000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="tunjanganJabatan" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Tunjangan Jabatan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 500000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="tunjanganKeluarga" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Tunjangan Keluarga</FormLabel><FormControl><Input type="number" placeholder="Contoh: 300000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="tunjanganMakan" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>T. Makan (Per Hadir)</FormLabel><FormControl><Input type="number" placeholder="Contoh: 20000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="tunjanganTransport" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>T. Transport (Per Hadir)</FormLabel><FormControl><Input type="number" placeholder="Contoh: 15000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="tunjanganKehadiran" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Premi Hadir (Full/Bln)</FormLabel><FormControl><Input type="number" placeholder="Contoh: 200000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="tunjanganShift" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Tunjangan Shift</FormLabel><FormControl><Input type="number" placeholder="Contoh: 100000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="potongan" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Potongan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 100000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>

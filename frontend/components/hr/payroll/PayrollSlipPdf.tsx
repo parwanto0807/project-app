@@ -202,10 +202,46 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                             <Text>Gaji Pokok / Kerja</Text>
                             <Text>{formatCurrency(gaji.gajiPokok)}</Text>
                         </View>
-                        {gaji.tunjangan > 0 && (
+                        {gaji.tunjanganJabatan > 0 && (
                             <View style={styles.row}>
-                                <Text>Tunjangan</Text>
-                                <Text>{formatCurrency(gaji.tunjangan)}</Text>
+                                <Text>Tunjangan Jabatan</Text>
+                                <Text>{formatCurrency(gaji.tunjanganJabatan)}</Text>
+                            </View>
+                        )}
+                        {gaji.tunjanganKeluarga > 0 && (
+                            <View style={styles.row}>
+                                <Text>Tunjangan Keluarga</Text>
+                                <Text>{formatCurrency(gaji.tunjanganKeluarga)}</Text>
+                            </View>
+                        )}
+                        {gaji.tunjanganMakan > 0 && (
+                            <View style={styles.row}>
+                                <Text>Tunjangan Makan</Text>
+                                <Text>{formatCurrency(gaji.tunjanganMakan)}</Text>
+                            </View>
+                        )}
+                        {gaji.tunjanganTransport > 0 && (
+                            <View style={styles.row}>
+                                <Text>Tunjangan Transport</Text>
+                                <Text>{formatCurrency(gaji.tunjanganTransport)}</Text>
+                            </View>
+                        )}
+                        {gaji.tunjanganKehadiran > 0 && (
+                            <View style={styles.row}>
+                                <Text>Premi Hadir</Text>
+                                <Text>{formatCurrency(gaji.tunjanganKehadiran)}</Text>
+                            </View>
+                        )}
+                        {gaji.tunjanganShift > 0 && (
+                            <View style={styles.row}>
+                                <Text>Tunjangan Shift</Text>
+                                <Text>{formatCurrency(gaji.tunjanganShift)}</Text>
+                            </View>
+                        )}
+                        {gaji.tunjangan > ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0)) && (
+                            <View style={styles.row}>
+                                <Text>Tunjangan Lainnya</Text>
+                                <Text>{formatCurrency(gaji.tunjangan - ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0)))}</Text>
                             </View>
                         )}
                         {gaji.upahLembur > 0 && (

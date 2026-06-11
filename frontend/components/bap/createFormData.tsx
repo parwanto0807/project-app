@@ -38,6 +38,7 @@ import { Info, CheckCircle2, Image as ImageIcon, User, MapPin, ClipboardList, Fi
 import { useRouter } from "next/navigation";
 import { createBAP } from "@/lib/action/bap/bap";
 import { toast } from "sonner";
+import { getImageUrlBap } from "@/lib/getImageUrl";
 
 export interface Customer {
     id: string;
@@ -241,6 +242,26 @@ function BAPPhotoForm({
     onRemove: (index: number) => void;
     source?: "manual" | "spk";
 }) {
+    const [imgSrc, setImgSrc] = useState<string>(() => {
+        if (!photo.photoUrl) return "/placeholder.jpg";
+        if (photo.photoUrl.startsWith("blob:") || photo.source === "manual") {
+            return photo.photoUrl;
+        }
+        return getImageUrlBap(photo.photoUrl);
+    });
+
+    useEffect(() => {
+        if (!photo.photoUrl) {
+            setImgSrc("/placeholder.jpg");
+            return;
+        }
+        if (photo.photoUrl.startsWith("blob:") || photo.source === "manual") {
+            setImgSrc(photo.photoUrl);
+            return;
+        }
+        setImgSrc(getImageUrlBap(photo.photoUrl));
+    }, [photo.photoUrl, photo.source]);
+
     return (
         <Card className="p-4">
             <div className="flex justify-between items-center mb-3">
@@ -268,12 +289,12 @@ function BAPPhotoForm({
                     <div className="relative w-full h-32 border rounded-md overflow-hidden">
                         {photo.photoUrl ? (
                             <Image
-                                src={photo.photoUrl}
+                                src={imgSrc}
                                 alt={`Preview ${index + 1}`}
                                 fill
                                 className="object-cover"
                                 onError={(e) => {
-                                    (e.target as HTMLImageElement).src = "/placeholder.jpg";
+                                    setImgSrc("/placeholder.jpg");
                                 }}
                             />
                         ) : (

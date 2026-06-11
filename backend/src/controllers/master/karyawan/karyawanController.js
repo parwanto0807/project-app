@@ -38,6 +38,12 @@ export const createKaryawan = async (req, res) => {
       tipeKontrak,
       gajiPokok,
       tunjangan,
+      tunjanganJabatan,
+      tunjanganKeluarga,
+      tunjanganMakan,
+      tunjanganTransport,
+      tunjanganKehadiran,
+      tunjanganShift,
       potongan,
       userId,
       teamIds,
@@ -97,6 +103,12 @@ export const createKaryawan = async (req, res) => {
         tipePenggajian: tipePenggajian || "BULANAN",
         gajiPokok: gajiPokok ? Number(gajiPokok) : 0,
         tunjangan: tunjangan ? Number(tunjangan) : 0,
+        tunjanganJabatan: tunjanganJabatan ? Number(tunjanganJabatan) : 0,
+        tunjanganKeluarga: tunjanganKeluarga ? Number(tunjanganKeluarga) : 0,
+        tunjanganMakan: tunjanganMakan ? Number(tunjanganMakan) : 0,
+        tunjanganTransport: tunjanganTransport ? Number(tunjanganTransport) : 0,
+        tunjanganKehadiran: tunjanganKehadiran ? Number(tunjanganKehadiran) : 0,
+        tunjanganShift: tunjanganShift ? Number(tunjanganShift) : 0,
         potongan: potongan ? Number(potongan) : 0,
         userId: userId || null, // ✅ Set null jika tidak ada
         foto: fotoPath,
@@ -209,6 +221,12 @@ export const updateKaryawan = async (req, res) => {
       tipeKontrak,
       gajiPokok,
       tunjangan,
+      tunjanganJabatan,
+      tunjanganKeluarga,
+      tunjanganMakan,
+      tunjanganTransport,
+      tunjanganKehadiran,
+      tunjanganShift,
       potongan,
       userId,
       teamIds,
@@ -288,12 +306,15 @@ export const updateKaryawan = async (req, res) => {
     }
 
     // normalisasi angka
-    if (gajiPokok !== undefined)
-      data.gajiPokok = gajiPokok ? Number(gajiPokok) : null;
-    if (tunjangan !== undefined)
-      data.tunjangan = tunjangan ? Number(tunjangan) : null;
-    if (potongan !== undefined)
-      data.potongan = potongan ? Number(potongan) : null;
+    if (gajiPokok !== undefined) data.gajiPokok = gajiPokok ? Number(gajiPokok) : null;
+    if (tunjangan !== undefined) data.tunjangan = tunjangan ? Number(tunjangan) : null;
+    if (tunjanganJabatan !== undefined) data.tunjanganJabatan = tunjanganJabatan ? Number(tunjanganJabatan) : null;
+    if (tunjanganKeluarga !== undefined) data.tunjanganKeluarga = tunjanganKeluarga ? Number(tunjanganKeluarga) : null;
+    if (tunjanganMakan !== undefined) data.tunjanganMakan = tunjanganMakan ? Number(tunjanganMakan) : null;
+    if (tunjanganTransport !== undefined) data.tunjanganTransport = tunjanganTransport ? Number(tunjanganTransport) : null;
+    if (tunjanganKehadiran !== undefined) data.tunjanganKehadiran = tunjanganKehadiran ? Number(tunjanganKehadiran) : null;
+    if (tunjanganShift !== undefined) data.tunjanganShift = tunjanganShift ? Number(tunjanganShift) : null;
+    if (potongan !== undefined) data.potongan = potongan ? Number(potongan) : null;
 
     // normalisasi userId
     if (userId !== undefined) data.userId = userId || null;

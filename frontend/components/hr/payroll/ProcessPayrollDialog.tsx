@@ -394,10 +394,46 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                 <span className="text-gray-600">{isHarian ? `Gaji Harian (${k.hariHadir} hari × ${fmt(k.configUsed?.gajiPerHari || 0)})` : "Gaji Pokok"}</span>
                 <span className="font-semibold">{fmt(k.gajiKerja)}</span>
               </div>
-              {k.tunjangan > 0 && (
+              {k.tunjanganJabatan > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tunjangan</span>
-                  <span className="font-semibold text-emerald-600">{fmt(k.tunjangan)}</span>
+                  <span className="text-gray-600">Tunjangan Jabatan</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.tunjanganJabatan)}</span>
+                </div>
+              )}
+              {k.tunjanganKeluarga > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tunjangan Keluarga</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.tunjanganKeluarga)}</span>
+                </div>
+              )}
+              {k.tunjanganMakan > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tunjangan Makan</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.tunjanganMakan)}</span>
+                </div>
+              )}
+              {k.tunjanganTransport > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tunjangan Transport</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.tunjanganTransport)}</span>
+                </div>
+              )}
+              {k.tunjanganKehadiran > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Premi Hadir</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.tunjanganKehadiran)}</span>
+                </div>
+              )}
+              {k.tunjanganShift > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tunjangan Shift</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.tunjanganShift)}</span>
+                </div>
+              )}
+              {k.tunjangan > ((k.tunjanganJabatan||0) + (k.tunjanganKeluarga||0) + (k.tunjanganMakan||0) + (k.tunjanganTransport||0) + (k.tunjanganKehadiran||0) + (k.tunjanganShift||0)) && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Tunjangan Lainnya</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.tunjangan - ((k.tunjanganJabatan||0) + (k.tunjanganKeluarga||0) + (k.tunjanganMakan||0) + (k.tunjanganTransport||0) + (k.tunjanganKehadiran||0) + (k.tunjanganShift||0)))}</span>
                 </div>
               )}
               {k.upahLembur > 0 && (

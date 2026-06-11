@@ -49,14 +49,31 @@ function hitungMenitTerlambat(jamMasuk, jamStandarMasuk = "07:00") {
 async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config, overrides = {}) {
   const tipePenggajian = (karyawan.tipePenggajian || "BULANAN").toUpperCase();
   const gajiPokok = karyawan.gajiPokok || 0;
-  const tunjangan = karyawan.tunjangan || 0;
+  const tunjanganLama = karyawan.tunjangan || 0;
   const potonganDefault = karyawan.potongan || 0;
+
+  const tunjanganJabatan = karyawan.tunjanganJabatan || 0;
+  const tunjanganKeluarga = karyawan.tunjanganKeluarga || 0;
+  const baseTunjanganMakan = karyawan.tunjanganMakan || 0;
+  const baseTunjanganTransport = karyawan.tunjanganTransport || 0;
+  const baseTunjanganKehadiran = karyawan.tunjanganKehadiran || 0;
+  const tunjanganShift = karyawan.tunjanganShift || 0;
 
   // ── Rekap absensi ──
   const hariHadir = absensiList.filter((a) => a.status === "HADIR" || a.status === "TERLAMBAT").length;
   const hariAlfa  = absensiList.filter((a) => a.status === "ALFA").length;
   const hariIzin  = absensiList.filter((a) => ["IZIN", "SAKIT", "CUTI"].includes(a.status)).length;
   const hariTerlambat = 0; // Fitur keterlambatan dinonaktifkan
+
+  // Hitung Tunjangan Tidak Tetap
+  const tunjanganMakan = baseTunjanganMakan * hariHadir;
+  const tunjanganTransport = baseTunjanganTransport * hariHadir;
+  // Premi Hadir cair utuh jika karyawan tidak ada Alfa
+  const tunjanganKehadiran = hariAlfa === 0 ? baseTunjanganKehadiran : 0;
+
+  const totalTunjanganTetap = tunjanganJabatan + tunjanganKeluarga;
+  const totalTunjanganTidakTetap = tunjanganMakan + tunjanganTransport + tunjanganKehadiran + tunjanganShift;
+  const tunjangan = tunjanganLama + totalTunjanganTetap + totalTunjanganTidakTetap;
 
   // ── Jam kerja detail per hari ──
   // Prioritas: jamKerjaDisetujui (admin validated) > hitung dari jamKeluarDisetujui > hitung dari jamKeluar asli
@@ -145,6 +162,12 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     // Pendapatan
     gajiKerja,       // gajiPokok (bulanan) atau hariHadir×gajiPerHari (harian)
     tunjangan,
+    tunjanganJabatan,
+    tunjanganKeluarga,
+    tunjanganMakan,
+    tunjanganTransport,
+    tunjanganKehadiran,
+    tunjanganShift,
     upahLembur,
     totalPendapatan,
     // Potongan
@@ -394,6 +417,12 @@ export const createGaji = async (req, res) => {
           periodeSelesai: cutoffEnd,
           gajiPokok: k.gajiKerja,
           tunjangan: k.tunjangan,
+          tunjanganJabatan: k.tunjanganJabatan,
+          tunjanganKeluarga: k.tunjanganKeluarga,
+          tunjanganMakan: k.tunjanganMakan,
+          tunjanganTransport: k.tunjanganTransport,
+          tunjanganKehadiran: k.tunjanganKehadiran,
+          tunjanganShift: k.tunjanganShift,
           potongan: k.potonganLain + k.potonganTerlambat,
           totalJamLembur: k.totalJamLembur,
           upahLembur: k.upahLembur,
@@ -469,6 +498,12 @@ export const updateGaji = async (req, res) => {
       data: {
         gajiPokok: k.gajiKerja,
         tunjangan: k.tunjangan,
+        tunjanganJabatan: k.tunjanganJabatan,
+        tunjanganKeluarga: k.tunjanganKeluarga,
+        tunjanganMakan: k.tunjanganMakan,
+        tunjanganTransport: k.tunjanganTransport,
+        tunjanganKehadiran: k.tunjanganKehadiran,
+        tunjanganShift: k.tunjanganShift,
         potongan: k.potonganLain + k.potonganTerlambat,
         upahLembur: k.upahLembur,
         totalJamLembur: k.totalJamLembur,
@@ -579,6 +614,12 @@ export const processBulkPayroll = async (req, res) => {
               periodeSelesai: cutoffEnd,
               gajiPokok: k.gajiKerja,
               tunjangan: k.tunjangan,
+              tunjanganJabatan: k.tunjanganJabatan,
+              tunjanganKeluarga: k.tunjanganKeluarga,
+              tunjanganMakan: k.tunjanganMakan,
+              tunjanganTransport: k.tunjanganTransport,
+              tunjanganKehadiran: k.tunjanganKehadiran,
+              tunjanganShift: k.tunjanganShift,
               potongan: k.potonganLain + k.potonganTerlambat,
               totalJamLembur: k.totalJamLembur,
               upahLembur: k.upahLembur,

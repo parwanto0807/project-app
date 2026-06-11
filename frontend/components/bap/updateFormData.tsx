@@ -246,25 +246,13 @@ function BAPPhotoForm({
     const [imgSrc, setImgSrc] = useState<string>(() => {
         if (!photo.photoUrl) return "/placeholder.jpg";
 
-        const cleanUrl = photo.photoUrl.trim();
-
-        // Sudah full URL (http/https/blob) - langsung return tanpa modifikasi
-        if (cleanUrl.startsWith("http") || cleanUrl.startsWith("blob:")) {
-            return cleanUrl;
+        // Sudah full URL (blob) atau manual upload - kembalikan langsung
+        if (photo.photoUrl.startsWith("blob:") || photo.source === "manual") {
+            return photo.photoUrl;
         }
 
-        // Manual upload - tanpa API_URL karena relative path
-        if (photo.source === "manual") return cleanUrl;
-
-        // SPK upload
-        if (photo.source === "spk") {
-            return cleanUrl.includes("/images/spk/")
-                ? cleanUrl
-                : `${API_URL}/images/spk/${cleanUrl}`;
-        }
-
-        // Default case
-        return `${API_URL}${cleanUrl}`;
+        // Gunakan fungsi standar untuk mendapatkan URL
+        return getImageUrlBap(photo.photoUrl);
     });
 
     useEffect(() => {
@@ -273,29 +261,12 @@ function BAPPhotoForm({
             return;
         }
 
-        const cleanUrl = photo.photoUrl.trim();
-
-        // Sudah full URL (http/https/blob) - langsung set tanpa modifikasi
-        if (cleanUrl.startsWith("http") || cleanUrl.startsWith("blob:")) {
-            setImgSrc(cleanUrl);
+        if (photo.photoUrl.startsWith("blob:") || photo.source === "manual") {
+            setImgSrc(photo.photoUrl);
             return;
         }
 
-        if (photo.source === "manual") {
-            setImgSrc(cleanUrl); // Hilangkan API_URL untuk mode manual
-            return;
-        }
-
-        if (photo.source === "spk") {
-            setImgSrc(
-                cleanUrl.includes("/images/spk/")
-                    ? cleanUrl
-                    : `${API_URL}/images/spk/${cleanUrl}`
-            );
-            return;
-        }
-
-        setImgSrc(`${API_URL}${cleanUrl}`);
+        setImgSrc(getImageUrlBap(photo.photoUrl));
     }, [photo.photoUrl, photo.source]);
     return (
         <Card className="p-4 border-l-4 border-l-blue-500">
@@ -313,17 +284,15 @@ function BAPPhotoForm({
                         {source === "spk" ? "Dari SPK" : source === "existing" ? "Existing" : "Manual"}
                     </Badge>
                 </div>
-                {source !== "existing" && (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onRemove(index)}
-                        className="hover:bg-red-50"
-                    >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                )}
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onRemove(index)}
+                    className="hover:bg-red-50"
+                >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -375,9 +344,8 @@ function BAPPhotoForm({
                             onValueChange={(value: "BEFORE" | "PROCESS" | "AFTER") =>
                                 onUpdate(index, { category: value })
                             }
-                            disabled={source === "existing"}
                         >
-                            <SelectTrigger className={source === "existing" ? "bg-gray-50" : ""}>
+                            <SelectTrigger>
                                 <SelectValue placeholder="Pilih kategori" />
                             </SelectTrigger>
                             <SelectContent>
@@ -392,14 +360,12 @@ function BAPPhotoForm({
                     <div>
                         <Label className="flex items-center space-x-2 text-sm">
                             <FileText className="h-3 w-3 text-gray-500" />
-                            <span>Keterangan {source === "existing" && "(Read-only)"}</span>
+                            <span>Keterangan</span>
                         </Label>
                         <Input
                             value={photo.caption || ""}
                             onChange={(e) => onUpdate(index, { caption: e.target.value })}
                             placeholder="Masukkan keterangan foto..."
-                            disabled={source === "existing"}
-                            className={source === "existing" ? "bg-gray-50" : ""}
                         />
                     </div>
 
@@ -689,11 +655,7 @@ export function UpdateBAPForm({
     // Fungsi addPhotosFromSPK - tambahkan debugging
     const addPhotosFromSPK = (selectedSpkPhotos: SpkPhoto[]) => {
         setIsDialogOpen(true);
-        ;(() => {})('Adding photos from SPK:', selectedSpkPhotos.map(p => ({
-            id: p.id,
-            originalPath: p.imageUrl,
-            resolvedUrl: getImageUrlBap(p.imageUrl)
-        })));
+
 
         const newBAPPhotos: BAPPhotoFrontend[] = selectedSpkPhotos.map(spkPhoto => {
             const imageUrl = spkPhoto.imageUrl?.startsWith("http")
@@ -879,7 +841,7 @@ export function UpdateBAPForm({
                 <Info className="h-4 w-4" />
                 <AlertTitle className="font-bold text-sm text-white">Update Informasi BAST</AlertTitle>
                 <AlertDescription className="text-white">
-                    Perbarui informasi BAST yang diperlukan. Foto existing tidak dapat dihapus tetapi dapat ditambah foto baru.
+                    Perbarui informasi BAST yang diperlukan. Anda dapat mengedit, menambah, atau menghapus foto dokumentasi.
                 </AlertDescription>
             </Alert>
 

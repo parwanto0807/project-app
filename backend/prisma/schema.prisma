@@ -223,6 +223,12 @@ model Karyawan {
   tipePenggajian    String?             @default("BULANAN")
   gajiPokok         Float?
   tunjangan         Float?
+  tunjanganJabatan  Float?              @default(0)
+  tunjanganKeluarga Float?              @default(0)
+  tunjanganMakan    Float?              @default(0)
+  tunjanganTransport Float?             @default(0)
+  tunjanganKehadiran Float?             @default(0)
+  tunjanganShift    Float?              @default(0)
   potongan          Float?
   userId            String?             @unique
   createdAt         DateTime            @default(now())
@@ -268,6 +274,12 @@ model Gaji {
   periodeSelesai    DateTime
   gajiPokok         Float
   tunjangan         Float?
+  tunjanganJabatan  Float?    @default(0)
+  tunjanganKeluarga Float?    @default(0)
+  tunjanganMakan    Float?    @default(0)
+  tunjanganTransport Float?   @default(0)
+  tunjanganKehadiran Float?   @default(0)
+  tunjanganShift    Float?    @default(0)
   potongan          Float?
   totalJamLembur    Float    @default(0)
   upahLembur        Float    @default(0)
@@ -1095,9 +1107,10 @@ model BAPPhoto {
   bapId     String
   photoUrl  String
   caption   String?
-  createdAt DateTime      @default(now())
-  category  PhotoCategory
-  source    String?
+  createdAt  DateTime      @default(now())
+  orderIndex Int           @default(0)
+  category   PhotoCategory
+  source     String?
   bap       BAP           @relation(fields: [bapId], references: [id], onDelete: Cascade)
 
   @@index([bapId])

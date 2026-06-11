@@ -89,7 +89,7 @@ export const getAllBAP = async (req, res) => {
         },
         createdBy: { select: { id: true, name: true } }, // relasi ke User
         user: { select: { id: true, namaLengkap: true } }, // relasi ke Karyawan
-        photos: true,
+        photos: { orderBy: { orderIndex: 'asc' } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -126,7 +126,7 @@ export const getBAPById = async (req, res) => {
         },
         createdBy: { select: { id: true, name: true, email: true } },
         user: { select: { id: true, namaLengkap: true, email: true } },
-        photos: true,
+        photos: { orderBy: { orderIndex: 'asc' } },
       },
     });
 
@@ -280,7 +280,7 @@ export const createBAP = async (req, res) => {
         location,
         notes,
         photos: {
-          create: allPhotos,
+          create: allPhotos.map((p, idx) => ({ ...p, orderIndex: idx })),
         },
       },
       include: {
@@ -291,7 +291,7 @@ export const createBAP = async (req, res) => {
             spk: { select: { id: true } },
           },
         },
-        photos: true,
+        photos: { orderBy: { orderIndex: 'asc' } },
       },
     });
 
@@ -385,7 +385,7 @@ export const updateBAP = async (req, res) => {
 
     const bap = await prisma.bAP.findUnique({
       where: { id },
-      include: { photos: true },
+      include: { photos: { orderBy: { orderIndex: 'asc' } } },
     });
 
     if (!bap) {
@@ -414,10 +414,11 @@ export const updateBAP = async (req, res) => {
         photos: photos
           ? {
               deleteMany: {}, // hapus semua foto lama
-              create: photos.map((photo) => ({
+              create: photos.map((photo, idx) => ({
                 photoUrl: photo.photoUrl,
                 caption: photo.caption,
                 category: photo.category || "BEFORE", // simpan kategori juga
+                orderIndex: idx,
               })),
             }
           : undefined,
@@ -429,7 +430,7 @@ export const updateBAP = async (req, res) => {
             customer: { select: { name: true } },
           },
         },
-        photos: true,
+        photos: { orderBy: { orderIndex: 'asc' } },
       },
     });
 

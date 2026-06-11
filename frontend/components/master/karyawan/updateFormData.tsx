@@ -50,6 +50,12 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
             userId: undefined,
             gajiPokok: 0,
             tunjangan: 0,
+            tunjanganJabatan: 0,
+            tunjanganKeluarga: 0,
+            tunjanganMakan: 0,
+            tunjanganTransport: 0,
+            tunjanganKehadiran: 0,
+            tunjanganShift: 0,
             potongan: 0,
             isActive: true,
             wajibAbsen: true,
@@ -491,11 +497,131 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                     control={form.control}
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Tunjangan</FormLabel>
+                                            <FormLabel>Tunjangan Lain-lain (Tetap)</FormLabel>
                                             <FormControl>
                                                 <Input
                                                     type="number"
                                                     placeholder="Contoh: 1000000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="tunjanganJabatan"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Tunjangan Jabatan</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 500000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="tunjanganKeluarga"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Tunjangan Keluarga</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 300000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="tunjanganMakan"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>T. Makan (Per Kehadiran)</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 20000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="tunjanganTransport"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>T. Transport (Per Kehadiran)</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 15000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="tunjanganKehadiran"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Premi Hadir (Full/Bulan)</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 200000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="tunjanganShift"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Tunjangan Shift</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 100000"
                                                     {...field}
                                                     value={field.value ?? ""}
                                                     onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
