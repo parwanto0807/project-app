@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSearchParams } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -176,20 +177,18 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     }
   }, [karyawan]);
 
+  const searchParams = useSearchParams();
+
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const id = params.get('editedId');
+    if (typeof window !== 'undefined' && searchParams) {
+      const id = searchParams.get('editedId');
       if (id) {
         setEditedId(id);
         // Optionally remove the query parameter so it doesn't persist forever
         window.history.replaceState({}, '', window.location.pathname);
-        
-        // Let it disappear after a few seconds
-        setTimeout(() => setEditedId(null), 10000);
       }
     }
-  }, []);
+  }, [searchParams]);
 
   // Fungsi untuk membuka dialog konfirmasi hapus
   const handleDeleteClick = (employee: Karyawan, e?: React.MouseEvent) => {
@@ -478,32 +477,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   </div>
                 )}
 
-                {employee.documents && employee.documents.length > 0 && (
-                  <div className="flex items-start gap-2">
-                    <FileText size={14} className="text-blue-500 mt-0.5" />
-                    <span className="font-medium">Docs:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {[...employee.documents].sort((a, b) => {
-                        if (a.document.type === "JOB_DESCRIPTION" && b.document.type !== "JOB_DESCRIPTION") return -1;
-                        if (a.document.type !== "JOB_DESCRIPTION" && b.document.type === "JOB_DESCRIPTION") return 1;
-                        return 0;
-                      }).map((dk) => (
-                        <Badge
-                          key={dk.document.id}
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] py-0 px-1.5 h-4",
-                            dk.document.type === "JOB_DESCRIPTION"
-                              ? "bg-cyan-50 text-cyan-700 border-cyan-100"
-                              : "bg-indigo-50 text-indigo-700 border-indigo-100"
-                          )}
-                        >
-                          {dk.document.type === "JOB_DESCRIPTION" ? "JD" : "SOP"} v{dk.document.version}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
               </div>
             </div>
 
@@ -992,12 +966,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                       {getSortIcon('teamKaryawan')}
                     </div>
                   </TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-1">
-                      <FileText size={16} className="text-blue-500" />
-                      JobDesc & SOP
-                    </div>
-                  </TableHead>
+
                   <TableHead>
                     <div className="flex items-center gap-1">
                       <MapPin size={16} className="text-blue-500" />
@@ -1074,45 +1043,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                               )
                               : "-"}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1.5 max-w-[200px]">
-                              {item.documents && item.documents.length > 0 ? (
-                                [...item.documents].sort((a, b) => {
-                                  if (a.document.type === "JOB_DESCRIPTION" && b.document.type !== "JOB_DESCRIPTION") return -1;
-                                  if (a.document.type !== "JOB_DESCRIPTION" && b.document.type === "JOB_DESCRIPTION") return 1;
-                                  return 0;
-                                }).map((dk) => (
-                                  <TooltipProvider key={dk.document.id}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Badge
-                                          variant="outline"
-                                          className={cn(
-                                            "cursor-help font-bold text-[10px] px-2 py-0.5 rounded-md shadow-none flex items-center gap-1 transition-all hover:scale-105",
-                                            dk.document.type === "JOB_DESCRIPTION"
-                                              ? "bg-cyan-50 text-cyan-700 border-cyan-200/60"
-                                              : "bg-indigo-50 text-indigo-700 border-indigo-200/60"
-                                          )}
-                                        >
-                                          {dk.document.type === "JOB_DESCRIPTION" ? <Shield size={10} /> : <BookOpen size={10} />}
-                                          <span>{dk.document.type === "JOB_DESCRIPTION" ? "JD" : "SOP"}</span>
-                                          <span className="opacity-50 mx-0.5">|</span>
-                                          <span>v{dk.document.version}</span>
-                                        </Badge>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" className="bg-gray-900 text-white text-[10px] font-bold border-none">
-                                        {dk.document.title}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                ))
-                              ) : (
-                                <span className="text-[11px] text-gray-400 italic flex items-center gap-1">
-                                  <Info size={12} /> Belum ada data
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
+
                           <TableCell>
                             <div className="flex flex-col gap-1.5 items-start">
                               {item.attendanceLocation ? (

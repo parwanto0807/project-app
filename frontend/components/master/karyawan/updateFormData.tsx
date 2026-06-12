@@ -218,7 +218,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
             if (fromPage === 'detail') {
                 router.push(`${basePath}/${id}`);
             } else {
-                router.push(basePath);
+                router.push(`${basePath}?editedId=${id}`);
             }
         } catch (err) {
             console.error(err);

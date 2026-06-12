@@ -6,8 +6,8 @@ const JAM_STANDAR_KELUAR = "17:00"; // 8 jam kerja
 
 export const getAllAbsensi = async (req, res) => {
   try {
-    const { startDate, endDate, karyawanId, employeeName, needsValidation } = req.query;
-    ;(() => {})("[DEBUG] Fetching Absensi with params:", { startDate, endDate, karyawanId, employeeName, needsValidation });
+    const { startDate, endDate, karyawanId, employeeName, needsValidation, teamId } = req.query;
+    ;(() => {})("[DEBUG] Fetching Absensi with params:", { startDate, endDate, karyawanId, employeeName, needsValidation, teamId });
 
     const where = {
       ...(karyawanId && { karyawanId }),
@@ -16,6 +16,13 @@ export const getAllAbsensi = async (req, res) => {
         statusKerja: { not: "non-aktif" },
         ...(employeeName && {
           namaLengkap: { contains: employeeName, mode: "insensitive" },
+        }),
+        ...(teamId && teamId !== "ALL" && {
+          teamKaryawan: {
+            some: {
+              teamId: teamId
+            }
+          }
         }),
       },
     };
@@ -79,6 +86,7 @@ export const getAllAbsensi = async (req, res) => {
       };
       if (karyawanId) wajibKaryawanWhere.id = karyawanId;
       if (employeeName) wajibKaryawanWhere.namaLengkap = { contains: employeeName, mode: "insensitive" };
+      if (teamId && teamId !== "ALL") wajibKaryawanWhere.teamKaryawan = { some: { teamId } };
 
       const wajibKaryawan = await prisma.karyawan.findMany({
         where: wajibKaryawanWhere,

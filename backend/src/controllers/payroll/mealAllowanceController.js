@@ -74,6 +74,7 @@ export const getPreview = async (req, res) => {
       let totalJamLembur = 0;
       let nominalUangMakan = 0;
       let nominalUangMakanLembur = 0;
+      let totalJamKerja = 0;
       const detailHarian = [];
 
       for (const a of kAbsensi) {
@@ -88,6 +89,8 @@ export const getPreview = async (req, res) => {
           jamKerja = diffMs > 0 ? diffMs / (1000 * 60 * 60) : 0;
         }
         
+        totalJamKerja += jamKerja;
+
         let rawLembur = a.jamLembur || 0;
         let jamLembur = 0;
         
@@ -124,6 +127,10 @@ export const getPreview = async (req, res) => {
           uangMakanHariIni: umHariIni,
           uangMakanLemburHariIni: umlHariIni
         });
+      }
+
+      if (karyawanId === "ALL" && totalJamKerja === 0 && totalJamLembur === 0) {
+        continue;
       }
 
       const totalPencairan = nominalUangMakan + nominalUangMakanLembur;
@@ -249,6 +256,7 @@ export const createDisbursement = async (req, res) => {
       let totalJamLembur = 0;
       let nominalUangMakan = 0;
       let nominalUangMakanLembur = 0;
+      let totalJamKerja = 0;
 
       for (const a of kAbsensi) {
         let jamKerja = 0;
@@ -256,6 +264,7 @@ export const createDisbursement = async (req, res) => {
           let diffMs = new Date(a.jamKeluarDisetujui || a.jamKeluar).getTime() - new Date(a.jamMasuk).getTime();
           jamKerja = diffMs > 0 ? diffMs / (1000 * 60 * 60) : 0;
         }
+        totalJamKerja += jamKerja;
         
         let rawLembur = a.jamLembur || 0;
         let jamLembur = 0;
@@ -275,6 +284,10 @@ export const createDisbursement = async (req, res) => {
           nominalUangMakanLembur += baseUangMakanLembur;
         }
         totalJamLembur += jamLembur;
+      }
+
+      if (karyawanId === "ALL" && totalJamKerja === 0 && totalJamLembur === 0) {
+        continue;
       }
 
       const totalPencairan = nominalUangMakan + nominalUangMakanLembur;

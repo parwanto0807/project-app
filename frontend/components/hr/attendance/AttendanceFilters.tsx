@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Search, RotateCcw, Calendar as CalendarIcon, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 
 interface FilterProps {
   onFilter: (filters: any) => void;
@@ -30,14 +31,27 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
   const [startDate, setStartDate] = useState(getStartDateStr());
   const [endDate, setEndDate] = useState(getTodayStr());
   const [groupByTeam, setGroupByTeam] = useState(false);
+  const [teamId, setTeamId] = useState("ALL");
+  const [teams, setTeams] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadTeams = async () => {
+      const res = await getAllTeam(1, 100);
+      if (res.success && res.data) {
+        setTeams(res.data);
+      }
+    };
+    loadTeams();
+  }, []);
 
   const handleApply = () => {
-    onFilter({ employeeName, status, startDate, endDate, groupByTeam });
+    onFilter({ employeeName, status, startDate, endDate, groupByTeam, teamId });
   };
 
   const handleReset = () => {
     setEmployeeName("");
     setStatus("ALL");
+    setTeamId("ALL");
     setStartDate(getStartDateStr());
     setEndDate(getTodayStr());
     setGroupByTeam(false);
@@ -66,6 +80,18 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
           <SelectItem value="TERLAMBAT">Terlambat</SelectItem>
           <SelectItem value="IZIN">Izin/Sakit</SelectItem>
           <SelectItem value="ALFA">Alfa</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select value={teamId} onValueChange={setTeamId}>
+        <SelectTrigger className="w-[180px] bg-white/50 border-none rounded-xl">
+          <SelectValue placeholder="Team" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">Semua Team</SelectItem>
+          {teams.map((t) => (
+            <SelectItem key={t.id} value={t.id}>{t.namaTeam}</SelectItem>
+          ))}
         </SelectContent>
       </Select>
 

@@ -8,6 +8,7 @@ export async function fetchAllAbsensi(filters: {
   karyawanId?: string;
   employeeName?: string;
   needsValidation?: boolean;
+  teamId?: string;
 } = {}) {
   try {
     const cookieStore = await cookies();
@@ -17,6 +18,7 @@ export async function fetchAllAbsensi(filters: {
     if (filters.karyawanId) queryParams.append("karyawanId", filters.karyawanId);
     if (filters.employeeName) queryParams.append("employeeName", filters.employeeName);
     if (filters.needsValidation) queryParams.append("needsValidation", "true");
+    if (filters.teamId && filters.teamId !== "ALL") queryParams.append("teamId", filters.teamId);
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/absensi?${queryParams.toString()}`,
