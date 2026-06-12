@@ -622,6 +622,14 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               requiredPermission: "hr.view",
             },
             {
+              href: `${basePath}/hr/meal-allowance`,
+              label: "Pencairan Uang Makan",
+              tooltip: "Proses Pencairan Uang Makan Harian & Lembur",
+              icon: HandCoins,
+              active: isActive(`${basePath}/hr/meal-allowance`, pathname),
+              requiredPermission: "hr.view",
+            },
+            {
               href: role === "super" ? "/super-admin-area/master/karyawan" : `${basePath}/master/karyawan`,
               label: "Data Employee",
               tooltip: "Data Karyawan",

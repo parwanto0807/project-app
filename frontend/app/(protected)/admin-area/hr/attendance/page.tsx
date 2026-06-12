@@ -28,6 +28,19 @@ export default function AttendanceMonitoringPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [groupByTeam, setGroupByTeam] = useState(false);
 
+  const getTodayStr = () => {
+    const d = new Date();
+    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  };
+
+  const getStartDateStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  };
+
+  const [currentFilters, setCurrentFilters] = useState<any>({ startDate: getStartDateStr(), endDate: getTodayStr() });
+
   const loadData = async (filters: any = {}) => {
     try {
       setIsLoading(true);
@@ -52,31 +65,23 @@ export default function AttendanceMonitoringPage() {
     }
   };
 
-  const getTodayStr = () => {
-    const d = new Date();
-    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-  };
-
-  const getStartDateStr = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 2);
-    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-  };
-
   useEffect(() => {
-    loadData({ startDate: getStartDateStr(), endDate: getTodayStr() });
+    loadData(currentFilters);
   }, []);
 
   const handleFilter = (filters: any) => {
     if (filters.groupByTeam !== undefined) {
       setGroupByTeam(filters.groupByTeam);
     }
+    setCurrentFilters(filters);
     loadData(filters);
   };
 
   const handleReset = () => {
     setGroupByTeam(false);
-    loadData({ startDate: getStartDateStr(), endDate: getTodayStr() });
+    const defaultFilters = { startDate: getStartDateStr(), endDate: getTodayStr() };
+    setCurrentFilters(defaultFilters);
+    loadData(defaultFilters);
   };
 
   const handleViewDetail = (record: any) => {
@@ -127,7 +132,7 @@ export default function AttendanceMonitoringPage() {
               data={absensiData} 
               isLoading={isLoading} 
               onViewDetail={handleViewDetail}
-              onRefresh={() => loadData()}
+              onRefresh={() => loadData(currentFilters)}
               groupByTeam={groupByTeam}
             />
           </div>

@@ -65,15 +65,24 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
   const hariIzin  = absensiList.filter((a) => ["IZIN", "SAKIT", "CUTI"].includes(a.status)).length;
   const hariTerlambat = 0; // Fitur keterlambatan dinonaktifkan
 
-  // Hitung Tunjangan Tidak Tetap
-  const tunjanganMakan = baseTunjanganMakan * hariHadir;
-  const tunjanganTransport = baseTunjanganTransport * hariHadir;
-  // Premi Hadir cair utuh jika karyawan tidak ada Alfa
-  const tunjanganKehadiran = hariAlfa === 0 ? baseTunjanganKehadiran : 0;
+  // ── Hitung Upah Lembur Dinamis (Per Jam/Hari) & Basis Data ──
+  let baseHourlyLembur = 0;
+  if (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") {
+    baseHourlyLembur = (karyawan.gajiPokok * 25) / 173;
+  } else {
+    baseHourlyLembur = karyawan.gajiPokok / 173;
+  }
 
-  const totalTunjanganTetap = tunjanganJabatan + tunjanganKeluarga;
-  const totalTunjanganTidakTetap = tunjanganMakan + tunjanganTransport + tunjanganKehadiran + tunjanganShift;
-  const tunjangan = tunjanganLama + totalTunjanganTetap + totalTunjanganTidakTetap;
+  const p1 = config?.pengaliLemburJam1 || 1.5;
+  const p2 = config?.pengaliLemburJam2 || 2.0;
+  const p3 = config?.pengaliLemburJam3 || 2.0;
+  const p4 = config?.pengaliLemburJam4 || 2.0;
+  const p5 = config?.pengaliLemburJam5 || 2.0;
+  const p6 = config?.pengaliLemburJam6 || 2.0;
+
+  const minJamKerjaUangMakan = config?.minJamKerjaUangMakan || 4;
+  const minJamLemburUangMakan = config?.minJamLemburUangMakan || 3;
+  const baseUangMakanLembur = karyawan.uangMakanLembur || 0;
 
   // ── Jam kerja detail per hari ──
   // Prioritas: jamKerjaDisetujui (admin validated) > hitung dari jamKeluarDisetujui > hitung dari jamKeluar asli
@@ -92,44 +101,29 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     
     // Auto calculate lembur jika jam kerja melebihi threshold (walaupun belum divalidasi)
     if (jamKerja > threshold) {
-      jamLembur = Math.round((jamKerja - threshold) * 100) / 100;
+      let rawLembur = jamKerja - threshold;
+      let intPart = Math.floor(rawLembur);
+      let fracPart = rawLembur - intPart;
+      jamLembur = fracPart < 0.5 ? intPart : Math.round(rawLembur * 100) / 100;
     }
 
-    return {
-      tanggal: a.tanggal,
-      status: a.status,
-      jamMasuk: a.jamMasuk,
-      jamKeluar: a.jamKeluar,
-      jamKeluarDisetujui: a.jamKeluarDisetujui,
-      jamKerja: Math.round(jamKerja * 100) / 100,
-      jamLembur: jamLembur,
-      menitTerlambat,
-      isValidated: a.isValidated || false,
-    };
-  });
+    // Uang Makan Harian (Berdasarkan threshold config) - DINONAKTIFKAN KARENA DICAIRKAN TERPISAH
+    let uangMakanHariIni = 0;
+    // if (a.status === "HADIR" || a.status === "TERLAMBAT") {
+    //   if (jamKerja > minJamKerjaUangMakan) {
+    //     uangMakanHariIni = baseTunjanganMakan;
+    //   }
+    // }
 
-  const totalJamKerja  = detailHarian.reduce((s, d) => s + d.jamKerja, 0);
-  const totalJamLembur = detailHarian.reduce((s, d) => s + d.jamLembur, 0);
+    // Uang Makan Lembur (Berdasarkan threshold config) - DINONAKTIFKAN KARENA DICAIRKAN TERPISAH
+    let uangMakanLemburHariIni = 0;
+    // if (jamLembur > minJamLemburUangMakan) {
+    //   uangMakanLemburHariIni = baseUangMakanLembur;
+    // }
 
-  // ── Hitung Upah Lembur Dinamis (Per Jam/Hari) ──
-  let baseHourlyLembur = 0;
-  if (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") {
-    baseHourlyLembur = (karyawan.gajiPokok * 25) / 173;
-  } else {
-    baseHourlyLembur = karyawan.gajiPokok / 173;
-  }
-
-  let upahLemburDinamis = 0;
-  const p1 = config?.pengaliLemburJam1 || 1.5;
-  const p2 = config?.pengaliLemburJam2 || 2.0;
-  const p3 = config?.pengaliLemburJam3 || 2.0;
-  const p4 = config?.pengaliLemburJam4 || 2.0;
-  const p5 = config?.pengaliLemburJam5 || 2.0;
-  const p6 = config?.pengaliLemburJam6 || 2.0;
-
-  detailHarian.forEach((d) => {
-    let jl = d.jamLembur;
+    // Upah Lembur Harian (Berdasarkan pengali config)
     let upahHariIni = 0;
+    let jl = jamLembur;
     if (jl > 0) {
       if (jl >= 1) { upahHariIni += baseHourlyLembur * p1; jl -= 1; }
       else { upahHariIni += baseHourlyLembur * p1 * jl; jl = 0; }
@@ -153,8 +147,38 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     if (jl > 0) {
       upahHariIni += baseHourlyLembur * p6 * jl;
     }
-    upahLemburDinamis += upahHariIni;
+
+    return {
+      tanggal: a.tanggal,
+      status: a.status,
+      jamMasuk: a.jamMasuk,
+      jamKeluar: a.jamKeluar,
+      jamKeluarDisetujui: a.jamKeluarDisetujui,
+      jamKerja: Math.round(jamKerja * 100) / 100,
+      jamLembur: jamLembur,
+      menitTerlambat,
+      isValidated: a.isValidated || false,
+      uangMakanHariIni,
+      uangMakanLemburHariIni,
+      upahLemburHariIni: Math.round(upahHariIni),
+    };
   });
+
+  const totalJamKerja  = detailHarian.reduce((s, d) => s + d.jamKerja, 0);
+  const totalJamLembur = detailHarian.reduce((s, d) => s + d.jamLembur, 0);
+  const upahLemburDinamis = detailHarian.reduce((s, d) => s + d.upahLemburHariIni, 0);
+
+  // Hitung Tunjangan Tidak Tetap
+  const tunjanganMakan = detailHarian.reduce((s, d) => s + d.uangMakanHariIni, 0);
+  const uangMakanLembur = detailHarian.reduce((s, d) => s + d.uangMakanLemburHariIni, 0);
+  const tunjanganTransport = baseTunjanganTransport * hariHadir;
+  
+  // Premi Hadir cair utuh jika karyawan tidak ada Alfa
+  const tunjanganKehadiran = hariAlfa === 0 ? baseTunjanganKehadiran : 0;
+
+  const totalTunjanganTetap = tunjanganJabatan + tunjanganKeluarga;
+  const totalTunjanganTidakTetap = tunjanganMakan + tunjanganTransport + tunjanganKehadiran + tunjanganShift + uangMakanLembur;
+  const tunjangan = tunjanganLama + totalTunjanganTetap + totalTunjanganTidakTetap;
 
   // ── Kalkulasi pendapatan ──
   let gajiKerja = 0;
@@ -167,7 +191,6 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     const jamStandar = config?.jamKerjaPerHari || 9;
     const hourlyRate = dailyRate / jamStandar;
     
-    const lemburPerJam = config?.lemburPerJam || 0;
     const potonganPerTerlambat = config?.potonganTerlambat || 0;
 
     // Hitung jam kerja normal (Total Durasi - Lembur)
@@ -175,7 +198,8 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     
     gajiKerja = Math.round(normalHours * hourlyRate);
     const useLembur = overrides.hitungLembur !== false;
-    upahLembur = useLembur ? Math.round(totalJamLembur * lemburPerJam) : 0;
+    // Menggunakan perhitungan lembur dinamis (berdasarkan UU / Pengali)
+    upahLembur = useLembur ? Math.round(upahLemburDinamis) : 0;
     potonganTerlambat = 0; // Keterlambatan dinonaktifkan
   } else {
     // Gaji bulanan: Ambil data gaji pokok dari master karyawan (tetap)
@@ -184,6 +208,8 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
 
     gajiKerja = gajiPokok;
     const useLembur = overrides.hitungLembur !== false;
+    // Karyawan Bulanan menggunakan tarif lembur tetap per jam (jika di-set di config) atau bisa juga dinamis
+    // Sesuai UI note: Karyawan BULANAN hanya menggunakan tarif lembur
     upahLembur = useLembur ? Math.round(totalJamLembur * lemburPerJam) : 0;
     potonganTerlambat = 0; // Keterlambatan dinonaktifkan
   }
@@ -210,6 +236,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     tunjanganJabatan,
     tunjanganKeluarga,
     tunjanganMakan,
+    uangMakanLembur,
     tunjanganTransport,
     tunjanganKehadiran,
     tunjanganShift,
@@ -384,7 +411,6 @@ export const getPayrollPreview = async (req, res) => {
 
     const karyawan = await prisma.karyawan.findUnique({
       where: { id: karyawanId },
-      select: { id: true, namaLengkap: true, nik: true, jabatan: true, departemen: true, gajiPokok: true, tunjangan: true, potongan: true, tipeKontrak: true, tipePenggajian: true },
     });
     if (!karyawan) return res.status(404).json({ message: "Karyawan tidak ditemukan" });
 
@@ -438,7 +464,6 @@ export const createGaji = async (req, res) => {
 
     const karyawan = await prisma.karyawan.findUnique({
       where: { id: karyawanId },
-      select: { id: true, namaLengkap: true, gajiPokok: true, tunjangan: true, potongan: true, tipeKontrak: true },
     });
     if (!karyawan) return res.status(404).json({ message: "Karyawan tidak ditemukan" });
 
@@ -465,6 +490,7 @@ export const createGaji = async (req, res) => {
           tunjanganJabatan: k.tunjanganJabatan,
           tunjanganKeluarga: k.tunjanganKeluarga,
           tunjanganMakan: k.tunjanganMakan,
+          uangMakanLembur: k.uangMakanLembur,
           tunjanganTransport: k.tunjanganTransport,
           tunjanganKehadiran: k.tunjanganKehadiran,
           tunjanganShift: k.tunjanganShift,
@@ -546,6 +572,7 @@ export const updateGaji = async (req, res) => {
         tunjanganJabatan: k.tunjanganJabatan,
         tunjanganKeluarga: k.tunjanganKeluarga,
         tunjanganMakan: k.tunjanganMakan,
+        uangMakanLembur: k.uangMakanLembur,
         tunjanganTransport: k.tunjanganTransport,
         tunjanganKehadiran: k.tunjanganKehadiran,
         tunjanganShift: k.tunjanganShift,
@@ -1050,7 +1077,15 @@ export const getPayrollConfigs = async (req, res) => {
 
 export const createPayrollConfig = async (req, res) => {
   try {
-    const { name, gajiPerHari, lemburPerJam, jamKerjaPerHari = 8, toleransiTerlambat = 15, potonganTerlambat = 0, isActive } = req.body;
+    const { 
+      name, gajiPerHari, lemburPerJam, jamKerjaPerHari = 8, 
+      toleransiTerlambat = 15, potonganTerlambat = 0, isActive,
+      minJamKerjaUangMakan = 4, minJamLemburUangMakan = 3,
+      pengaliLemburJam1 = 1.5, pengaliLemburJam2 = 2.0,
+      pengaliLemburJam3 = 2.0, pengaliLemburJam4 = 2.0,
+      pengaliLemburJam5 = 2.0, pengaliLemburJam6 = 2.0
+    } = req.body;
+    
     const config = await prisma.payrollConfig.create({
       data: {
         name,
@@ -1059,6 +1094,14 @@ export const createPayrollConfig = async (req, res) => {
         jamKerjaPerHari: parseFloat(jamKerjaPerHari),
         toleransiTerlambat: parseInt(toleransiTerlambat),
         potonganTerlambat: parseFloat(potonganTerlambat),
+        minJamKerjaUangMakan: parseFloat(minJamKerjaUangMakan),
+        minJamLemburUangMakan: parseFloat(minJamLemburUangMakan),
+        pengaliLemburJam1: parseFloat(pengaliLemburJam1),
+        pengaliLemburJam2: parseFloat(pengaliLemburJam2),
+        pengaliLemburJam3: parseFloat(pengaliLemburJam3),
+        pengaliLemburJam4: parseFloat(pengaliLemburJam4),
+        pengaliLemburJam5: parseFloat(pengaliLemburJam5),
+        pengaliLemburJam6: parseFloat(pengaliLemburJam6),
         isActive: isActive !== undefined ? isActive : true,
       },
     });
@@ -1071,7 +1114,14 @@ export const createPayrollConfig = async (req, res) => {
 export const updatePayrollConfig = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, gajiPerHari, lemburPerJam, jamKerjaPerHari, toleransiTerlambat, potonganTerlambat, isActive } = req.body;
+    const { 
+      name, gajiPerHari, lemburPerJam, jamKerjaPerHari, 
+      toleransiTerlambat, potonganTerlambat, isActive,
+      minJamKerjaUangMakan, minJamLemburUangMakan,
+      pengaliLemburJam1, pengaliLemburJam2, pengaliLemburJam3,
+      pengaliLemburJam4, pengaliLemburJam5, pengaliLemburJam6
+    } = req.body;
+    
     const config = await prisma.payrollConfig.update({
       where: { id },
       data: {
@@ -1081,6 +1131,14 @@ export const updatePayrollConfig = async (req, res) => {
         ...(jamKerjaPerHari !== undefined && { jamKerjaPerHari: parseFloat(jamKerjaPerHari) }),
         ...(toleransiTerlambat !== undefined && { toleransiTerlambat: parseInt(toleransiTerlambat) }),
         ...(potonganTerlambat !== undefined && { potonganTerlambat: parseFloat(potonganTerlambat) }),
+        ...(minJamKerjaUangMakan !== undefined && { minJamKerjaUangMakan: parseFloat(minJamKerjaUangMakan) }),
+        ...(minJamLemburUangMakan !== undefined && { minJamLemburUangMakan: parseFloat(minJamLemburUangMakan) }),
+        ...(pengaliLemburJam1 !== undefined && { pengaliLemburJam1: parseFloat(pengaliLemburJam1) }),
+        ...(pengaliLemburJam2 !== undefined && { pengaliLemburJam2: parseFloat(pengaliLemburJam2) }),
+        ...(pengaliLemburJam3 !== undefined && { pengaliLemburJam3: parseFloat(pengaliLemburJam3) }),
+        ...(pengaliLemburJam4 !== undefined && { pengaliLemburJam4: parseFloat(pengaliLemburJam4) }),
+        ...(pengaliLemburJam5 !== undefined && { pengaliLemburJam5: parseFloat(pengaliLemburJam5) }),
+        ...(pengaliLemburJam6 !== undefined && { pengaliLemburJam6: parseFloat(pengaliLemburJam6) }),
         ...(isActive !== undefined && { isActive }),
       },
     });

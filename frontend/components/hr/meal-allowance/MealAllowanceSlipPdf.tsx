@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     infoLabel: {
-        width: 60,
+        width: 75,
         fontWeight: 'bold',
     },
     infoValue: {
@@ -116,26 +116,26 @@ const styles = StyleSheet.create({
     grandTotalContainer: {
         marginTop: 6,
         padding: 4,
-        backgroundColor: '#f0fdf4',
+        backgroundColor: '#fff7ed',
         borderRadius: 4,
         borderWidth: 1,
-        borderColor: '#bbf7d0',
+        borderColor: '#fed7aa',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
     },
     grandTotalLabel: {
         fontSize: 8,
-        color: '#166534',
+        color: '#9a3412',
         fontWeight: 'bold',
     },
     grandTotalValue: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#15803d',
+        color: '#c2410c',
     },
     footer: {
-        marginTop: 20,
+        marginTop: 5,
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
@@ -159,24 +159,7 @@ const formatCurrency = (amount: number) => {
     }).format(amount);
 };
 
-interface PayrollSlipPdfProps {
-    gaji: any;
-}
-
-const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
-    const totalPotongan = 
-        (gaji.potongan || 0) + 
-        (gaji.pajak || 0) + 
-        (gaji.potonganPinjaman || 0) + 
-        (gaji.potonganKasbon || 0) + 
-        (gaji.potonganDpGaji || 0) +
-        (gaji.potonganTerlambat || 0);
-
-    const totalPendapatan = 
-        (gaji.gajiPokok || 0) + 
-        (gaji.tunjangan || 0) + 
-        (gaji.upahLembur || 0);
-
+export default function MealAllowanceSlipPdf({ data }: { data: any }) {
     return (
         <Document>
             <Page size="A4" orientation="portrait" style={styles.page}>
@@ -198,133 +181,79 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                 </View>
 
                 {/* Title */}
-                <Text style={styles.title}>SLIP GAJI KARYAWAN</Text>
+                <Text style={styles.title}>SLIP UANG MAKAN</Text>
 
                 {/* Employee Info */}
                 <View style={styles.infoGrid}>
                     <View style={styles.infoColumn}>
                         <View style={styles.infoRow}>
                             <Text style={styles.infoLabel}>Nama</Text>
-                            <Text style={styles.infoValue}>: {gaji.karyawan?.namaLengkap}</Text>
+                            <Text style={styles.infoValue}>: {data.karyawan?.namaLengkap}</Text>
                         </View>
                         <View style={styles.infoRow}>
                             <Text style={styles.infoLabel}>NIK</Text>
-                            <Text style={styles.infoValue}>: {gaji.karyawan?.nik}</Text>
+                            <Text style={styles.infoValue}>: {data.karyawan?.nik}</Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Jabatan</Text>
+                            <Text style={styles.infoValue}>: {data.karyawan?.jabatan}</Text>
                         </View>
                     </View>
                     <View style={styles.infoColumn}>
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Jabatan</Text>
-                            <Text style={styles.infoValue}>: {gaji.karyawan?.jabatan}</Text>
+                            <Text style={styles.infoLabel}>Periode Absen</Text>
+                            <Text style={styles.infoValue}>
+                                : {format(new Date(data.cutOffStart), "dd MMM yyyy", { locale: id })} - {format(new Date(data.cutOffEnd), "dd MMM yyyy", { locale: id })}
+                            </Text>
                         </View>
                         <View style={styles.infoRow}>
-                            <Text style={styles.infoLabel}>Periode</Text>
-                            <Text style={styles.infoValue}>: {format(new Date(gaji.periode), "MMMM yyyy", { locale: id })}</Text>
+                            <Text style={styles.infoLabel}>Siklus</Text>
+                            <Text style={styles.infoValue}>: Siklus {data.siklus}</Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Bulan / Tahun</Text>
+                            <Text style={styles.infoValue}>: {data.periodeBulan}</Text>
                         </View>
                     </View>
                 </View>
 
                 {/* Main Content: 2 Columns */}
                 <View style={styles.mainContent}>
-                    {/* Earnings */}
+                    {/* Kehadiran */}
                     <View style={styles.contentColumn}>
-                        <Text style={styles.sectionTitle}>PENDAPATAN</Text>
+                        <Text style={styles.sectionTitle}>RINCIAN KEHADIRAN</Text>
                         <View style={styles.row}>
-                            <Text>Gaji Pokok / Kerja</Text>
-                            <Text>{formatCurrency(gaji.gajiPokok)}</Text>
+                            <Text>Total Hari Hadir ({'>'}4 Jam)</Text>
+                            <Text>{data.totalHariHadir} Hari</Text>
                         </View>
-                        {gaji.tunjanganJabatan > 0 && (
-                            <View style={styles.row}>
-                                <Text>Tunjangan Jabatan</Text>
-                                <Text>{formatCurrency(gaji.tunjanganJabatan)}</Text>
-                            </View>
-                        )}
-                        {gaji.tunjanganKeluarga > 0 && (
-                            <View style={styles.row}>
-                                <Text>Tunjangan Keluarga</Text>
-                                <Text>{formatCurrency(gaji.tunjanganKeluarga)}</Text>
-                            </View>
-                        )}
-                        {gaji.tunjanganMakan > 0 && (
-                            <View style={styles.row}>
-                                <Text>Tunjangan Makan</Text>
-                                <Text>{formatCurrency(gaji.tunjanganMakan)}</Text>
-                            </View>
-                        )}
-                        {gaji.tunjanganTransport > 0 && (
-                            <View style={styles.row}>
-                                <Text>Tunjangan Transport</Text>
-                                <Text>{formatCurrency(gaji.tunjanganTransport)}</Text>
-                            </View>
-                        )}
-                        {gaji.tunjanganKehadiran > 0 && (
-                            <View style={styles.row}>
-                                <Text>Premi Hadir</Text>
-                                <Text>{formatCurrency(gaji.tunjanganKehadiran)}</Text>
-                            </View>
-                        )}
-                        {gaji.tunjanganShift > 0 && (
-                            <View style={styles.row}>
-                                <Text>Tunjangan Shift</Text>
-                                <Text>{formatCurrency(gaji.tunjanganShift)}</Text>
-                            </View>
-                        )}
-                        {gaji.tunjangan > ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0)) && (
-                            <View style={styles.row}>
-                                <Text>Tunjangan Lainnya</Text>
-                                <Text>{formatCurrency(gaji.tunjangan - ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0)))}</Text>
-                            </View>
-                        )}
-                        {gaji.upahLembur > 0 && (
-                            <View style={styles.row}>
-                                <Text>Upah Lembur</Text>
-                                <Text>{formatCurrency(gaji.upahLembur)}</Text>
-                            </View>
-                        )}
-                        <View style={styles.totalRow}>
-                            <Text>Total Pendapatan</Text>
-                            <Text>{formatCurrency(totalPendapatan)}</Text>
+                        <View style={styles.row}>
+                            <Text>Total Jam Lembur ({'>'}3 Jam)</Text>
+                            <Text>{data.totalJamLembur} Jam</Text>
                         </View>
                     </View>
 
-                    {/* Deductions */}
+                    {/* Pendapatan */}
                     <View style={styles.contentColumn}>
-                        <Text style={styles.sectionTitle}>POTONGAN</Text>
-                        {gaji.potongan > 0 && (
-                            <View style={styles.row}>
-                                <Text>Potongan Lain</Text>
-                                <Text>-{formatCurrency(gaji.potongan)}</Text>
-                            </View>
-                        )}
-                        {(gaji.potonganPinjaman > 0 || gaji.potonganKasbon > 0) && (
-                            <View style={styles.row}>
-                                <Text>Pinjaman/Kasbon</Text>
-                                <Text>-{formatCurrency((gaji.potonganPinjaman || 0) + (gaji.potonganKasbon || 0))}</Text>
-                            </View>
-                        )}
-                        {gaji.potonganDpGaji > 0 && (
-                            <View style={styles.row}>
-                                <Text>DP Gaji</Text>
-                                <Text>-{formatCurrency(gaji.potonganDpGaji)}</Text>
-                            </View>
-                        )}
-                        {gaji.potonganTerlambat > 0 && (
-                            <View style={styles.row}>
-                                <Text>Keterlambatan</Text>
-                                <Text>-{formatCurrency(gaji.potonganTerlambat)}</Text>
-                            </View>
-                        )}
+                        <Text style={styles.sectionTitle}>RINCIAN UANG MAKAN</Text>
+                        <View style={styles.row}>
+                            <Text>Uang Makan Harian ({data.totalHariHadir} Kali)</Text>
+                            <Text>{formatCurrency(data.nominalUangMakan)}</Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text>Uang Makan Lembur ({data.nominalUangMakanLembur > 0 ? Math.round(data.nominalUangMakanLembur / (data.karyawan?.uangMakanLembur || 30000)) : 0} Kali)</Text>
+                            <Text>{formatCurrency(data.nominalUangMakanLembur)}</Text>
+                        </View>
                         <View style={styles.totalRow}>
-                            <Text>Total Potongan</Text>
-                            <Text>-{formatCurrency(totalPotongan)}</Text>
+                            <Text>Total Pendapatan</Text>
+                            <Text>{formatCurrency(data.totalPencairan)}</Text>
                         </View>
                     </View>
                 </View>
 
                 {/* Net Pay */}
                 <View style={styles.grandTotalContainer}>
-                    <Text style={styles.grandTotalLabel}>GAJI BERSIH DITERIMA (TAKE HOME PAY)</Text>
-                    <Text style={styles.grandTotalValue}>{formatCurrency(gaji.total)}</Text>
+                    <Text style={styles.grandTotalLabel}>TOTAL DITERIMA (TAKE HOME PAY)</Text>
+                    <Text style={styles.grandTotalValue}>{formatCurrency(data.totalPencairan)}</Text>
                 </View>
 
                 {/* Footer */}
@@ -332,7 +261,7 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                     <View style={styles.signatureBox}>
                         <Text>Penerima,</Text>
                         <View style={styles.signatureLine} />
-                        <Text>{gaji.karyawan?.namaLengkap}</Text>
+                        <Text>{data.karyawan?.namaLengkap}</Text>
                     </View>
                     <View style={styles.signatureBox}>
                         <Text>Personalia / HRD,</Text>
@@ -346,6 +275,4 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
             </Page>
         </Document>
     );
-};
-
-export default PayrollSlipPdf;
+}

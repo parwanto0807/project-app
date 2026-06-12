@@ -1,7 +1,7 @@
 // lib/action/fcm/fcm.ts
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-const API_URL = `${BASE_DOMAIN}/sessions/update-session-fcm`;
+const API_URL = `${BASE_DOMAIN}/api/sessions/update-session-fcm`;
 const API_URL_NOTIF = `${BASE_DOMAIN}/api/notifications`;
 
 // ✅ DEFINE PROPER TYPES
@@ -394,7 +394,7 @@ export const isNotificationArray = (obj: unknown): obj is Notification[] => {
 
 export async function getStoredFcmToken(): Promise<string | null> {
   try {
-    const response = await fetch(`${BASE_DOMAIN}/sessions/cekToken`, {
+    const response = await fetch(`${BASE_DOMAIN}/api/sessions/cekToken`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

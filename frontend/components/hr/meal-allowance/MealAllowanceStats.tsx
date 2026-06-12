@@ -2,24 +2,24 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, Wallet, TrendingDown, Banknote, Clock, Send } from "lucide-react";
+import { Users, Wallet, Banknote, Clock, CalendarDays, CheckCircle2 } from "lucide-react";
 
-interface PayrollStatsProps {
+interface MealAllowanceStatsProps {
   summary: {
     totalKaryawan: number;
-    totalGajiPokok: number;
-    totalTunjangan: number;
-    totalPotongan: number;
-    totalBersih: number;
-    totalLembur: number;
-    totalPublished: number;
+    totalHariHadir: number;
+    totalJamLembur: number;
+    totalUmHarian: number;
+    totalUmLembur: number;
+    totalPencairan: number;
+    totalPosted: number;
   } | null;
 }
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
 
-const PayrollStats: React.FC<PayrollStatsProps> = ({ summary }) => {
+const MealAllowanceStats: React.FC<MealAllowanceStatsProps> = ({ summary }) => {
   const stats = [
     {
       title: "Karyawan Diproses",
@@ -30,53 +30,54 @@ const PayrollStats: React.FC<PayrollStatsProps> = ({ summary }) => {
       bg: "bg-blue-50",
     },
     {
-      title: "Total Gaji Pokok",
-      value: summary?.totalGajiPokok ?? 0,
+      title: "Total Hari Hadir",
+      value: summary?.totalHariHadir ?? 0,
+      isCount: true,
+      suffix: " Hari",
+      icon: CalendarDays,
+      color: "text-indigo-600",
+      bg: "bg-indigo-50",
+    },
+    {
+      title: "Total Jam Lembur",
+      value: summary?.totalJamLembur ?? 0,
+      isCount: true,
+      suffix: " Jam",
+      icon: Clock,
+      color: "text-cyan-600",
+      bg: "bg-cyan-50",
+    },
+    {
+      title: "Total UM Harian",
+      value: summary?.totalUmHarian ?? 0,
       isCount: false,
-      icon: Banknote,
+      icon: Wallet,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
     },
     {
-      title: "Total Tunjangan",
-      value: summary?.totalTunjangan ?? 0,
+      title: "Total UM Lembur",
+      value: summary?.totalUmLembur ?? 0,
       isCount: false,
-      icon: Wallet,
+      icon: Banknote,
       color: "text-purple-600",
       bg: "bg-purple-50",
     },
     {
-      title: "Total Potongan",
-      value: summary?.totalPotongan ?? 0,
-      isCount: false,
-      icon: TrendingDown,
-      color: "text-red-500",
-      bg: "bg-red-50",
-    },
-    {
-      title: "Total Gaji Bersih",
-      value: summary?.totalBersih ?? 0,
+      title: "Total Pencairan",
+      value: summary?.totalPencairan ?? 0,
       isCount: false,
       icon: Banknote,
       color: "text-amber-600",
       bg: "bg-amber-50",
     },
     {
-      title: "Total Jam Lembur",
-      value: summary?.totalLembur ?? 0,
+      title: "Sudah Posted",
+      value: summary?.totalPosted ?? 0,
       isCount: true,
-      suffix: " jam",
-      icon: Clock,
-      color: "text-cyan-600",
-      bg: "bg-cyan-50",
-    },
-    {
-      title: "Sudah Publish (Mobile)",
-      value: summary?.totalPublished ?? 0,
-      isCount: true,
-      icon: Send,
-      color: "text-blue-700",
-      bg: "bg-blue-100",
+      icon: CheckCircle2,
+      color: "text-green-700",
+      bg: "bg-green-100",
     },
   ];
 
@@ -106,4 +107,4 @@ const PayrollStats: React.FC<PayrollStatsProps> = ({ summary }) => {
   );
 };
 
-export default PayrollStats;
+export default MealAllowanceStats;

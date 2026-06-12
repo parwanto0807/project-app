@@ -267,6 +267,7 @@ model Karyawan {
   leaveRequests        LeaveRequest[]
   attendanceLocationId String?
   attendanceLocation   AttendanceLocation? @relation(fields: [attendanceLocationId], references: [id])
+  pencairanUangMakan   PencairanUangMakan[]
 }
 
 model Gaji {
@@ -2978,4 +2979,26 @@ model Session {
   sid       String   @unique
   data      String   @db.Text
   expiresAt DateTime
+}
+
+model PencairanUangMakan {
+  id                     String        @id @default(cuid())
+  karyawanId             String
+  periodeBulan           String        
+  siklus                 Int           
+  cutOffStart            DateTime
+  cutOffEnd              DateTime
+  totalHariHadir         Int
+  totalJamLembur         Float
+  nominalUangMakan       Float         @default(0)
+  nominalUangMakanLembur Float         @default(0)
+  totalPencairan         Float         @default(0)
+  status                 PayrollStatus @default(DRAFT)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  karyawan Karyawan @relation(fields: [karyawanId], references: [id])
+
+  @@index([karyawanId])
+  @@index([periodeBulan, siklus])
 }

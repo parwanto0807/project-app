@@ -152,11 +152,12 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
   };
 
   const k = preview?.kalkulasi;
-  const isHarian = k?.tipeKontrak === "HARIAN";
+  const isHarian = preview?.karyawan?.tipeKontrak === "HARIAN";
+  const isLemburDinamis = k?.tipePenggajian === "HARIAN" || k?.tipePenggajian === "HARIAN_BULANAN";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] rounded-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[1200px] rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center text-xl font-bold">
             <Calculator className="mr-2 h-5 w-5 text-blue-600" />
@@ -349,6 +350,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Jam Kerja</th>
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Lembur</th>
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Terlambat</th>
+                        <th className="text-right px-2 py-2 text-cyan-700 font-bold">Upah Lembur</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -378,6 +380,9 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                           </td>
                           <td className="px-2 py-1.5 text-center text-orange-500">
                             {d.menitTerlambat > 0 ? `${d.menitTerlambat}m` : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-semibold text-emerald-600">
+                            {d.upahLemburHariIni > 0 ? fmt(d.upahLemburHariIni) : "—"}
                           </td>
                         </tr>
                       ))}
@@ -412,6 +417,12 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                   <span className="font-semibold text-emerald-600">{fmt(k.tunjanganMakan)}</span>
                 </div>
               )}
+              {k.uangMakanLembur > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Uang Makan Lembur</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.uangMakanLembur)}</span>
+                </div>
+              )}
               {k.tunjanganTransport > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tunjangan Transport</span>
@@ -430,16 +441,27 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                   <span className="font-semibold text-emerald-600">{fmt(k.tunjanganShift)}</span>
                 </div>
               )}
-              {k.tunjangan > ((k.tunjanganJabatan||0) + (k.tunjanganKeluarga||0) + (k.tunjanganMakan||0) + (k.tunjanganTransport||0) + (k.tunjanganKehadiran||0) + (k.tunjanganShift||0)) && (
+              {k.tunjangan > ((k.tunjanganJabatan||0) + (k.tunjanganKeluarga||0) + (k.tunjanganMakan||0) + (k.tunjanganTransport||0) + (k.tunjanganKehadiran||0) + (k.tunjanganShift||0) + (k.uangMakanLembur||0)) && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tunjangan Lainnya</span>
-                  <span className="font-semibold text-emerald-600">{fmt(k.tunjangan - ((k.tunjanganJabatan||0) + (k.tunjanganKeluarga||0) + (k.tunjanganMakan||0) + (k.tunjanganTransport||0) + (k.tunjanganKehadiran||0) + (k.tunjanganShift||0)))}</span>
+                  <span className="font-semibold text-emerald-600">{fmt(k.tunjangan - ((k.tunjanganJabatan||0) + (k.tunjanganKeluarga||0) + (k.tunjanganMakan||0) + (k.tunjanganTransport||0) + (k.tunjanganKehadiran||0) + (k.tunjanganShift||0) + (k.uangMakanLembur||0)))}</span>
                 </div>
               )}
               {k.upahLembur > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Upah Lembur ({k.totalJamLembur}j × {fmt(k.configUsed?.lemburPerJam || 0)})</span>
-                  <span className="font-semibold text-emerald-600">{fmt(k.upahLembur)}</span>
+                <div className="flex flex-col">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      Upah Lembur ({k.totalJamLembur}j)
+                      {isLemburDinamis && <span className="text-[10px] text-amber-600 ml-1">(Skema Dinamis)</span>}
+                    </span>
+                    <span className="font-semibold text-emerald-600">{fmt(k.upahLembur)}</span>
+                  </div>
+                  {isLemburDinamis && (
+                    <div className="mt-1 pl-2 border-l-2 border-blue-200 text-[10px] text-gray-500 space-y-0.5">
+                      <p>• Basis per jam (UU): {fmt((preview?.karyawan?.gajiPokok * 25) / 173)}</p>
+                      <p>• Tarif efektif per jam: {fmt(k.upahLembur / k.totalJamLembur)} (akumulasi pengali)</p>
+                    </div>
+                  )}
                 </div>
               )}
               <Separator className="my-1" />

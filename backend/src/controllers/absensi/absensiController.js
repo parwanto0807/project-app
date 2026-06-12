@@ -228,7 +228,10 @@ export const validateAbsensi = async (req, res) => {
     // Hitung lembur otomatis jika tidak disediakan di body
     let finalJamLembur = jamLembur !== undefined ? parseFloat(jamLembur) : 0;
     if (jamLembur === undefined && jamKerjaDisetujui > threshold) {
-      finalJamLembur = Math.round((jamKerjaDisetujui - threshold) * 100) / 100;
+      let rawLembur = jamKerjaDisetujui - threshold;
+      let intPart = Math.floor(rawLembur);
+      let fracPart = rawLembur - intPart;
+      finalJamLembur = fracPart < 0.5 ? intPart : Math.round(rawLembur * 100) / 100;
     }
 
     const updated = await prisma.absensi.update({
@@ -282,7 +285,10 @@ export const approveAbsensi = async (req, res) => {
     // Hitung lembur otomatis
     let jamLembur = 0;
     if (jamKerjaDisetujui > threshold) {
-      jamLembur = Math.round((jamKerjaDisetujui - threshold) * 100) / 100;
+      let rawLembur = jamKerjaDisetujui - threshold;
+      let intPart = Math.floor(rawLembur);
+      let fracPart = rawLembur - intPart;
+      jamLembur = fracPart < 0.5 ? intPart : Math.round(rawLembur * 100) / 100;
     }
 
     const updated = await prisma.absensi.update({

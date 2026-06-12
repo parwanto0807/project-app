@@ -244,7 +244,10 @@ export const submitClockOut = async (req, res) => {
     // Jika clock-out setelah jam standar, hitung lembur
     let jamLembur = 0;
     if (jamKeluar > standarKeluar) {
-      jamLembur = Math.round(((jamKeluar - standarKeluar) / (1000 * 60 * 60)) * 100) / 100;
+      let rawLembur = (jamKeluar - standarKeluar) / (1000 * 60 * 60);
+      let intPart = Math.floor(rawLembur);
+      let fracPart = rawLembur - intPart;
+      jamLembur = fracPart < 0.5 ? intPart : Math.round(rawLembur * 100) / 100;
     }
 
     const updatedAbsensi = await prisma.absensi.update({

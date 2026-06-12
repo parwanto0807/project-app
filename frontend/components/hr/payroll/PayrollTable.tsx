@@ -175,7 +175,18 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
                     </div>
                   </TableCell>
                   <TableCell className="text-gray-700 font-medium">{fmt(g.gajiPokok)}</TableCell>
-                  <TableCell className="text-emerald-600 font-medium">{fmt(g.tunjangan || 0)}</TableCell>
+                  <TableCell>
+                    <div className="text-emerald-600 font-medium">{fmt(g.tunjangan || 0)}</div>
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      {(g.tunjanganJabatan > 0) && <div className="text-[10px] text-gray-400">Jabatan: {fmt(g.tunjanganJabatan)}</div>}
+                      {(g.tunjanganKeluarga > 0) && <div className="text-[10px] text-gray-400">Keluarga: {fmt(g.tunjanganKeluarga)}</div>}
+                      {(g.tunjanganMakan > 0) && <div className="text-[10px] text-gray-400">Makan: {fmt(g.tunjanganMakan)}</div>}
+                      {(g.uangMakanLembur > 0) && <div className="text-[10px] text-gray-400">Makan Lembur: {fmt(g.uangMakanLembur)}</div>}
+                      {(g.tunjanganTransport > 0) && <div className="text-[10px] text-gray-400">Transport: {fmt(g.tunjanganTransport)}</div>}
+                      {(g.tunjanganKehadiran > 0) && <div className="text-[10px] text-gray-400">Kehadiran: {fmt(g.tunjanganKehadiran)}</div>}
+                      {(g.tunjanganShift > 0) && <div className="text-[10px] text-gray-400">Shift: {fmt(g.tunjanganShift)}</div>}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="text-red-500 font-medium text-sm">{fmt(totalPotongan)}</div>
                     <div className="flex flex-col gap-0.5 mt-1">
@@ -193,8 +204,15 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs text-gray-600">
-                    {g.totalJamLembur > 0 ? `${g.totalJamLembur} jam` : "—"}
+                  <TableCell>
+                    {g.totalJamLembur > 0 ? (
+                      <>
+                        <div className="text-blue-600 font-medium">{fmt(g.upahLembur || 0)}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{g.totalJamLembur} jam</div>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right font-bold text-gray-900 text-base">
                     {fmt(g.total)}

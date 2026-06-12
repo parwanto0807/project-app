@@ -52,6 +52,12 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
   const [editRecord, setEditRecord] = useState<any | null>(null);
   const { user, isLoading: isSessionLoading } = useSession();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [highlightedRecordId, setHighlightedRecordId] = useState<string | null>(null);
+
+  const triggerHighlight = (id: string) => {
+    setHighlightedRecordId(id);
+    setTimeout(() => setHighlightedRecordId(null), 5000);
+  };
 
   const handleDelete = async (absensiId: string) => {
     if (!confirm("Yakin ingin menghapus data absensi ini?")) return;
@@ -181,7 +187,10 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
                   return (
                     <TableRow
                       key={row.id}
-                      className={`hover:bg-white/60 transition-colors group ${suspicious && !validated ? "bg-red-50/30" : ""}`}
+                      className={`hover:bg-white/60 transition-colors duration-1000 group 
+                        ${highlightedRecordId === row.id ? "bg-emerald-100/80 border-l-4 border-emerald-500" : ""}
+                        ${suspicious && !validated && highlightedRecordId !== row.id ? "bg-red-50/30" : ""}
+                      `}
                     >
                       {/* Karyawan */}
                       <TableCell className={isSubGrouped ? "pl-14 border-l-2 border-indigo-100" : ""}>
@@ -515,6 +524,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
           open={!!validateRecord}
           onClose={() => setValidateRecord(null)}
           onSuccess={() => {
+            triggerHighlight(validateRecord.id);
             setValidateRecord(null);
             onRefresh?.();
           }}
@@ -528,6 +538,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
           open={!!manualRecord}
           onClose={() => setManualRecord(null)}
           onSuccess={() => {
+            triggerHighlight(manualRecord.id);
             setManualRecord(null);
             onRefresh?.();
           }}
@@ -541,6 +552,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
           open={!!editRecord}
           onClose={() => setEditRecord(null)}
           onSuccess={() => {
+            triggerHighlight(editRecord.id);
             setEditRecord(null);
             onRefresh?.();
           }}
