@@ -17,6 +17,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from 'sonner';
 import { fetchKaryawanById, fetchUserByEmail } from '@/lib/action/master/karyawan';
 import { fetchLocations } from '@/lib/action/master/location';
+import { fetchPayrollConfigs } from '@/lib/action/hr/payroll';
+
+const formatCurrency = (val: string | number) => {
+    if (!val) return '0';
+    const num = typeof val === 'string' ? val.replace(/[^0-9]/g, '') : val.toString();
+    return new Intl.NumberFormat('id-ID').format(Number(num));
+};
+
+const parseCurrency = (val: string) => {
+    if (!val) return 0;
+    return Number(val.replace(/[^0-9]/g, ''));
+};
 
 function getBasePath(role?: string) {
     return role === "super"
@@ -72,6 +84,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
     });
 
     const [locations, setLocations] = useState<{ id: string, name: string }[]>([]);
+    const [payrollConfigs, setPayrollConfigs] = useState<any[]>([]);
 
     const handleCheckUserId = async (targetEmail?: string) => {
         const email = targetEmail || form.getValues("email");
@@ -102,7 +115,12 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
             const res = await fetchLocations();
             if (res.success) setLocations(res.data);
         };
+        const getConfigs = async () => {
+            const res = await fetchPayrollConfigs();
+            if (res.data && !res.error) setPayrollConfigs(res.data);
+        };
         getLocations();
+        getConfigs();
     }, []);
 
     // Fetch data karyawan saat komponen mount
@@ -168,6 +186,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
 
         // Serialize semua field ke FormData
         Object.entries(values).forEach(([key, value]) => {
+            if (key === 'payrollConfigId' && value === 'none') value = null;
             if (value === undefined || value === null) return;
 
             if (value instanceof Date) {
@@ -472,6 +491,20 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                         </Select>
                                         <FormMessage /></FormItem>
                                 )} />
+                                <FormField name="payrollConfigId" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel className="text-green-600 font-bold">Acuan Config Payroll</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value || "none"}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih config acuan" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="none">-- Default Global --</SelectItem>
+                                                {payrollConfigs.map(c => (
+                                                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription className="text-xs">Profil uang makan dan lembur karyawan.</FormDescription>
+                                        <FormMessage /></FormItem>
+                                )} />
                                 <FormField
                                     name="gajiPokok"
                                     control={form.control}
@@ -562,6 +595,26 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                                 <Input
                                                     type="number"
                                                     placeholder="Contoh: 20000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="uangMakanLembur"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>T. Makan (Lembur)</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 15000"
                                                     {...field}
                                                     value={field.value ?? ""}
                                                     onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}

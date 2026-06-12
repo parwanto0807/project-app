@@ -26,6 +26,7 @@ import PayrollPeriodSelector from "@/components/hr/payroll/PayrollPeriodSelector
 import ProcessPayrollDialog from "@/components/hr/payroll/ProcessPayrollDialog";
 import BulkPayrollDialog from "@/components/hr/payroll/BulkPayrollDialog";
 import PayrollConfigPanel from "@/components/hr/payroll/PayrollConfigPanel";
+import GlobalPayrollConfigPanel from "@/components/hr/payroll/GlobalPayrollConfigPanel";
 import { pdf } from "@react-pdf/renderer";
 import PayrollBankTransferPdf from "@/components/hr/payroll/PayrollBankTransferPdf";
 

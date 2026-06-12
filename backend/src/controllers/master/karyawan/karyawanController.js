@@ -41,6 +41,7 @@ export const createKaryawan = async (req, res) => {
       tunjanganJabatan,
       tunjanganKeluarga,
       tunjanganMakan,
+      uangMakanLembur,
       tunjanganTransport,
       tunjanganKehadiran,
       tunjanganShift,
@@ -54,6 +55,7 @@ export const createKaryawan = async (req, res) => {
       nomorRekening,
       namaRekening,
       wajibAbsen,
+      payrollConfigId,
     } = req.body;
 
     // ✅ Validasi userId jika diberikan
@@ -106,6 +108,7 @@ export const createKaryawan = async (req, res) => {
         tunjanganJabatan: tunjanganJabatan ? Number(tunjanganJabatan) : 0,
         tunjanganKeluarga: tunjanganKeluarga ? Number(tunjanganKeluarga) : 0,
         tunjanganMakan: tunjanganMakan ? Number(tunjanganMakan) : 0,
+        uangMakanLembur: uangMakanLembur ? Number(uangMakanLembur) : 0,
         tunjanganTransport: tunjanganTransport ? Number(tunjanganTransport) : 0,
         tunjanganKehadiran: tunjanganKehadiran ? Number(tunjanganKehadiran) : 0,
         tunjanganShift: tunjanganShift ? Number(tunjanganShift) : 0,
@@ -114,6 +117,7 @@ export const createKaryawan = async (req, res) => {
         foto: fotoPath,
         isActive: true,
         wajibAbsen: wajibAbsen === undefined ? true : (wajibAbsen === true || wajibAbsen === "true"),
+        payrollConfigId: (payrollConfigId === "none" || !payrollConfigId) ? null : payrollConfigId,
         attendanceLocationId: (attendanceLocationId === "none" || !attendanceLocationId) ? null : attendanceLocationId,
         namaBank,
         nomorRekening,
@@ -224,6 +228,7 @@ export const updateKaryawan = async (req, res) => {
       tunjanganJabatan,
       tunjanganKeluarga,
       tunjanganMakan,
+      uangMakanLembur,
       tunjanganTransport,
       tunjanganKehadiran,
       tunjanganShift,
@@ -237,6 +242,7 @@ export const updateKaryawan = async (req, res) => {
       nomorRekening,
       namaRekening,
       wajibAbsen,
+      payrollConfigId,
     } = req.body;
 
     // ✅ Validasi userId jika diberikan
@@ -311,6 +317,7 @@ export const updateKaryawan = async (req, res) => {
     if (tunjanganJabatan !== undefined) data.tunjanganJabatan = tunjanganJabatan ? Number(tunjanganJabatan) : null;
     if (tunjanganKeluarga !== undefined) data.tunjanganKeluarga = tunjanganKeluarga ? Number(tunjanganKeluarga) : null;
     if (tunjanganMakan !== undefined) data.tunjanganMakan = tunjanganMakan ? Number(tunjanganMakan) : null;
+    if (uangMakanLembur !== undefined) data.uangMakanLembur = uangMakanLembur ? Number(uangMakanLembur) : null;
     if (tunjanganTransport !== undefined) data.tunjanganTransport = tunjanganTransport ? Number(tunjanganTransport) : null;
     if (tunjanganKehadiran !== undefined) data.tunjanganKehadiran = tunjanganKehadiran ? Number(tunjanganKehadiran) : null;
     if (tunjanganShift !== undefined) data.tunjanganShift = tunjanganShift ? Number(tunjanganShift) : null;
@@ -321,6 +328,10 @@ export const updateKaryawan = async (req, res) => {
 
     if (attendanceLocationId !== undefined) {
       data.attendanceLocationId = (attendanceLocationId === "none" || !attendanceLocationId) ? null : attendanceLocationId;
+    }
+
+    if (payrollConfigId !== undefined) {
+      data.payrollConfigId = (payrollConfigId === "none" || !payrollConfigId) ? null : payrollConfigId;
     }
 
     // relasi team

@@ -207,122 +207,126 @@ model Counter {
 }
 
 model Karyawan {
-  id                String              @id @default(cuid())
-  nik               String              @unique
-  namaLengkap       String
-  tanggalLahir      DateTime?
-  alamat            String?
-  nomorTelepon      String?
-  email             String?             @unique
-  jabatan           String?
-  departemen        String?
-  tanggalMasuk      DateTime?
-  tanggalKeluar     DateTime?
-  statusKerja       String
-  tipeKontrak       String?
-  tipePenggajian    String?             @default("BULANAN")
-  gajiPokok         Float?
-  tunjangan         Float?
-  tunjanganJabatan  Float?              @default(0)
-  tunjanganKeluarga Float?              @default(0)
-  tunjanganMakan    Float?              @default(0)
-  tunjanganTransport Float?             @default(0)
-  tunjanganKehadiran Float?             @default(0)
-  tunjanganShift    Float?              @default(0)
-  potongan          Float?
-  userId            String?             @unique
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  foto              String?
-  namaBank          String?             @db.VarChar(100)
-  nomorRekening     String?             @db.VarChar(50)
-  namaRekening      String?             @db.VarChar(255)
-  isActive          Boolean             @default(true)
-  wajibAbsen        Boolean             @default(true)
-  approvedBAP       BAP[]               @relation("BAPApprovedBy")
-  gaji              Gaji[]
-  approvedInvoices  Invoice[]           @relation("InvoiceApprovedBy")
-  user              User?               @relation(fields: [userId], references: [id])
-  LedgerLine        LedgerLine[]
-  PurchaseExecution PurchaseExecution[]
-  purchaseOrder     PurchaseOrder[]
-  purchaseRequest   PurchaseRequest[]   @relation("PRCreatedBy")
-  requestedPRs      PurchaseRequest[]   @relation("PRRequestedBy")
-  spk               SPK[]               @relation("SPKCreatedBy")
-  spkDetail         SPKDetail[]
-  spkFieldReport    SPKFieldReport[]
-  balances          StaffBalance[]
-  ledgerEntries     StaffLedger[]
-  receivedTransfers StockTransfer[]     @relation("Receiver")
-  sentTransfers     StockTransfer[]     @relation("Sender")
-  teamKaryawan      TeamKaryawan[]
-  uangMuka          UangMuka[]
-  documents         DocumentKaryawan[]
-  absensi           Absensi[]
-  kasbonSementara   KasbonSementara[]
-  pinjaman          Pinjaman[]
-  leaveRequests     LeaveRequest[]
+  id                   String              @id @default(cuid())
+  nik                  String              @unique
+  namaLengkap          String
+  tanggalLahir         DateTime?
+  alamat               String?
+  nomorTelepon         String?
+  email                String?             @unique
+  jabatan              String?
+  departemen           String?
+  tanggalMasuk         DateTime?
+  tanggalKeluar        DateTime?
+  statusKerja          String
+  tipeKontrak          String?
+  tipePenggajian       String?             @default("BULANAN")
+  gajiPokok            Float?
+  tunjangan            Float?
+  tunjanganJabatan     Float?              @default(0)
+  tunjanganKeluarga    Float?              @default(0)
+  tunjanganMakan       Float?              @default(0)
+  uangMakanLembur      Float?              @default(0)
+  tunjanganTransport   Float?              @default(0)
+  tunjanganKehadiran   Float?              @default(0)
+  tunjanganShift       Float?              @default(0)
+  potongan             Float?
+  userId               String?             @unique
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  foto                 String?
+  namaBank             String?             @db.VarChar(100)
+  nomorRekening        String?             @db.VarChar(50)
+  namaRekening         String?             @db.VarChar(255)
+  isActive             Boolean             @default(true)
+  wajibAbsen           Boolean             @default(true)
+  payrollConfigId      String?
+  payrollConfig        PayrollConfig?      @relation(fields: [payrollConfigId], references: [id])
+  approvedBAP          BAP[]               @relation("BAPApprovedBy")
+  gaji                 Gaji[]
+  approvedInvoices     Invoice[]           @relation("InvoiceApprovedBy")
+  user                 User?               @relation(fields: [userId], references: [id])
+  LedgerLine           LedgerLine[]
+  PurchaseExecution    PurchaseExecution[]
+  purchaseOrder        PurchaseOrder[]
+  purchaseRequest      PurchaseRequest[]   @relation("PRCreatedBy")
+  requestedPRs         PurchaseRequest[]   @relation("PRRequestedBy")
+  spk                  SPK[]               @relation("SPKCreatedBy")
+  spkDetail            SPKDetail[]
+  spkFieldReport       SPKFieldReport[]
+  balances             StaffBalance[]
+  ledgerEntries        StaffLedger[]
+  receivedTransfers    StockTransfer[]     @relation("Receiver")
+  sentTransfers        StockTransfer[]     @relation("Sender")
+  teamKaryawan         TeamKaryawan[]
+  uangMuka             UangMuka[]
+  documents            DocumentKaryawan[]
+  absensi              Absensi[]
+  kasbonSementara      KasbonSementara[]
+  pinjaman             Pinjaman[]
+  leaveRequests        LeaveRequest[]
   attendanceLocationId String?
   attendanceLocation   AttendanceLocation? @relation(fields: [attendanceLocationId], references: [id])
 }
 
 model Gaji {
-  id                String   @id @default(cuid())
-  karyawanId        String
-  periode           DateTime
-  periodeMulai      DateTime
-  periodeSelesai    DateTime
-  gajiPokok         Float
-  tunjangan         Float?
-  tunjanganJabatan  Float?    @default(0)
-  tunjanganKeluarga Float?    @default(0)
-  tunjanganMakan    Float?    @default(0)
-  tunjanganTransport Float?   @default(0)
-  tunjanganKehadiran Float?   @default(0)
-  tunjanganShift    Float?    @default(0)
-  potongan          Float?
-  totalJamLembur    Float    @default(0)
-  upahLembur        Float    @default(0)
-  pajak             Float    @default(0)
-  potonganPinjaman  Float    @default(0)
-  potonganKasbon    Float    @default(0)
-  potonganDpGaji    Float    @default(0)
-  total             Float
-  status            PayrollStatus @default(DRAFT)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  karyawan          Karyawan @relation(fields: [karyawanId], references: [id])
+  id                 String        @id @default(cuid())
+  karyawanId         String
+  periode            DateTime
+  periodeMulai       DateTime
+  periodeSelesai     DateTime
+  gajiPokok          Float
+  tunjangan          Float?
+  tunjanganJabatan   Float?        @default(0)
+  tunjanganKeluarga  Float?        @default(0)
+  tunjanganMakan     Float?        @default(0)
+  uangMakanLembur    Float?        @default(0)
+  tunjanganTransport Float?        @default(0)
+  tunjanganKehadiran Float?        @default(0)
+  tunjanganShift     Float?        @default(0)
+  potongan           Float?
+  totalJamLembur     Float         @default(0)
+  upahLembur         Float         @default(0)
+  pajak              Float         @default(0)
+  potonganPinjaman   Float         @default(0)
+  potonganKasbon     Float         @default(0)
+  potonganDpGaji     Float         @default(0)
+  total              Float
+  status             PayrollStatus @default(DRAFT)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  karyawan           Karyawan      @relation(fields: [karyawanId], references: [id])
 }
 
 model Absensi {
-  id              String           @id @default(cuid())
-  karyawanId      String
-  tanggal         DateTime
-  jamMasuk        DateTime?
-  jamKeluar       DateTime?
-  first_seen_at   DateTime?
-  jamKeluarDisetujui DateTime?     // Jam keluar yang divalidasi admin
-  jamKerjaDisetujui  Float?        // Jam kerja efektif setelah validasi (jam)
-  isValidated     Boolean          @default(false) // Sudah divalidasi admin
-  validatedBy     String?          // Nama/ID admin yang validasi
-  validatedAt     DateTime?        // Waktu validasi
-  catatanValidasi String?          // Catatan admin saat validasi
-  fotoMasuk       String?
-  fotoKeluar      String?
-  latMasuk        Float?
-  longMasuk       Float?
-  latKeluar       Float?
-  longKeluar      Float?
-  isMockedMasuk   Boolean          @default(false)
-  isMockedKeluar  Boolean          @default(false)
-  deviceMasuk     String?
-  deviceKeluar    String?
-  jamLembur       Float            @default(0)
-  status          AttendanceStatus @default(HADIR)
-  keterangan      String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  karyawan        Karyawan         @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(cuid())
+  karyawanId         String
+  tanggal            DateTime
+  jamMasuk           DateTime?
+  jamKeluar          DateTime?
+  first_seen_at      DateTime?
+  jamKeluarDisetujui DateTime? // Jam keluar yang divalidasi admin
+  jamKerjaDisetujui  Float? // Jam kerja efektif setelah validasi (jam)
+  isValidated        Boolean          @default(false) // Sudah divalidasi admin
+  validatedBy        String? // Nama/ID admin yang validasi
+  validatedAt        DateTime? // Waktu validasi
+  catatanValidasi    String? // Catatan admin saat validasi
+  fotoMasuk          String?
+  fotoKeluar         String?
+  latMasuk           Float?
+  longMasuk          Float?
+  latKeluar          Float?
+  longKeluar         Float?
+  isMockedMasuk      Boolean          @default(false)
+  isMockedKeluar     Boolean          @default(false)
+  deviceMasuk        String?
+  deviceKeluar       String?
+  jamLembur          Float            @default(0)
+  status             AttendanceStatus @default(HADIR)
+  keterangan         String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  karyawan           Karyawan         @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
 
   @@index([karyawanId])
   @@index([tanggal])
@@ -336,11 +340,11 @@ model KasbonSementara {
   jumlah              Decimal           @db.Decimal(19, 2)
   keperluan           String?
   status              CashAdvanceStatus @default(PENDING)
-  bulanPotong         DateTime?         // Bulan gajian yang akan memotong kasbon
-  approvedBy          String?           // Nama/ID approver
-  approvedAt          DateTime?         // Waktu approval
-  rejectedReason      String?           // Alasan penolakan
-  catatan             String?           // Catatan tambahan admin
+  bulanPotong         DateTime? // Bulan gajian yang akan memotong kasbon
+  approvedBy          String? // Nama/ID approver
+  approvedAt          DateTime? // Waktu approval
+  rejectedReason      String? // Alasan penolakan
+  catatan             String? // Catatan tambahan admin
   tanggalPenyelesaian DateTime?
   isPosted            Boolean           @default(false) // Sudah di-posting ke GL
   createdAt           DateTime          @default(now())
@@ -386,27 +390,44 @@ model PinjamanDetail {
 }
 
 model PayrollConfig {
-  id                  String   @id @default(cuid())
-  name                String   @unique
-  gajiPerHari         Float
-  lemburPerJam        Float
-  jamKerjaPerHari     Float    @default(8)    // Standar jam kerja per hari
-  toleransiTerlambat  Int      @default(15)   // Menit toleransi keterlambatan
-  potonganTerlambat   Float    @default(0)    // Potongan per kejadian terlambat (IDR)
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  gajiPerHari        Float
+  lemburPerJam       Float
+  jamKerjaPerHari        Float    @default(8) // Standar jam kerja per hari
+  toleransiTerlambat     Int      @default(15) // Menit toleransi keterlambatan
+  potonganTerlambat      Float    @default(0) // Potongan per kejadian terlambat (IDR)
+  minJamKerjaUangMakan   Float    @default(4)
+  minJamLemburUangMakan  Float    @default(3)
+  pengaliLemburJam1      Float    @default(1.5)
+  pengaliLemburJam2      Float    @default(2.0)
+  pengaliLemburJam3      Float    @default(2.0)
+  pengaliLemburJam4      Float    @default(2.0)
+  pengaliLemburJam5      Float    @default(2.0)
+  pengaliLemburJam6     Float?    @default(2.0)
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  karyawan              Karyawan[]
+}
+
+model GlobalPayrollConfig {
+  id                 String   @id @default(cuid())
+  cutOffAbsensi      Int      @default(20)
+  cutOffUangMakan1   Int      @default(5)
+  cutOffUangMakan2   Int      @default(20)
+  updatedAt          DateTime @updatedAt
 }
 
 model AttendanceLocation {
-  id        String   @id @default(cuid())
-  name      String   @unique
+  id        String     @id @default(cuid())
+  name      String     @unique
   latitude  Float
   longitude Float
-  radius    Float    @default(100) // dalam meter
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  radius    Float      @default(100) // dalam meter
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   karyawan  Karyawan[]
 }
 
@@ -419,7 +440,6 @@ model WifiSsid {
 
   @@map("wifi_ssids")
 }
-
 
 model Customer {
   id            String       @id @default(uuid())
@@ -581,14 +601,14 @@ model StockBalance {
 }
 
 model SPKProgressLog {
-  id              String   @id @default(uuid())
-  spkId           String
-  spk             SPK      @relation(fields: [spkId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  progress        Int      @default(0)
-  comment         String?  @db.Text
-  createdAt       DateTime @default(now())
+  id        String   @id @default(uuid())
+  spkId     String
+  spk       SPK      @relation(fields: [spkId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  progress  Int      @default(0)
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
 
   @@index([spkId])
   @@index([userId])
@@ -1103,15 +1123,15 @@ model BAP {
 }
 
 model BAPPhoto {
-  id        String        @id @default(uuid())
-  bapId     String
-  photoUrl  String
-  caption   String?
+  id         String        @id @default(uuid())
+  bapId      String
+  photoUrl   String
+  caption    String?
   createdAt  DateTime      @default(now())
   orderIndex Int           @default(0)
   category   PhotoCategory
   source     String?
-  bap       BAP           @relation(fields: [bapId], references: [id], onDelete: Cascade)
+  bap        BAP           @relation(fields: [bapId], references: [id], onDelete: Cascade)
 
   @@index([bapId])
   @@index([category])
@@ -2940,8 +2960,8 @@ model LeaveRequest {
   jumlahHari     Int
   keterangan     String
   status         LeaveStatus @default(PENDING)
-  bukti          String?     // URL/path to attachment
-  approvedBy     String?     // Name/ID of approver
+  bukti          String? // URL/path to attachment
+  approvedBy     String? // Name/ID of approver
   approvedAt     DateTime?
   rejectedReason String?
   createdAt      DateTime    @default(now())

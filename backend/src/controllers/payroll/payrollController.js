@@ -111,6 +111,51 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
   const totalJamKerja  = detailHarian.reduce((s, d) => s + d.jamKerja, 0);
   const totalJamLembur = detailHarian.reduce((s, d) => s + d.jamLembur, 0);
 
+  // ── Hitung Upah Lembur Dinamis (Per Jam/Hari) ──
+  let baseHourlyLembur = 0;
+  if (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") {
+    baseHourlyLembur = (karyawan.gajiPokok * 25) / 173;
+  } else {
+    baseHourlyLembur = karyawan.gajiPokok / 173;
+  }
+
+  let upahLemburDinamis = 0;
+  const p1 = config?.pengaliLemburJam1 || 1.5;
+  const p2 = config?.pengaliLemburJam2 || 2.0;
+  const p3 = config?.pengaliLemburJam3 || 2.0;
+  const p4 = config?.pengaliLemburJam4 || 2.0;
+  const p5 = config?.pengaliLemburJam5 || 2.0;
+  const p6 = config?.pengaliLemburJam6 || 2.0;
+
+  detailHarian.forEach((d) => {
+    let jl = d.jamLembur;
+    let upahHariIni = 0;
+    if (jl > 0) {
+      if (jl >= 1) { upahHariIni += baseHourlyLembur * p1; jl -= 1; }
+      else { upahHariIni += baseHourlyLembur * p1 * jl; jl = 0; }
+    }
+    if (jl > 0) {
+      if (jl >= 1) { upahHariIni += baseHourlyLembur * p2; jl -= 1; }
+      else { upahHariIni += baseHourlyLembur * p2 * jl; jl = 0; }
+    }
+    if (jl > 0) {
+      if (jl >= 1) { upahHariIni += baseHourlyLembur * p3; jl -= 1; }
+      else { upahHariIni += baseHourlyLembur * p3 * jl; jl = 0; }
+    }
+    if (jl > 0) {
+      if (jl >= 1) { upahHariIni += baseHourlyLembur * p4; jl -= 1; }
+      else { upahHariIni += baseHourlyLembur * p4 * jl; jl = 0; }
+    }
+    if (jl > 0) {
+      if (jl >= 1) { upahHariIni += baseHourlyLembur * p5; jl -= 1; }
+      else { upahHariIni += baseHourlyLembur * p5 * jl; jl = 0; }
+    }
+    if (jl > 0) {
+      upahHariIni += baseHourlyLembur * p6 * jl;
+    }
+    upahLemburDinamis += upahHariIni;
+  });
+
   // ── Kalkulasi pendapatan ──
   let gajiKerja = 0;
   let upahLembur = 0;
@@ -1210,4 +1255,38 @@ export const getMyGajiDetail = async (req, res) => {
   }
 };
 
+
+
+export const getGlobalPayrollConfig = async (req, res) => {
+  try {
+    let config = await prisma.globalPayrollConfig.findFirst();
+    if (!config) {
+      config = await prisma.globalPayrollConfig.create({
+        data: {}
+      });
+    }
+    res.json({ data: config });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateGlobalPayrollConfig = async (req, res) => {
+  try {
+    let config = await prisma.globalPayrollConfig.findFirst();
+    if (config) {
+      config = await prisma.globalPayrollConfig.update({
+        where: { id: config.id },
+        data: req.body
+      });
+    } else {
+      config = await prisma.globalPayrollConfig.create({
+        data: req.body
+      });
+    }
+    res.json({ data: config, message: "Global config updated" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 

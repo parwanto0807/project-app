@@ -150,6 +150,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   const [employeeToDelete, setEmployeeToDelete] = useState<Karyawan | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [data, setData] = useState<Karyawan[]>([]);
+  const [editedId, setEditedId] = useState<string | null>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Helper component for expanded row info
@@ -174,6 +175,21 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       setData(karyawan);
     }
   }, [karyawan]);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('editedId');
+      if (id) {
+        setEditedId(id);
+        // Optionally remove the query parameter so it doesn't persist forever
+        window.history.replaceState({}, '', window.location.pathname);
+        
+        // Let it disappear after a few seconds
+        setTimeout(() => setEditedId(null), 10000);
+      }
+    }
+  }, []);
 
   // Fungsi untuk membuka dialog konfirmasi hapus
   const handleDeleteClick = (employee: Karyawan, e?: React.MouseEvent) => {
@@ -321,6 +337,17 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     doc.save("daftar-karyawan.pdf");
   };
 
+  // Pagination Effect for jumping to edited item
+  React.useEffect(() => {
+    if (editedId && filteredAndSortedData.length > 0) {
+      const itemIndex = filteredAndSortedData.findIndex(item => item.id === editedId);
+      if (itemIndex !== -1) {
+        const page = Math.floor(itemIndex / itemsPerPage) + 1;
+        setCurrentPage(page);
+      }
+    }
+  }, [editedId, filteredAndSortedData, itemsPerPage]);
+
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -401,7 +428,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     const isExpanded = expandedRows.has(employee.id);
 
     return (
-      <Card className="mb-4 overflow-hidden border border-gray-200 dark:border-gray-700">
+      <Card className={`mb-4 overflow-hidden border transition-all duration-1000 ${employee.id === editedId ? 'ring-2 ring-orange-500 bg-orange-50/50 border-orange-500 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
         <div className="p-2">
           <div className="flex items-start gap-2">
             <Avatar className="h-12 w-12 border">
@@ -999,7 +1026,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     ? currentItems.map((item) => (
                       <React.Fragment key={item.id}>
                         <TableRow
-                          className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${expandedRows.has(item.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-all duration-1000 ${expandedRows.has(item.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''} ${item.id === editedId ? 'bg-orange-100/50 dark:bg-orange-800/30 ring-2 ring-orange-400 ring-inset' : ''}`}
                           onClick={(e) => handleRowClick(item.id, e)}
                         >
                           <TableCell className="font-medium">{item.nik}</TableCell>

@@ -17,6 +17,8 @@ import {
   getPayrollConfigs,
   createPayrollConfig,
   updatePayrollConfig,
+  getGlobalPayrollConfig,
+  updateGlobalPayrollConfig,
   getMyGaji,
   getMyGajiDetail,
 } from "../../controllers/payroll/payrollController.js";
@@ -50,5 +52,9 @@ router.post("/bulk-publish", publishBulkPayroll);
 router.get("/config", getPayrollConfigs);
 router.post("/config", createPayrollConfig);
 router.put("/config/:id", updatePayrollConfig);
+
+// Global Config
+router.get("/global-config", getGlobalPayrollConfig);
+router.put("/global-config", updateGlobalPayrollConfig);
 
 export default router;

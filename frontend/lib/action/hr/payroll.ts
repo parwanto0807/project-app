@@ -243,13 +243,16 @@ export async function fetchPayrollConfigs() {
   try {
     const res = await fetch(`${API_URL}/api/payroll/config`, { cache: "no-store" });
     if (!res.ok) throw new Error("Gagal fetch config");
-    return { data: await res.json(), error: null };
+    const data = await res.json();
+    console.log("[fetchPayrollConfigs] data:", data);
+    return { data, error: null };
   } catch (error) {
+    console.error("[fetchPayrollConfigs] error:", error);
     return { data: [], error: (error as Error).message };
   }
 }
 
-export async function createPayrollConfig(data: { name: string; gajiPerHari: number; lemburPerJam: number }) {
+export async function createPayrollConfig(data: any) {
   try {
     const res = await fetch(`${API_URL}/api/payroll/config`, {
       method: "POST",
@@ -273,6 +276,33 @@ export async function updatePayrollConfig(id: string, data: any) {
     });
     if (!res.ok) throw new Error("Gagal update config");
     revalidatePath("/admin-area/hr/payroll");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+// ─── GLOBAL PAYROLL CONFIG ───────────────────────────────────────────────────
+
+export async function fetchGlobalPayrollConfig() {
+  try {
+    const res = await fetch(`${API_URL}/api/payroll/global-config`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Gagal fetch global config');
+    return { data: await res.json(), error: null };
+  } catch (error) {
+    return { data: null, error: (error as Error).message };
+  }
+}
+
+export async function updateGlobalPayrollConfig(data: any) {
+  try {
+    const res = await fetch(`${API_URL}/api/payroll/global-config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Gagal update global config');
+    revalidatePath('/admin-area/hr/payroll');
     return { success: true };
   } catch (error) {
     return { success: false, error: (error as Error).message };
