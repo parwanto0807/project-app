@@ -201,7 +201,7 @@ export function TabelGrInventory({
 
     const handleExport = (gr: GoodsReceipt) => {
         // Implement export logic
-        ;(() => {})('Exporting:', gr.id);
+        ;((...args: any[]) => {})('Exporting:', gr.id);
     };
 
     const handleQC = (id: string) => {

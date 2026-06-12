@@ -82,11 +82,11 @@ export default function CreateSpkPageAdminSO() {
   // Set data sales order yang dipilih setelah data selesai di-fetch
   useEffect(() => {
     if (dataFetched && salesOrders.length > 0 && id) {
-      (() => {})("Searching for SO with ID:", id);
-      (() => {})("Available SOs:", salesOrders.map(so => ({ id: so.id, soNumber: so.soNumber })));
+      ;((...args: any[]) => {})("Searching for SO with ID:", id);
+      ;((...args: any[]) => {})("Available SOs:", salesOrders.map(so => ({ id: so.id, soNumber: so.soNumber })));
 
       const foundOrder = salesOrders.find((so: SalesOrder) => so.id === id);
-      (() => {})("Found order:", foundOrder);
+      ;((...args: any[]) => {})("Found order:", foundOrder);
 
       setSelectedSalesOrder(foundOrder || null);
     }

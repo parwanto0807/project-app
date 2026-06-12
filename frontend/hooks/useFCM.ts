@@ -37,9 +37,9 @@ export const useFCM = () => {
       setIsSupported(isFcmSupported);
       
       if (!isFcmSupported) {
-        ;(() => {})('❌ FCM not supported in this environment');
+        ;((...args: any[]) => {})('❌ FCM not supported in this environment');
       } else {
-        ;(() => {})('✅ FCM supported');
+        ;((...args: any[]) => {})('✅ FCM supported');
       }
     };
 
@@ -50,39 +50,39 @@ export const useFCM = () => {
   const requestPermission = async (): Promise<string | null> => {
     try {
       if (!messaging) {
-        ;(() => {})('❌ Messaging not available');
+        ;((...args: any[]) => {})('❌ Messaging not available');
         return null;
       }
 
-      ;(() => {})('🔔 Requesting notification permission...');
+      ;((...args: any[]) => {})('🔔 Requesting notification permission...');
       
       const permission = await Notification.requestPermission();
       
       if (permission === 'granted') {
-        ;(() => {})('✅ Notification permission granted');
+        ;((...args: any[]) => {})('✅ Notification permission granted');
         
         const token = await getToken(messaging, {
           vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
         });
         
         if (token) {
-          ;(() => {})('✅ FCM Token received:', token);
+          ;((...args: any[]) => {})('✅ FCM Token received:', token);
           setFcmToken(token);
           
           // Simpan ke backend
           const saved = await saveFcmToken(token);
           if (saved) {
-            ;(() => {})('✅ FCM Token saved to backend');
+            ;((...args: any[]) => {})('✅ FCM Token saved to backend');
           } else {
-            ;(() => {})('❌ Failed to save FCM token to backend');
+            ;((...args: any[]) => {})('❌ Failed to save FCM token to backend');
           }
           
           return token;
         } else {
-          ;(() => {})('❌ No FCM token received');
+          ;((...args: any[]) => {})('❌ No FCM token received');
         }
       } else {
-        ;(() => {})(`❌ Notification permission ${permission}`);
+        ;((...args: any[]) => {})(`❌ Notification permission ${permission}`);
       }
     } catch (error) {
       console.error('❌ Error getting FCM token:', error);
@@ -95,10 +95,10 @@ export const useFCM = () => {
   useEffect(() => {
     if (!messaging) return;
 
-    ;(() => {})('🎯 Setting up FCM message listener...');
+    ;((...args: any[]) => {})('🎯 Setting up FCM message listener...');
     
     const unsubscribe = onMessage(messaging, (payload: MessagePayload) => {
-      ;(() => {})('📨 Received foreground message:', payload);
+      ;((...args: any[]) => {})('📨 Received foreground message:', payload);
       
       // Convert Firebase payload ke custom type
       const incomingMessage = convertToIncomingMessage(payload);
@@ -107,13 +107,13 @@ export const useFCM = () => {
       // Show notification
       if (incomingMessage.notification && incomingMessage.notification.title && incomingMessage.notification.body) {
         const { title, body } = incomingMessage.notification;
-        ;(() => {})(`📢 Showing notification: ${title} - ${body}`);
+        ;((...args: any[]) => {})(`📢 Showing notification: ${title} - ${body}`);
         showBrowserNotification(title, body);
       }
     });
 
     return () => {
-      ;(() => {})('🧹 Cleaning up FCM message listener');
+      ;((...args: any[]) => {})('🧹 Cleaning up FCM message listener');
       unsubscribe();
     };
   }, []);
@@ -131,7 +131,7 @@ export const useFCM = () => {
 
         // Handle notification click
         notification.onclick = () => {
-          ;(() => {})('🖱️ Notification clicked');
+          ;((...args: any[]) => {})('🖱️ Notification clicked');
           window.focus();
           notification.close();
         };
@@ -151,13 +151,13 @@ export const useFCM = () => {
   const deleteFcmToken = async (): Promise<void> => {
     try {
       if (!messaging) {
-        ;(() => {})('❌ Messaging not available');
+        ;((...args: any[]) => {})('❌ Messaging not available');
         return;
       }
 
       await deleteToken(messaging);
       setFcmToken(null);
-      ;(() => {})('✅ FCM Token deleted');
+      ;((...args: any[]) => {})('✅ FCM Token deleted');
     } catch (error) {
       console.error('❌ Error deleting FCM token:', error);
     }

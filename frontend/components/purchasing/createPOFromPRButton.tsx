@@ -182,8 +182,8 @@ export default function CreatePOFromPRButton({
         setLoadingPRs(true);
         try {
             const prs = await getApprovedPRsForPO();
-            ;(() => {})('Fetched PRs:', prs); // Debug: Check if data includes purchaseOrders
-            ;(() => {})('First PR purchaseOrders:', prs[0]?.purchaseOrders); // Debug: Check first PR
+            ;((...args: any[]) => {})('Fetched PRs:', prs); // Debug: Check if data includes purchaseOrders
+            ;((...args: any[]) => {})('First PR purchaseOrders:', prs[0]?.purchaseOrders); // Debug: Check first PR
 
             // Map purchaseOrders to existingPOs for component use and include spkId
             const mappedPRs = prs.map(pr => ({

@@ -89,7 +89,7 @@ export default function DashboardClient({
 
                 // Update Stats if available
                 if (res.data.summary?.stats) {
-                    setStats(res.data.summary.stats);
+                    setStats(res.data.summary.stats as any);
                 }
 
                 setLastUpdated(new Date());

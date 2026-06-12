@@ -208,7 +208,7 @@ export async function updateUangMukaStatus(
   id: string,
   data: UpdateStatusInput
 ): Promise<UangMukaResponse> {
-  ;(() => {})("🔵 3. updateUangMukaStatus started");
+  ;((...args: any[]) => {})("🔵 3. updateUangMukaStatus started");
   try {
     const formData = new FormData();
 
@@ -223,7 +223,7 @@ export async function updateUangMukaStatus(
         : formatDate(new Date(), 'yyyy-MM-dd')
     );
 
-    // ;(() => {})("🟡 3a. Processing files:", {
+    // ;((...args: any[]) => {})("🟡 3a. Processing files:", {
     //   buktiPencairanType: typeof data.buktiPencairan,
     //   isArray: Array.isArray(data.buktiPencairan),
     //   fileCount: Array.isArray(data.buktiPencairan)
@@ -237,12 +237,12 @@ export async function updateUangMukaStatus(
         data.buktiPencairan.forEach((file, index) => {
           if (file instanceof File) {
             formData.append("buktiPencairan", file);
-            ;(() => {})(`📎 3b. Appended file ${index + 1}:`, file.name);
+            ;((...args: any[]) => {})(`📎 3b. Appended file ${index + 1}:`, file.name);
           }
         });
       } else if (data.buktiPencairan instanceof File) {
         formData.append("buktiPencairan", data.buktiPencairan);
-        // ;(() => {})("📎 3c. Appended single file:", data.buktiPencairan.name);
+        // ;((...args: any[]) => {})("📎 3c. Appended single file:", data.buktiPencairan.name);
       } else {
         throw new Error("Format bukti transaksi tidak valid");
       }
@@ -266,7 +266,7 @@ export async function updateUangMukaStatus(
     if (data.accountPencairanId)
       formData.append("accountPencairanId", data.accountPencairanId);
 
-    // ;(() => {})(
+    // ;((...args: any[]) => {})(
     //   "🟡 3d. Making fetch request to:",
     //   `${API_BASE_URL}/api/um/updateUangMukaStatus/${id}`
     // );
@@ -280,19 +280,19 @@ export async function updateUangMukaStatus(
       }
     );
 
-    // ;(() => {})("🟡 3e. Response status:", response.status);
+    // ;((...args: any[]) => {})("🟡 3e. Response status:", response.status);
 
     if (!response.ok) {
       const errMsg = await response.text();
-      // ;(() => {})("🔴 3f. Response not OK:", errMsg);
+      // ;((...args: any[]) => {})("🔴 3f. Response not OK:", errMsg);
       throw new Error(errMsg);
     }
 
     const result = await handleResponse<UangMukaResponse>(response);
-    ;(() => {})("🟢 3g. Request successful:", result);
+    ;((...args: any[]) => {})("🟢 3g. Request successful:", result);
     return result;
   } catch (error) {
-    ;(() => {})("🔴 3h. Error in updateUangMukaStatus:", error);
+    ;((...args: any[]) => {})("🔴 3h. Error in updateUangMukaStatus:", error);
     console.error("Error updating uang muka status:", error);
     throw error;
   }

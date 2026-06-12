@@ -42,12 +42,12 @@ export default function SpkReportDetailByIdPageAdmin() {
         try {
             setIsLoading(true);
             setError(null);
-            // (() => {})("🔄 Fetching SPK dengan ID:", spkId);
+            // ((...args: any[]) => {})("🔄 Fetching SPK dengan ID:", spkId);
 
             let result: SPKDataApi | null = null;
             if (role === 'pic') {
                 result = await fetchSpkById(spkId);
-                // (() => {})("✅ Data diterima:", result);
+                // ((...args: any[]) => {})("✅ Data diterima:", result);
             }
 
             setDataSpk(result);

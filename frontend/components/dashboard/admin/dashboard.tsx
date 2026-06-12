@@ -318,7 +318,7 @@ export default function DashboardAwalSalesOrder() {
         const tahun = date.getFullYear()
         return `${bulan} ${tahun}`
     }
-    // ;(() => {})("Data Sales Stats", salesStats);
+    // ;((...args: any[]) => {})("Data Sales Stats", salesStats);
 
     const lastMonth = new Date()
     lastMonth.setMonth(lastMonth.getMonth() - 1)
@@ -376,7 +376,7 @@ export default function DashboardAwalSalesOrder() {
                 } else if (monthlyJson && typeof monthlyJson === 'object' && 'data' in monthlyJson) {
                     monthlyData = (monthlyJson as { data: MonthlySalesData[] }).data;
                 }
-                // ;(() => {})("monthlyData",monthlyData)
+                // ;((...args: any[]) => {})("monthlyData",monthlyData)
 
                 setMonthlySalesAll(monthlyData);
                 setMonthlySalesFiltered(monthlyData);

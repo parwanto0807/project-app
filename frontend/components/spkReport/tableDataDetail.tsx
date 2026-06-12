@@ -198,12 +198,12 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     const [previewSpk, setPreviewSpk] = useState<string | undefined>(undefined);
 
 
-    ;(() => {})("User", userId, spkItemProgress)
-    // ;(() => {})("Data SPK", dataSpk);
-    // ;(() => {})("Data SO Item", selectedSpk);
-    // ;(() => {})("User SPK", userSpk);
-    // ;(() => {})("Report", reports);
-    // ;(() => {})("Total Progress", summaryProgress);
+    ;((...args: any[]) => {})("User", userId, spkItemProgress)
+    // ;((...args: any[]) => {})("Data SPK", dataSpk);
+    // ;((...args: any[]) => {})("Data SO Item", selectedSpk);
+    // ;((...args: any[]) => {})("User SPK", userSpk);
+    // ;((...args: any[]) => {})("Report", reports);
+    // ;((...args: any[]) => {})("Total Progress", summaryProgress);
 
     const totalPages = Math.ceil(reports.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -425,7 +425,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
         // Cari spkNumber dari list
         const selectedSpk = filteredUserSpk.find(spk => spk.id === filters.spkId);
-        // ;(() => {})("Selected SPK for PDF:", selectedSpk);
+        // ;((...args: any[]) => {})("Selected SPK for PDF:", selectedSpk);
         if (!selectedSpk) {
             toast.error("SPK tidak ditemukan");
             return;

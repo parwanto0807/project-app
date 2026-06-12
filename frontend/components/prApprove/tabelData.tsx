@@ -318,13 +318,13 @@ export function PrApprovalTable({
 
     // Handle PDF preview - MENGGUNAKAN handleOpenDetail
     const handlePreviewPdf = (uangMuka: UangMuka) => {
-        ;(() => {})('Preview PDF for:', uangMuka.nomor);
+        ;((...args: any[]) => {})('Preview PDF for:', uangMuka.nomor);
         handleOpenDetail(uangMuka); // Use handleOpenDetail instead of just logging
     };
 
     // Handle edit - MENGGUNAKAN handleOpenDetail
     const handleEdit = (uangMuka: UangMuka) => {
-        ;(() => {})('Edit:', uangMuka.nomor);
+        ;((...args: any[]) => {})('Edit:', uangMuka.nomor);
         handleOpenDetail(uangMuka); // Use handleOpenDetail for edit as well
     };
 

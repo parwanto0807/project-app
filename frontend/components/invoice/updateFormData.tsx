@@ -326,8 +326,8 @@ export function UpdateInvoiceForm({ currentUser, salesOrders, users, banks, init
         try {
             // Debug: Cek bank account yang dipilih
             const selectedBank = banks.find(bank => bank.id === data.bankAccountId);
-            ;(() => {})("Selected bank:", selectedBank);
-            ;(() => {})("Available banks:", banks);
+            ;((...args: any[]) => {})("Selected bank:", selectedBank);
+            ;((...args: any[]) => {})("Available banks:", banks);
 
             if (!selectedBank) {
                 toast.error("Selected bank account is invalid");

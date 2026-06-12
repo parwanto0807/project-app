@@ -120,10 +120,10 @@ export default function SalesOrderPageAdmin() {
       !restrictedStatuses.includes(order.status)
     );
 
-    // ;(() => {})('📊 FILTERING DEBUG:');
-    // ;(() => {})('Raw data:', rawSalesOrders.length);
-    // ;(() => {})('Filtered data:', filteredData.length);
-    // ;(() => {})('Original pagination totalPages:', salesOrderData?.pagination?.totalPages);
+    // ;((...args: any[]) => {})('📊 FILTERING DEBUG:');
+    // ;((...args: any[]) => {})('Raw data:', rawSalesOrders.length);
+    // ;((...args: any[]) => {})('Filtered data:', filteredData.length);
+    // ;((...args: any[]) => {})('Original pagination totalPages:', salesOrderData?.pagination?.totalPages);
 
     return {
       filteredSalesOrders: filteredData
@@ -135,10 +135,10 @@ export default function SalesOrderPageAdmin() {
 
   // // Debug untuk memastikan
   // useEffect(() => {
-  //   ;(() => {})('🎯 PAGINATION CHECK:');
-  //   ;(() => {})('Filtered data count:', filteredSalesOrders.length);
-  //   ;(() => {})('Pagination meta totalPages:', filteredPaginationMeta?.totalPages);
-  //   ;(() => {})('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
+  //   ;((...args: any[]) => {})('🎯 PAGINATION CHECK:');
+  //   ;((...args: any[]) => {})('Filtered data count:', filteredSalesOrders.length);
+  //   ;((...args: any[]) => {})('Pagination meta totalPages:', filteredPaginationMeta?.totalPages);
+  //   ;((...args: any[]) => {})('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
   // }, [filteredSalesOrders, filteredPaginationMeta]);
 
   useEffect(() => {
@@ -254,18 +254,18 @@ export default function SalesOrderPageAdmin() {
   }, [userLoading, user, router]);
 
   // useEffect(() => {
-  //   ;(() => {})('=== PAGINATION DEBUG ===');
-  //   ;(() => {})('Filtered data count:', filteredSalesOrders.length);
-  //   ;(() => {})('Filtered pagination:', filteredPaginationMeta);
-  //   ;(() => {})('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
-  //   ;(() => {})('=======================');
+  //   ;((...args: any[]) => {})('=== PAGINATION DEBUG ===');
+  //   ;((...args: any[]) => {})('Filtered data count:', filteredSalesOrders.length);
+  //   ;((...args: any[]) => {})('Filtered pagination:', filteredPaginationMeta);
+  //   ;((...args: any[]) => {})('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
+  //   ;((...args: any[]) => {})('=======================');
   // }, [filteredSalesOrders, filteredPaginationMeta]);
 
   // ===============================
   //    RENDER PAGINATION COMPONENT  
   // ===============================
   const renderPagination = () => {
-    // ;(() => {})('🔍 RENDER PAGINATION CHECK:', {
+    // ;((...args: any[]) => {})('🔍 RENDER PAGINATION CHECK:', {
     //   hasMeta: !!filteredPaginationMeta,
     //   totalPages: filteredPaginationMeta?.totalPages,
     //   originalTotalCount: salesOrderData?.pagination?.totalCount,
@@ -273,11 +273,11 @@ export default function SalesOrderPageAdmin() {
     // });
 
     if (!filteredPaginationMeta || filteredPaginationMeta.totalPages <= 1) {
-      ;(() => {})('❌ No pagination - meta missing or only one page');
+      ;((...args: any[]) => {})('❌ No pagination - meta missing or only one page');
       return null;
     }
 
-    // ;(() => {})('✅ Rendering pagination with', filteredPaginationMeta.totalPages, 'pages');
+    // ;((...args: any[]) => {})('✅ Rendering pagination with', filteredPaginationMeta.totalPages, 'pages');
 
     return (
       <div className="flex justify-center">

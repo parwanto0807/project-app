@@ -54,7 +54,7 @@ export interface SalesOrderFormData {
 
 export default function SalesOrderPdfPreview({ formData }: { formData: SalesOrderFormData }) {
     const pdfData: SalesOrderPDFProps["data"] = mapFormToPdfData(formData);
-    ;(() => {})("Mapped PDF Data:", pdfData);
+    ;((...args: any[]) => {})("Mapped PDF Data:", pdfData);
 
     const handlePrint = async () => {
         const blob = await pdf(<SalesOrderPDF data={pdfData} />).toBlob();

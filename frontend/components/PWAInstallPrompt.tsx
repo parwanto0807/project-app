@@ -52,11 +52,11 @@ export default function PWAInstallPrompt() {
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
 
-    ;(() => {})('🔄 Triggering install prompt...');
+    ;((...args: any[]) => {})('🔄 Triggering install prompt...');
     deferredPrompt.prompt();
 
     const { outcome } = await deferredPrompt.userChoice;
-    ;(() => {})(`User response to install prompt: ${outcome}`);
+    ;((...args: any[]) => {})(`User response to install prompt: ${outcome}`);
 
     setDeferredPrompt(null);
     setShowPrompt(false);

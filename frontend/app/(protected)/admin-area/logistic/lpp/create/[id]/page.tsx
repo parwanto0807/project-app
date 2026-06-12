@@ -82,7 +82,7 @@ export default function CreateLppFromSpkPage() {
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Gagal memuat data purchase request"
-            (() => {})("❌ [PAGE] Error fetching:", err)
+            ;((...args: any[]) => {})("❌ [PAGE] Error fetching:", err)
             setFetchError(errorMessage)
         } finally {
             setIsFetching(false)
@@ -97,7 +97,7 @@ export default function CreateLppFromSpkPage() {
     }, [handleFetchPurchaseRequest, id])
 
     const handleSubmit = async (data: CreateLppForm, fotoBuktiMap?: FotoBuktiMap) => {
-        (() => {})("DATA", data, "FOTO", fotoBuktiMap)
+        ;((...args: any[]) => {})("DATA", data, "FOTO", fotoBuktiMap)
         try {
             setIsSubmitting(true);
 
@@ -138,7 +138,7 @@ export default function CreateLppFromSpkPage() {
                     toast.warning("LPP berhasil dibuat, tetapi ada masalah saat upload foto");
                 }
             } else {
-                (() => {})("⏭️ No foto to upload");
+                ;((...args: any[]) => {})("⏭️ No foto to upload");
                 toast.success("✅ LPP berhasil dibuat (tanpa foto)");
             }
 

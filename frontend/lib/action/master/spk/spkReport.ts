@@ -123,13 +123,13 @@ export const createReportFormData = ({
   // ✅ ✅ ✅ KRITIS: soDetailId — hanya append jika bernilai valid (bukan null/undefined/kosong)
   if (soDetailId && soDetailId.trim() !== "") {
     formData.append("soDetailId", soDetailId.trim());
-    ;;(() => {})("📌 Ditambahkan soDetailId:", soDetailId.trim());
+    ;;((...args: any[]) => {})("📌 Ditambahkan soDetailId:", soDetailId.trim());
   } else {
-    ;;(() => {})("➖ Tidak menambahkan soDetailId (tidak dipilih atau kosong)");
+    ;;((...args: any[]) => {})("➖ Tidak menambahkan soDetailId (tidak dipilih atau kosong)");
   }
 
   // 👇 Debug akhir
-  // ;(() => {})("📤 Isi FormData akhir:", [...formData.entries()]);
+  // ;((...args: any[]) => {})("📤 Isi FormData akhir:", [...formData.entries()]);
 
   return formData;
 };

@@ -172,7 +172,7 @@ export function PaymentProcessDialog({
         }
 
         // 2. Validasi Kurang Bayar tapi Mode FULL
-        ;(() => {})('💰 Payment Validation:', {
+        ;((...args: any[]) => {})('💰 Payment Validation:', {
             totalCharged,
             balanceDue,
             amount: formData.amount,
@@ -191,7 +191,7 @@ export function PaymentProcessDialog({
             return;
         }
 
-        ;(() => {})('✅ Validation passed, proceeding to Zod validation...');
+        ;((...args: any[]) => {})('✅ Validation passed, proceeding to Zod validation...');
 
         const result = formSchema.safeParse(formData);
 
@@ -221,7 +221,7 @@ export function PaymentProcessDialog({
             return;
         }
 
-        ;(() => {})('✅ Zod validation passed, submitting payment...');
+        ;((...args: any[]) => {})('✅ Zod validation passed, submitting payment...');
 
 
         try {

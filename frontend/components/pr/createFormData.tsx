@@ -286,9 +286,9 @@ export function TabelInputPR({
         error: prError
     } = usePurchaseRequestsBySpkId(selectedSpk?.id);
 
-    // ;(() => {})("Karyawan ID", karyawanData);
-    // ;(() => {})("Purchase Requests Data:", purchaseRequests);
-    // ;(() => {})("Selected SPK ID:", selectedSpk?.id);
+    // ;((...args: any[]) => {})("Karyawan ID", karyawanData);
+    // ;((...args: any[]) => {})("Purchase Requests Data:", purchaseRequests);
+    // ;((...args: any[]) => {})("Selected SPK ID:", selectedSpk?.id);
 
     useEffect(() => {
         const fetchKaryawan = async () => {
@@ -381,7 +381,7 @@ export function TabelInputPR({
 
     // Debug log ketika karyawanData berubah
     // useEffect(() => {
-    //     ;(() => {})("Karyawan data updated:", karyawanData);
+    //     ;((...args: any[]) => {})("Karyawan data updated:", karyawanData);
     // }, [karyawanData]);
 
     const handleSpkChange = (spkId: string) => {
@@ -735,7 +735,7 @@ export function TabelInputPR({
 
         try {
             // Debug log
-            ;(() => {})("📝 Form Data before submit:", {
+            ;((...args: any[]) => {})("📝 Form Data before submit:", {
                 karyawanId: finalKaryawanId,
                 requestedById: formData.requestedById,
                 willUse: formData.requestedById || finalKaryawanId

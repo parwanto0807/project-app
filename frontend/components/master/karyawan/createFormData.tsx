@@ -28,7 +28,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
     const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string }>({ success: false, message: '' });
     const router = useRouter();
 
-    ;(() => {})("Role", role)
+    ;((...args: any[]) => {})("Role", role)
     const form = useForm({
         resolver: zodResolver(employeeFormSchema),
         defaultValues: {
@@ -174,7 +174,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                     const user = await fetchUserByEmail(email);
                     if (user && user.id) {
                         form.setValue("userId", user.id);
-                        ;(() => {})("Existing user ID set:", user.id);
+                        ;((...args: any[]) => {})("Existing user ID set:", user.id);
                     }
                 } catch (e) {
                     console.error("Failed to fetch existing user:", e);
@@ -202,7 +202,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                 if (newEmail && newEmail.email) {
                                     if (newEmail.id) {
                                         form.setValue("userId", newEmail.id);
-                                        ;(() => {})("New user ID set:", newEmail.id);
+                                        ;((...args: any[]) => {})("New user ID set:", newEmail.id);
                                     }
 
                                     setEmailStatus({

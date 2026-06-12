@@ -8,7 +8,7 @@ export class CookieHelper {
     const hasAccessToken = cookies.includes('access_token');
     const hasRefreshToken = cookies.includes('refresh_token');
     
-    ;(() => {})('🍪 [COOKIE-HELPER] Cookie check:', {
+    ;((...args: any[]) => {})('🍪 [COOKIE-HELPER] Cookie check:', {
       allCookies: cookies,
       hasAccessToken,
       hasRefreshToken
@@ -25,7 +25,7 @@ export class CookieHelper {
       const checkInterval = setInterval(() => {
         if (this.areCookiesAvailable()) {
           clearInterval(checkInterval);
-          ;(() => {})('🍪 [COOKIE-HELPER] Cookies available after', Date.now() - startTime, 'ms');
+          ;((...args: any[]) => {})('🍪 [COOKIE-HELPER] Cookies available after', Date.now() - startTime, 'ms');
           resolve(true);
         }
         
@@ -47,7 +47,7 @@ export class CookieHelper {
     
     if (parts.length === 2) {
       const cookieValue = parts.pop()!.split(';').shift();
-      ;(() => {})('🍪 [COOKIE-HELPER] Get cookie:', { name, value: cookieValue ? '***' : 'null' });
+      ;((...args: any[]) => {})('🍪 [COOKIE-HELPER] Get cookie:', { name, value: cookieValue ? '***' : 'null' });
       return cookieValue || null;
     }
     

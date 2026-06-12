@@ -88,7 +88,7 @@ export default function PayrollPage() {
     try {
       const res = await publishBulkPayroll(periode + "-01");
       if (res.success) {
-        toast.success(res.message || "Slip gaji berhasil dipublikasikan");
+        toast.success((res as any).message || "Slip gaji berhasil dipublikasikan");
         loadData();
       } else {
         toast.error(res.error || "Gagal publikasi massal");

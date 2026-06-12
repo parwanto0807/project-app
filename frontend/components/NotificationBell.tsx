@@ -66,12 +66,7 @@ export default function NotificationBell() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Sync Logic
-    useEffect(() => {
-        if (!isLoading) {
-            syncWithServer();
-        }
-    }, [notifications, isLoading, syncWithServer]);
+
 
     // Initialize FCM
     useEffect(() => {
@@ -85,7 +80,7 @@ export default function NotificationBell() {
                     try {
                         await navigator.serviceWorker.register('/firebase-messaging-sw.js');
                     } catch (err) {
-                        ;(() => {})('SW registration failed: ', err);
+                        console.log('SW registration failed: ', err);
                     }
                 }
                 if (Notification.permission === 'default') {
@@ -98,7 +93,7 @@ export default function NotificationBell() {
                     await saveFcmToken(token);
                 }
             } catch (error) {
-                ;(() => {})('FCM initialization skipped:', error);
+                console.log('FCM initialization skipped:', error);
             }
         };
         initializeFCM();
@@ -113,7 +108,7 @@ export default function NotificationBell() {
                 if (token) await removeFcmToken(token);
                 localStorage.removeItem('fcm-notifications');
             } catch (error) {
-                ;(() => {})('Cleanup during logout:', error);
+                console.log('Cleanup during logout:', error);
             }
         };
         window.addEventListener('user-logout', handleLogoutCleanup);
@@ -124,7 +119,7 @@ export default function NotificationBell() {
     useEffect(() => {
         if (!messaging) return;
         const unsubscribe = onMessage(messaging, (payload) => {
-            ;(() => {})("🔥 [FCM Foreground] Payload:", payload);
+            console.log("🔥 [FCM Foreground] Payload:", payload);
 
             const title =
                 payload.notification?.title || payload.data?.title || "Notification";

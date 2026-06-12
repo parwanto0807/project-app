@@ -609,13 +609,13 @@ const GoodsReceiptPdfDocument = ({ goodsReceipt }: { goodsReceipt: GoodsReceipt 
         vendorDeliveryNote,
         vehicleNumber,
         driverName,
-        purchaseOrder,
+        PurchaseOrder,
         sourceType,
         items,
         receivedBy,
         status,
         notes,
-        warehouse,
+        Warehouse,
         createdAt,
     } = goodsReceipt;
 
@@ -714,9 +714,9 @@ const GoodsReceiptPdfDocument = ({ goodsReceipt }: { goodsReceipt: GoodsReceipt 
 
                         <View style={styles.deliveryBox}>
                             <Text style={styles.deliveryLabel}>Diterima di Gudang:</Text>
-                            <Text style={styles.deliveryValueBold}>{warehouse?.name || '-'}</Text>
+                            <Text style={styles.deliveryValueBold}>{Warehouse?.name || '-'}</Text>
                             <Text style={[styles.deliveryValue, { fontSize: 7 }]}>
-                                {warehouse?.address || ''}
+                                {Warehouse?.address || ''}
                             </Text>
 
                             <Text style={styles.deliveryLabel}>Diterima Oleh:</Text>
@@ -731,7 +731,7 @@ const GoodsReceiptPdfDocument = ({ goodsReceipt }: { goodsReceipt: GoodsReceipt 
                             <Text style={styles.deliveryValueBold}>{formatDateTime(receivedDate)}</Text>
 
                             <Text style={styles.deliveryLabel}>Referensi PO:</Text>
-                            <Text style={styles.deliveryValue}>{purchaseOrder?.poNumber || '-'}</Text>
+                            <Text style={styles.deliveryValue}>{PurchaseOrder?.poNumber || '-'}</Text>
                         </View>
                     </View>
                 </View>

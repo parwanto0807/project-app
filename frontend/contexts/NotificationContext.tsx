@@ -66,7 +66,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // 🔥 NEW: Function untuk stop semua operations
   const stopAllNotificationOperations = useCallback(() => {
-    ;(() => {})('[Notifications] 🛑 Stopping all operations');
+    ;((...args: any[]) => {})('[Notifications] 🛑 Stopping all operations');
 
     logoutInProgressRef.current = true;
     shouldSkipOperationsRef.current = true;
@@ -143,19 +143,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const loadFromServer = useCallback(async () => {
     // 🔥 SKIP JIKA SEDANG LOGOUT ATAU DI LOGIN PAGE
     if (!shouldProceed()) {
-      ;(() => {})('[Notifications] ⏸️ Skipping load - logout in progress or on login page');
+      ;((...args: any[]) => {})('[Notifications] ⏸️ Skipping load - logout in progress or on login page');
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      // ;(() => {})("🔄 [Notifications] fetching from server...");
+      // ;((...args: any[]) => {})("🔄 [Notifications] fetching from server...");
       const serverData = await getNotifications({ limit: 100 });
 
       // 🔥 CHECK: Jika unauthorized, stop operations
       if (serverData === null || (Array.isArray(serverData) && serverData.length === 0)) {
-        ;(() => {})('[Notifications] ⚠️ Unauthorized or empty response');
+        ;((...args: any[]) => {})('[Notifications] ⚠️ Unauthorized or empty response');
 
         // Clear cache dan stop polling jika unauthorized
         setNotifications([]);
@@ -176,7 +176,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       persistToLocalStorage(formatted);
       hasInitialLoad.current = true;
 
-      // ;(() => {})(`✅ [Notifications] loaded ${formatted.length} items from server`);
+      // ;((...args: any[]) => {})(`✅ [Notifications] loaded ${formatted.length} items from server`);
     } catch (err) {
       console.error("❌ [Notifications] Server load error, using cache", err);
 
@@ -185,7 +185,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         const cached = loadCacheFallback();
         setNotifications(cached);
         hasInitialLoad.current = true;
-        ;(() => {})(`ℹ️ [Notifications] loaded ${cached.length} items from cache`);
+        ;((...args: any[]) => {})(`ℹ️ [Notifications] loaded ${cached.length} items from cache`);
       }
     } finally {
       setIsLoading(false);
@@ -222,14 +222,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const syncWithServer = useCallback(async () => {
     if (!shouldProceed() || !hasInitialLoad.current) return;
 
-    // ;(() => {})("🔁 [Notifications] Syncing with server...");
+    // ;((...args: any[]) => {})("🔁 [Notifications] Syncing with server...");
 
     try {
       const serverData = await getNotifications({ limit: 100 });
 
       // 🔥 CHECK: Jika unauthorized, stop sync
       if (serverData === null) {
-        ;(() => {})('[Notifications] ⚠️ Unauthorized during sync');
+        ;((...args: any[]) => {})('[Notifications] ⚠️ Unauthorized during sync');
         stopAllNotificationOperations();
         return;
       }
@@ -249,7 +249,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return formatted;
       });
 
-      // ;(() => {})("✅ [Notifications] Sync complete");
+      // ;((...args: any[]) => {})("✅ [Notifications] Sync complete");
     } catch (err) {
       console.error("❌ [Notifications] Sync failed:", err);
 
@@ -257,7 +257,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (err && typeof err === 'object' && 'response' in err) {
         const errorWithResponse = err as { response?: { status?: number } };
         if (errorWithResponse.response?.status === 401) {
-          ;(() => {})('[Notifications] 🔒 401 detected, stopping polling');
+          ;((...args: any[]) => {})('[Notifications] 🔒 401 detected, stopping polling');
           stopAllNotificationOperations();
         }
       }
@@ -368,7 +368,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // 🔥 LISTENER UNTUK LOGOUT EVENT
   useEffect(() => {
     const handleLogout = () => {
-      ;(() => {})('[Notifications] Received logout event');
+      ;((...args: any[]) => {})('[Notifications] Received logout event');
       stopAllNotificationOperations();
     };
 

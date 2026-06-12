@@ -579,7 +579,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                                                     Edit Invoice
                                                                 </DropdownMenuItem>
                                                                 {(invoice.approvalStatus === "APPROVED" || invoice.approvalStatus === "REJECTED") &&
-                                                                    invoice.status !== "PAID" && invoice.approvalStatus !== "POSTED" && (
+                                                                    invoice.status !== "PAID" && (
                                                                         <DropdownMenuItem
                                                                             className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                                                             onClick={() => handleReopenInvoice(invoice)}
@@ -692,7 +692,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                                 Edit
                                             </DropdownMenuItem>
                                             {(invoice.approvalStatus === "APPROVED" || invoice.approvalStatus === "REJECTED") &&
-                                                invoice.status !== "PAID" && invoice.approvalStatus !== "POSTED" && (
+                                                invoice.status !== "PAID" && (
                                                     <DropdownMenuItem
                                                         className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                                         onClick={() => handleReopenInvoice(invoice)}

@@ -85,14 +85,14 @@ function setupVisibilityHandler(): void {
 
   const handleVisibilityChange = () => {
     if (document.visibilityState === "visible") {
-      // ;(() => {})("🔄 App became visible, checking token health");
+      // ;((...args: any[]) => {})("🔄 App became visible, checking token health");
 
       // Tunggu sebentar untuk memastikan tab benar-benar aktif
       setTimeout(() => {
         const health = getTokenHealth();
 
         if (health.health === "expired" || health.health === "expiring_soon") {
-          // ;(() => {})("⚠️ Token needs refresh after app wake-up");
+          // ;((...args: any[]) => {})("⚠️ Token needs refresh after app wake-up");
           refreshToken().catch((error) => {
             console.error("❌ Wake-up refresh failed:", error);
           });
@@ -102,7 +102,7 @@ function setupVisibilityHandler(): void {
           health.expiresIn < 300
         ) {
           // Jika token masih valid tapi akan segera expired, schedule refresh
-          // ;(() => {})("⏰ Rescheduling refresh after wake-up");
+          // ;((...args: any[]) => {})("⏰ Rescheduling refresh after wake-up");
           if (accessToken) {
             scheduleProactiveRefresh(accessToken);
           }
@@ -238,7 +238,7 @@ function startBroadcast(): void {
       bc.onmessage = (e) => {
         if (e?.data?.type === "token") {
           if (e.data.token !== accessToken) {
-            // ;(() => {})("📡 Received token broadcast");
+            // ;((...args: any[]) => {})("📡 Received token broadcast");
             setAccessToken(e.data.token, {
               broadcast: false,
               schedule: true,
@@ -262,7 +262,7 @@ function setupStorageFallback(): void {
 
   const handleStorageEvent = (e: StorageEvent) => {
     if (e.key === LS_KEY && e.newValue !== e.oldValue) {
-      // ;(() => {})("📦 Received token from storage sync");
+      // ;((...args: any[]) => {})("📦 Received token from storage sync");
       setAccessToken(e.newValue, {
         broadcast: false,
         schedule: true,
@@ -303,7 +303,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
   }
 
   try {
-    // ;(() => {})(`🔄 Attempting token refresh (attempt ${refreshAttempts + 1})`);
+    // ;((...args: any[]) => {})(`🔄 Attempting token refresh (attempt ${refreshAttempts + 1})`);
 
     const newToken = await refreshExecutor();
 
@@ -325,7 +325,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
       attempts: refreshAttempts + 1,
     });
 
-    // ;(() => {})("✅ Token refresh successful");
+    // ;((...args: any[]) => {})("✅ Token refresh successful");
     return newToken;
   } catch (error) {
     refreshAttempts++;
@@ -377,7 +377,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
       30000 // Max 30 seconds
     );
 
-    // ;(() => {})(`⏳ Retrying refresh in ${delay}ms...`);
+    // ;((...args: any[]) => {})(`⏳ Retrying refresh in ${delay}ms...`);
     await new Promise((resolve) => setTimeout(resolve, delay));
     return executeRefreshWithBackoff();
   }
@@ -385,7 +385,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
 
 export async function refreshToken(): Promise<string | null> {
   if (isLoggingOut) {
-    // ;(() => {})("⛔ Skipping refresh: user is logging out");
+    // ;((...args: any[]) => {})("⛔ Skipping refresh: user is logging out");
     return null;
   }
 
@@ -428,11 +428,11 @@ export function scheduleProactiveRefresh(
   // Safety check: jika delay terlalu panjang, batasi
   const safeDelay = Math.min(delay, MAX_DELAY);
 
-  // ;(() => {})(`⏰ Scheduling refresh in ${Math.round(safeDelay / 1000)}s`);
+  // ;((...args: any[]) => {})(`⏰ Scheduling refresh in ${Math.round(safeDelay / 1000)}s`);
 
   if (safeDelay === 0 || expMs <= now) {
     // Immediate refresh needed
-    // ;(() => {})("🔔 Token expired or about to expire, refreshing immediately");
+    // ;((...args: any[]) => {})("🔔 Token expired or about to expire, refreshing immediately");
     refreshToken().catch((error) => {
       console.error("❌ Immediate refresh failed:", error);
     });
@@ -441,7 +441,7 @@ export function scheduleProactiveRefresh(
 
   refreshTimer = window.setTimeout(async () => {
     try {
-      // ;(() => {})("⏰ Scheduled refresh triggered");
+      // ;((...args: any[]) => {})("⏰ Scheduled refresh triggered");
       await refreshToken();
     } catch (error) {
       console.error("❌ Scheduled refresh failed:", error);
@@ -456,7 +456,7 @@ export function startHealthMonitoring(
 ): void {
   if (!IS_CLIENT || healthCheckInterval) return;
 
-  // ;(() => {})("🏥 Starting token health monitoring");
+  // ;((...args: any[]) => {})("🏥 Starting token health monitoring");
 
   healthCheckInterval = window.setInterval(() => {
     const health = getTokenHealth();
@@ -481,7 +481,7 @@ export function startHealthMonitoring(
           });
         });
       } else if (health.health === "expiring_soon" && !refreshQueue) {
-        // ;(() => {})("🔄 Token expiring soon, refreshing proactively");
+        // ;((...args: any[]) => {})("🔄 Token expiring soon, refreshing proactively");
         refreshToken().catch((error) => {
           console.error("❌ Proactive refresh failed:", error);
         });
@@ -490,7 +490,7 @@ export function startHealthMonitoring(
 
     // Log health status periodically
     if (health.expiresIn !== null && health.expiresIn < 300) {
-      ;(() => {})(`⚠️ Token expiring in ${health.expiresIn}s`);
+      ;((...args: any[]) => {})(`⚠️ Token expiring in ${health.expiresIn}s`);
     }
   }, intervalMs);
 }
@@ -499,7 +499,7 @@ export function stopHealthMonitoring(): void {
   if (healthCheckInterval) {
     clearInterval(healthCheckInterval);
     healthCheckInterval = undefined;
-    ;(() => {})("🛑 Stopped token health monitoring");
+    ;((...args: any[]) => {})("🛑 Stopped token health monitoring");
   }
 }
 
@@ -516,7 +516,7 @@ export function onTokenChange(fn: TokenListener): () => void {
 
 function notify(token: string | null): void {
   const listenersArray = Array.from(tokenListeners);
-  // ;(() => {})(`📢 Notifying ${listenersArray.length} token listeners`);
+  // ;((...args: any[]) => {})(`📢 Notifying ${listenersArray.length} token listeners`);
 
   for (const fn of listenersArray) {
     try {
@@ -538,7 +538,7 @@ export function setAccessToken(
 ): void {
   // ✅ Improved race condition handling
   if (isLoggingOut && token !== null) {
-    ;(() => {})("⛔ Skipping setAccessToken during logout");
+    ;((...args: any[]) => {})("⛔ Skipping setAccessToken during logout");
     return;
   }
   if (isRefreshing && token !== null) {
@@ -556,7 +556,7 @@ export function setAccessToken(
         // console.warn(`❌ Token validation failed: ${validation.error}`);
         token = null;
       } else {
-        ;(() => {})("✅ Token validated successfully");
+        ;((...args: any[]) => {})("✅ Token validated successfully");
       }
     }
 
@@ -568,10 +568,10 @@ export function setAccessToken(
       try {
         if (token) {
           localStorage.setItem(LS_KEY, token);
-          // ;(() => {})("💾 Token persisted to localStorage");
+          // ;((...args: any[]) => {})("💾 Token persisted to localStorage");
         } else {
           localStorage.removeItem(LS_KEY);
-          // ;(() => {})("🧹 Token removed from localStorage");
+          // ;((...args: any[]) => {})("🧹 Token removed from localStorage");
         }
       } catch (error) {
         console.error("❌ localStorage error:", error);
@@ -582,7 +582,7 @@ export function setAccessToken(
       startBroadcast();
       try {
         bc?.postMessage({ type: "token", token: accessToken });
-        // ;(() => {})("📡 Token broadcasted to other tabs");
+        // ;((...args: any[]) => {})("📡 Token broadcasted to other tabs");
       } catch (error) {
         console.error("❌ Broadcast error:", error);
       }
@@ -592,7 +592,7 @@ export function setAccessToken(
       scheduleProactiveRefresh(token);
     } else if (!token) {
       clearRefreshTimer();
-      ;(() => {})("🛑 Refresh scheduling stopped (no token)");
+      ;((...args: any[]) => {})("🛑 Refresh scheduling stopped (no token)");
     }
 
     if (token !== oldToken) {
@@ -606,11 +606,11 @@ export function setAccessToken(
       });
 
       if (!token && oldToken) {
-        // ;(() => {})("🚪 Logout event emitted");
+        // ;((...args: any[]) => {})("🚪 Logout event emitted");
         emitAuthEvent("logout", { timestamp: new Date().toISOString() });
       }
     } else {
-      ;(() => {})("ℹ️ Token unchanged, skipping notifications");
+      ;((...args: any[]) => {})("ℹ️ Token unchanged, skipping notifications");
     }
   } catch (error) {
     console.error("❌ Error in setAccessToken:", error);
@@ -625,7 +625,7 @@ export function setAccessToken(
 export function initAuthFromStorage(): void {
   if (!IS_CLIENT) return;
 
-  // ;(() => {})("🚀 Initializing auth from storage");
+  // ;((...args: any[]) => {})("🚀 Initializing auth from storage");
   startBroadcast();
   startHealthMonitoring();
   setupVisibilityHandler(); // ✅ Tambahkan ini
@@ -643,7 +643,7 @@ export function initAuthFromStorage(): void {
   try {
     const saved = localStorage.getItem(LS_KEY);
     if (saved) {
-      // ;(() => {})("🔍 Found saved token in localStorage");
+      // ;((...args: any[]) => {})("🔍 Found saved token in localStorage");
       const validation = validateToken(saved);
       if (validation.isValid) {
         setAccessToken(saved, {
@@ -651,7 +651,7 @@ export function initAuthFromStorage(): void {
           schedule: true,
           persist: true,
         });
-        // ;(() => {})("✅ Token restored from localStorage");
+        // ;((...args: any[]) => {})("✅ Token restored from localStorage");
 
         // ✅ Force health check setelah restore
         setTimeout(() => {
@@ -660,7 +660,7 @@ export function initAuthFromStorage(): void {
             health.health === "expiring_soon" ||
             health.health === "expired"
           ) {
-            // ;(() => {})("🔄 Token needs immediate refresh after restore");
+            // ;((...args: any[]) => {})("🔄 Token needs immediate refresh after restore");
             refreshToken().catch((error) => {
               console.error(
                 "❌ Immediate refresh after restore failed:",
@@ -674,7 +674,7 @@ export function initAuthFromStorage(): void {
         localStorage.removeItem(LS_KEY);
       }
     } else {
-      ;(() => {})("🔍 No saved token found in localStorage");
+      ;((...args: any[]) => {})("🔍 No saved token found in localStorage");
     }
   } catch (error) {
     console.error("❌ Error initializing auth from storage:", error);
@@ -683,7 +683,7 @@ export function initAuthFromStorage(): void {
 
 /** Cleanup untuk mencegah memory leaks */
 export function cleanup(): void {
-  // ;(() => {})("🧹 Cleaning up auth system");
+  // ;((...args: any[]) => {})("🧹 Cleaning up auth system");
   clearRefreshTimer();
   stopHealthMonitoring();
   tokenListeners.clear();
@@ -716,13 +716,13 @@ function setupPageLoadRecovery(): void {
   };
 
   const checkAndRecoverToken = () => {
-    // ;(() => {})("🔍 Page loaded, checking token state...");
+    // ;((...args: any[]) => {})("🔍 Page loaded, checking token state...");
 
     setTimeout(() => {
       const health = getTokenHealth();
       const hasToken = !!accessToken;
 
-      // ;(() => {})("📊 Token state on page load:", {
+      // ;((...args: any[]) => {})("📊 Token state on page load:", {
       //   hasToken,
       //   health: health.health,
       //   expiresIn: health.expiresIn,
@@ -730,7 +730,7 @@ function setupPageLoadRecovery(): void {
 
       // Jika ada token tapi expired, coba refresh
       if (hasToken && health.health === "expired") {
-        ;(() => {})("🔄 Token expired on page load, attempting recovery...");
+        ;((...args: any[]) => {})("🔄 Token expired on page load, attempting recovery...");
         refreshToken().catch((error) => {
           console.error("❌ Page load recovery failed:", error);
         });
@@ -743,7 +743,7 @@ function setupPageLoadRecovery(): void {
           if (saved) {
             const validation = validateToken(saved);
             if (validation.isValid) {
-              // ;(() => {})("🔄 Restoring token from storage on page load");
+              // ;((...args: any[]) => {})("🔄 Restoring token from storage on page load");
               setAccessToken(saved, {
                 broadcast: false,
                 schedule: true,
@@ -774,7 +774,7 @@ function setupPageLoadRecovery(): void {
 
 /** Force refresh token */
 export async function forceRefresh(): Promise<string | null> {
-  // ;(() => {})("🔧 Manual force refresh requested");
+  // ;((...args: any[]) => {})("🔧 Manual force refresh requested");
   const result = await refreshToken();
   return result;
 }

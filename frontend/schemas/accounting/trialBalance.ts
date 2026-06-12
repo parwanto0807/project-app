@@ -1,4 +1,4 @@
-import { ChartOfAccounts } from "../coa/index";
+import { ChartOfAccounts } from "@/types/coa";
 import { AccountingPeriod } from "./period";
 
 export interface TrialBalance {

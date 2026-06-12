@@ -575,7 +575,7 @@ export default function CreateFormPO({
                                                                         setSelectedProjectName(selectedSpk?.salesOrder?.project?.name || selectedSpk?.salesOrder?.projectName || "");
                                                                         toast.success(`Project otomatis dipilih: ${selectedSpk?.salesOrder?.project?.name}`);
                                                                     } else {
-                                                                        ;(() => {})("No projectId found in SPK");
+                                                                        ;((...args: any[]) => {})("No projectId found in SPK");
                                                                         setSelectedProjectName("");
                                                                         toast.info("SPK ini tidak memiliki project terkait");
                                                                     }

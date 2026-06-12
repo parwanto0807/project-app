@@ -105,7 +105,7 @@ export const coaApi = {
   },
 
   async createCOA(data: CoaFormData): Promise<CoaResponse> {
-    ;(() => {})("DATA DITERIMA", data);
+    ;((...args: any[]) => {})("DATA DITERIMA", data);
     try {
       // Basic validation sebelum request
       if (!data.code || !data.name || !data.type || !data.normalBalance) {

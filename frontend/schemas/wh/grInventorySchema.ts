@@ -375,6 +375,7 @@ export const validateQCStatusTransition = (
 ): { valid: boolean; message?: string } => {
     const allowedTransitions: Record<QCStatus, QCStatus[]> = {
         [QCStatus.PENDING]: [QCStatus.PENDING, QCStatus.PASSED, QCStatus.REJECTED, QCStatus.PARTIAL],
+        [QCStatus.ARRIVED]: [QCStatus.ARRIVED, QCStatus.PASSED, QCStatus.REJECTED, QCStatus.PARTIAL],
         [QCStatus.PARTIAL]: [QCStatus.PARTIAL, QCStatus.PASSED, QCStatus.REJECTED],
         [QCStatus.PASSED]: [QCStatus.PASSED], // Once passed, can't change
         [QCStatus.REJECTED]: [QCStatus.REJECTED] // Once rejected, can't change
@@ -397,6 +398,8 @@ export const validateDocumentStatusTransition = (
 ): { valid: boolean; message?: string } => {
     const allowedTransitions: Record<DocumentStatus, DocumentStatus[]> = {
         [DocumentStatus.DRAFT]: [DocumentStatus.DRAFT, DocumentStatus.COMPLETED, DocumentStatus.CANCELLED],
+        [DocumentStatus.ARRIVED]: [DocumentStatus.ARRIVED, DocumentStatus.PASSED, DocumentStatus.COMPLETED, DocumentStatus.CANCELLED],
+        [DocumentStatus.PASSED]: [DocumentStatus.PASSED, DocumentStatus.COMPLETED, DocumentStatus.CANCELLED],
         [DocumentStatus.COMPLETED]: [DocumentStatus.COMPLETED, DocumentStatus.CANCELLED],
         [DocumentStatus.CANCELLED]: [DocumentStatus.CANCELLED]
     };

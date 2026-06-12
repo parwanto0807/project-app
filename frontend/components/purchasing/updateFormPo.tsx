@@ -459,7 +459,7 @@ export default function UpdateFormPO({
                 productId: item.productId,
                 quantity: Number(item.quantity),
                 price: Number(item.unitPrice),
-                unit: item.product?.purchaseUnit || item.product?.unit || "pcs",
+                unit: (item.product as any)?.purchaseUnit || (item.product as any)?.unit || "pcs",
                 total: Number(item.totalAmount),
             })) || [],
         },
@@ -492,7 +492,7 @@ export default function UpdateFormPO({
         // Get spkId from initialData - try sPKId, SPK?.id, or fallback to PurchaseRequest's spkId
         const spkIdValue = initialData.sPKId || initialData.SPK?.id || initialData.PurchaseRequest?.spkId || "";
 
-        ;(() => {})("SPK Init Debug:", {
+        ;((...args: any[]) => {})("SPK Init Debug:", {
             sPKId: initialData.sPKId,
             SPK: initialData.SPK,
             spkIdValue,

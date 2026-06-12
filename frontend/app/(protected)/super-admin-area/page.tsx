@@ -32,7 +32,7 @@ export default function DashboardPage() {
     if (isLoading) return;
 
     const timer = setTimeout(() => {
-      // ;(() => {})("🔍 Auth check for Super Admin:", {
+      // ;((...args: any[]) => {})("🔍 Auth check for Super Admin:", {
       //   user: !!user,
       //   isAuthenticated,
       //   role: authRole,
@@ -40,19 +40,19 @@ export default function DashboardPage() {
       // });
 
       if (!user && !isAuthenticated) {
-        ;(() => {})("🚫 No user & not authenticated - redirect to login");
+        ;((...args: any[]) => {})("🚫 No user & not authenticated - redirect to login");
         router.push("/auth/login");
         return;
       }
 
       if (user && user.role !== "super" && authRole !== "super") {
-        ;(() => {})("🚫 Not Super Admin - redirect to unauthorized");
+        ;((...args: any[]) => {})("🚫 Not Super Admin - redirect to unauthorized");
         router.push("/unauthorized");
         return;
       }
 
       // ✅ Auth successful
-      // ;(() => {})("✅ Auth successful for Super Admin - showing dashboard");
+      // ;((...args: any[]) => {})("✅ Auth successful for Super Admin - showing dashboard");
       setIsChecking(false);
     }, 300);
 

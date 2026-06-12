@@ -57,8 +57,8 @@ export default function PurchaseExecutionList() {
                 if (data.success) {
                     // DEBUG: Check data received
                     if (data.data.length > 0) {
-                        ;(() => {})('Frontend received PO[0]:', data.data[0]);
-                        ;(() => {})('Frontend received PR data:', data.data[0].PurchaseRequest);
+                        ;((...args: any[]) => {})('Frontend received PO[0]:', data.data[0]);
+                        ;((...args: any[]) => {})('Frontend received PR data:', data.data[0].PurchaseRequest);
                     }
                     setPos(data.data);
                     toast.success("Data berhasil diperbarui");

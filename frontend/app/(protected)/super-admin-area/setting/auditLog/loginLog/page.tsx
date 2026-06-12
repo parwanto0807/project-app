@@ -94,11 +94,11 @@ const sortSessions = (sessions: Session[]): Session[] => {
 
 // Helper untuk extract sessions dari berbagai format response
 const extractSessionsFromResponse = (result: ApiResponse): ApiSession[] => {
-    ;(() => {})('[Extract] Raw result:', result);
+    ;((...args: any[]) => {})('[Extract] Raw result:', result);
 
     // Jika sudah array langsung return
     if (Array.isArray(result)) {
-        ;(() => {})('[Extract] Result is already array');
+        ;((...args: any[]) => {})('[Extract] Result is already array');
         return result;
     }
 
@@ -106,23 +106,23 @@ const extractSessionsFromResponse = (result: ApiResponse): ApiSession[] => {
     if (result && typeof result === 'object') {
         // Coba berbagai kemungkinan property
         if (Array.isArray(result.data)) {
-            ;(() => {})('[Extract] Found sessions in result.data');
+            ;((...args: any[]) => {})('[Extract] Found sessions in result.data');
             return result.data;
         }
 
         if (Array.isArray(result.sessions)) {
-            ;(() => {})('[Extract] Found sessions in result.sessions');
+            ;((...args: any[]) => {})('[Extract] Found sessions in result.sessions');
             return result.sessions;
         }
 
         if (Array.isArray(result.items)) {
-            ;(() => {})('[Extract] Found sessions in result.items');
+            ;((...args: any[]) => {})('[Extract] Found sessions in result.items');
             return result.items;
         }
 
         // Jika ada success property (standard API response)
         if (result.success && Array.isArray(result.data)) {
-            ;(() => {})('[Extract] Found sessions in result.data (success response)');
+            ;((...args: any[]) => {})('[Extract] Found sessions in result.data (success response)');
             return result.data;
         }
 
@@ -157,7 +157,7 @@ export default function SessionPage() {
     }, [sessions]);
 
     const sortedSessions = useMemo(() => {
-        ;(() => {})('[Page] Sorting sessions:', sessions.length);
+        ;((...args: any[]) => {})('[Page] Sorting sessions:', sessions.length);
         return sortSessions(sessions);
     }, [sessions]);
 
@@ -171,13 +171,13 @@ export default function SessionPage() {
         setError(null);
 
         try {
-            ;(() => {})('[Page] 📥 Fetching sessions...', {
+            ;((...args: any[]) => {})('[Page] 📥 Fetching sessions...', {
                 manual: isManualRefresh,
                 currentCount: sessionsRef.current.length
             });
 
             const result = await getAllSessions();
-            ;(() => {})('[Page] Raw API result:', {
+            ;((...args: any[]) => {})('[Page] Raw API result:', {
                 type: typeof result,
                 isArray: Array.isArray(result),
                 keys: result && typeof result === 'object' ? Object.keys(result) : 'N/A'
@@ -186,7 +186,7 @@ export default function SessionPage() {
             // Extract sessions dari berbagai format response
             const extractedSessions = extractSessionsFromResponse(result);
 
-            ;(() => {})('[Page] Extracted sessions:', {
+            ;((...args: any[]) => {})('[Page] Extracted sessions:', {
                 count: extractedSessions.length,
                 sample: extractedSessions[0]
             });
@@ -237,7 +237,7 @@ export default function SessionPage() {
 
             // Fallback: Jika ada data sebelumnya, pertahankan
             if (sessionsRef.current.length > 0) {
-                ;(() => {})('[Page] Using cached data due to error');
+                ;((...args: any[]) => {})('[Page] Using cached data due to error');
                 toast.info('Using cached data', {
                     description: 'Showing previously loaded sessions',
                     duration: 3000,
@@ -259,18 +259,18 @@ export default function SessionPage() {
 
         if (!hasInitializedRef.current) {
             hasInitializedRef.current = true;
-            ;(() => {})('[Page] Initializing...');
+            ;((...args: any[]) => {})('[Page] Initializing...');
             fetchData();
         }
     }, [router, userRole, fetchData]);
 
     // Real-time handler
     useEffect(() => {
-        ;(() => {})('[PAGE] Setting up real-time listener');
+        ;((...args: any[]) => {})('[PAGE] Setting up real-time listener');
 
         const handleSessionsUpdated = (event: Event) => {
             const updateId = ++sessionUpdateCountRef.current;
-            ;(() => {})(`[PAGE] Real-time event #${updateId}`);
+            ;((...args: any[]) => {})(`[PAGE] Real-time event #${updateId}`);
 
             const customEvent = event as CustomSessionsEvent;
             const serverSessions = customEvent.detail;
@@ -283,7 +283,7 @@ export default function SessionPage() {
             const formattedSessions: Session[] = serverSessions.map(formatSession);
             const sortedServerSessions = sortSessions(formattedSessions);
 
-            ;(() => {})('[PAGE] Applying real-time update:', {
+            ;((...args: any[]) => {})('[PAGE] Applying real-time update:', {
                 updateId,
                 from: sessionsRef.current.length,
                 to: sortedServerSessions.length
@@ -299,7 +299,7 @@ export default function SessionPage() {
         };
 
         window.addEventListener('sessions:updated', handleSessionsUpdated);
-        ;(() => {})('[PAGE] Event listener registered');
+        ;((...args: any[]) => {})('[PAGE] Event listener registered');
 
         return () => {
             window.removeEventListener('sessions:updated', handleSessionsUpdated);
@@ -307,7 +307,7 @@ export default function SessionPage() {
     }, []);
 
     const handleRefresh = useCallback(() => {
-        ;(() => {})('[Page] Manual refresh');
+        ;((...args: any[]) => {})('[Page] Manual refresh');
         fetchData(true);
     }, [fetchData]);
 

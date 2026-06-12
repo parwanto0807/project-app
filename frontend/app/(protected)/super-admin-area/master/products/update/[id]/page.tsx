@@ -48,7 +48,7 @@ export default function UpdateProductPage() {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("accessToken") || undefined;
       setAccessToken(token);
-      // (() => {})("Access Token:", token);
+      // ((...args: any[]) => {})("Access Token:", token);
     }
   }, []);
 

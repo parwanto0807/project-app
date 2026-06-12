@@ -73,8 +73,8 @@ export async function fetchAllSpkAdmin(
     // ===== Gunakan endpoint baru =====
     const url = `${API_URL}/api/spk/getAllSPKAdmin?${queryParams.toString()}`;
 
-    ;(() => {})("Fetching from:", url);
-    ;(() => {})("Filter parameters:", {
+    ;((...args: any[]) => {})("Fetching from:", url);
+    ;((...args: any[]) => {})("Filter parameters:", {
       page,
       pageSize,
       searchTerm,
@@ -88,7 +88,7 @@ export async function fetchAllSpkAdmin(
       cache: "no-store",
     });
 
-    ;(() => {})("Response status:", res.status);
+    ;((...args: any[]) => {})("Response status:", res.status);
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => null);
@@ -96,7 +96,7 @@ export async function fetchAllSpkAdmin(
     }
 
     const result = await res.json();
-    ;(() => {})("Received result:", {
+    ;((...args: any[]) => {})("Received result:", {
       dataCount: result.data?.length || 0,
       pagination: result.pagination,
       filterApplied: filterBy,
@@ -130,7 +130,7 @@ export async function fetchAllSpkPr() {
 
 export async function fetchSpkById(id: string) {
   try {
-    // ;(() => {})("🔍 Fetching SPK by ID:", id);
+    // ;((...args: any[]) => {})("🔍 Fetching SPK by ID:", id);
 
     const res = await fetch(`${API_URL}/api/spk/getSPKById/${id}`, {
       method: "GET",
@@ -138,7 +138,7 @@ export async function fetchSpkById(id: string) {
       cache: "no-store",
     });
 
-    // ;(() => {})("📡 Response status:", res.status);
+    // ;((...args: any[]) => {})("📡 Response status:", res.status);
 
     if (!res.ok) {
       const errorData = await res.json();
@@ -149,7 +149,7 @@ export async function fetchSpkById(id: string) {
     const data = await res.json();
 
     // ✅ DEBUG: Log struktur data
-    // ;(() => {})("📊 Data structure from backend:", {
+    // ;((...args: any[]) => {})("📊 Data structure from backend:", {
     //   type: typeof data,
     //   isArray: Array.isArray(data),
     //   length: Array.isArray(data) ? data.length : "N/A",
@@ -170,12 +170,12 @@ export async function fetchSpkById(id: string) {
         throw new Error(`SPK dengan ID ${id} tidak ditemukan`);
       }
 
-      // ;(() => {})("✅ SPK ditemukan setelah filtering:", filteredSpk.spkNumber);
+      // ;((...args: any[]) => {})("✅ SPK ditemukan setelah filtering:", filteredSpk.spkNumber);
       return filteredSpk;
     }
 
     // Jika backend sudah mengembalikan single object
-    // ;(() => {})("✅ Backend mengembalikan single SPK:", data.spkNumber);
+    // ;((...args: any[]) => {})("✅ Backend mengembalikan single SPK:", data.spkNumber);
     return data;
   } catch (error) {
     console.error("❌ fetchSpkById error:", error);

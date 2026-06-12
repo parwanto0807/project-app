@@ -47,9 +47,9 @@ export default function SpkReportDetailByIdPageAdmin() {
                 result = await fetchSpkById(spkId);
 
                 // DEBUG: Check API response
-                (() => {})('🔴 PAGE DEBUG - fetchSpkById result:', result);
-                (() => {})('📊 PAGE - Has spkFieldReport?', !!result?.spkFieldReport);
-                (() => {})('📊 PAGE - spkFieldReport:', result?.spkFieldReport);
+                ;((...args: any[]) => {})('🔴 PAGE DEBUG - fetchSpkById result:', result);
+                ;((...args: any[]) => {})('📊 PAGE - Has spkFieldReport?', !!result?.spkFieldReport);
+                ;((...args: any[]) => {})('📊 PAGE - spkFieldReport:', result?.spkFieldReport);
 
 
             }

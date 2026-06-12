@@ -121,7 +121,7 @@ export async function createSalesOrderAPI(payload: z.infer<typeof formSchema>) {
       }
     );
 
-    ;(() => {})("📡 [CREATE SO DEBUG] Response status:", res.status);
+    ;((...args: any[]) => {})("📡 [CREATE SO DEBUG] Response status:", res.status);
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -160,7 +160,7 @@ export async function updateSalesOrderAPI(
     const cookieStore = await cookies();
     const accessToken = cookieStore.get("accessToken")?.value;
 
-    ;(() => {})(
+    ;((...args: any[]) => {})(
       "🔑 [AUTH DEBUG] Access Token:",
       accessToken ? `${accessToken.substring(0, 20)}...` : "MISSING"
     );
@@ -185,7 +185,7 @@ export async function updateSalesOrderAPI(
       }
     );
 
-    ;(() => {})("📡 [AUTH DEBUG] Response status:", res.status);
+    ;((...args: any[]) => {})("📡 [AUTH DEBUG] Response status:", res.status);
 
     if (!res.ok) {
       const err = await res

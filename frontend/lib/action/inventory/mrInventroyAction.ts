@@ -70,8 +70,8 @@ export async function getDataMr(
 export async function issueMR(
     params: IssueMrParams
 ): Promise<ApiResponse<any>> {
-    ;(() => {})("issueMR called with params:", params)
-    ;(() => {})("API URL:", `${API_URL}/api/mr/issue-scan`)
+    ;((...args: any[]) => {})("issueMR called with params:", params)
+    ;((...args: any[]) => {})("API URL:", `${API_URL}/api/mr/issue-scan`)
 
     try {
         const response = await fetch(`${API_URL}/api/mr/issue-scan`, {
@@ -82,11 +82,11 @@ export async function issueMR(
             body: JSON.stringify(params)
         });
 
-        ;(() => {})("Response status:", response.status)
-        ;(() => {})("Response ok:", response.ok)
+        ;((...args: any[]) => {})("Response status:", response.status)
+        ;((...args: any[]) => {})("Response ok:", response.ok)
 
         const result = await response.json();
-        ;(() => {})("Response body:", result)
+        ;((...args: any[]) => {})("Response body:", result)
 
         if (!response.ok) {
             return {

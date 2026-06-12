@@ -47,7 +47,7 @@ export default function CreateTeamForm({ role }: { role: string; }) {
         deskripsi: ""
     });
 
-    ;(() => {})("role", role);
+    ;((...args: any[]) => {})("role", role);
 
     useEffect(() => {
         const loadKaryawan = async () => {

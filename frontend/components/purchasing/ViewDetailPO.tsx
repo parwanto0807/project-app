@@ -1052,7 +1052,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                                                         {line.quantity}
                                                                                     </span>
                                                                                     <span className="text-muted-foreground text-sm dark:text-gray-400">
-                                                                                        {line.product?.purchaseUnit || "pcs"}
+                                                                                        {(line.product as any)?.purchaseUnit || "pcs"}
                                                                                     </span>
                                                                                 </div>
                                                                             </TableCell>
@@ -1965,7 +1965,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                 )}
                                             </td>
                                             <td className="text-right py-2">
-                                                {line.quantity} {line.product?.unit || "pcs"}
+                                                {line.quantity} {(line.product as any)?.unit || "pcs"}
                                             </td>
                                             <td className="text-right py-2">
                                                 {formatCurrency(line.unitPrice)}

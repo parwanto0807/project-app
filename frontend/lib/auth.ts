@@ -18,7 +18,7 @@ export async function getUserFromToken(): Promise<DecodedToken | null> {
     const token = cookieStore.get("accessToken")?.value;
 
     if (!token) {
-      // ;(() => {})("No token found in cookies");
+      // ;((...args: any[]) => {})("No token found in cookies");
       return null;
     }
 

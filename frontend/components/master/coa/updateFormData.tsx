@@ -75,7 +75,7 @@ export function UpdateCoaForm({ coaData, onSubmit, onCancel, isLoading, role, pa
         setHasChanges(changed);
     }, [formData, coaData]);
 
-    ;(() => {})("Role", role);
+    ;((...args: any[]) => {})("Role", role);
 
     const getDefaultNormalBalance = (type: CoaType): CoaNormalBalance => {
         switch (type) {
@@ -149,7 +149,7 @@ export function UpdateCoaForm({ coaData, onSubmit, onCancel, isLoading, role, pa
             parentId: formData.parentId || null,
         };
 
-        ;(() => {})("Updating COA Data:", submitData);
+        ;((...args: any[]) => {})("Updating COA Data:", submitData);
         onSubmit(submitData);
     };
 

@@ -89,7 +89,7 @@ export async function updateTransferAction(id: string, input: CreateTransferInpu
  */
 export async function getTransfersAction(filters?: TransferFilter) {
     try {
-        ;(() => {})('🔍 getTransfersAction called with filters:', filters);
+        ;((...args: any[]) => {})('🔍 getTransfersAction called with filters:', filters);
 
         const params = new URLSearchParams();
         if (filters) {
@@ -101,7 +101,7 @@ export async function getTransfersAction(filters?: TransferFilter) {
         }
 
         const url = `/api/tf?${params.toString()}`;
-        ;(() => {})('📡 Fetching from URL:', url);
+        ;((...args: any[]) => {})('📡 Fetching from URL:', url);
 
         const result = await fetchAPI<{
             data: StockTransfer[];
@@ -113,7 +113,7 @@ export async function getTransfersAction(filters?: TransferFilter) {
             };
         }>(url);
 
-        ;(() => {})('✅ getTransfersAction result:', result);
+        ;((...args: any[]) => {})('✅ getTransfersAction result:', result);
         return result;
     } catch (error: any) {
         console.error('❌ getTransfersAction error:', error);

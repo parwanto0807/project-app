@@ -250,7 +250,7 @@ export function CoaTable({
 
     const [localSearchTerm, setLocalSearchTerm] = useState(currentSearch || "");
     const router = useRouter();
-    ;(() => {})("Role", role)
+    ;((...args: any[]) => {})("Role", role)
     // Debounce search untuk menghindari terlalu banyak request
     // Sync local search term with currentSearch prop changes (e.g. initial load or URL change)
     useEffect(() => {
