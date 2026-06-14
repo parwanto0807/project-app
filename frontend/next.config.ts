@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  serverExternalPackages: ["@react-pdf/renderer"],
+  transpilePackages: ["@react-pdf/renderer"],
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",
