@@ -21,13 +21,19 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ["@react-pdf/renderer"],
   experimental: {
-    esmExternals: isDev ? undefined : "loose",
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
   },
-  serverActions: {
-    bodySizeLimit: "5mb",
-  },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.alias.canvas = false;
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        encoding: false,
+      };
+    }
     return config;
   },
   // 2. Config Image Domain

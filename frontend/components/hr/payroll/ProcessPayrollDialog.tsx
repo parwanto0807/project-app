@@ -396,7 +396,11 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
             <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5">
               <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Pendapatan</p>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">{isHarian ? `Gaji Harian (${k.hariHadir} hari × ${fmt(k.configUsed?.gajiPerHari || 0)})` : "Gaji Pokok"}</span>
+                <span className="text-gray-600">
+                  {k.tipePenggajian === "HARIAN_BULANAN" || k.tipePenggajian === "HARIAN" || isHarian 
+                    ? `Gaji Harian (Pro-rate Jam Kerja)` 
+                    : "Gaji Pokok"}
+                </span>
                 <span className="font-semibold">{fmt(k.gajiKerja)}</span>
               </div>
               {k.tunjanganJabatan > 0 && (
@@ -431,7 +435,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
               )}
               {k.tunjanganKehadiran > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Premi Hadir</span>
+                  <span className="text-gray-600">Premi Hadir ({k.hariHadir} hari)</span>
                   <span className="font-semibold text-emerald-600">{fmt(k.tunjanganKehadiran)}</span>
                 </div>
               )}

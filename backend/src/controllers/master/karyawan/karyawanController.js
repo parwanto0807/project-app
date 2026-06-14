@@ -245,6 +245,8 @@ export const updateKaryawan = async (req, res) => {
       payrollConfigId,
     } = req.body;
 
+    console.log("UPDATE KARYAWAN REQ BODY:", req.body);
+
     // ✅ Validasi userId jika diberikan
     if (userId) {
       const userExists = await prisma.user.findUnique({

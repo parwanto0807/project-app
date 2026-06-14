@@ -37,6 +37,8 @@ import {
   Trash2,
   AlertTriangle,
   Info,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -90,6 +92,28 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
       currency: "IDR",
       maximumFractionDigits: 0,
     }).format(val);
+
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (empId: string) => {
+    setExpandedGroups((prev) => ({ ...prev, [empId]: !prev[empId] }));
+  };
+
+  const groupedLoans = loans.reduce((acc, loan) => {
+    const empId = loan.karyawan?.id || "unknown";
+    if (!acc[empId]) {
+      acc[empId] = {
+        karyawan: loan.karyawan,
+        loans: [],
+        totalJumlah: 0,
+        totalSisa: 0,
+      };
+    }
+    acc[empId].loans.push(loan);
+    acc[empId].totalJumlah += Number(loan.jumlahPinjaman || 0);
+    acc[empId].totalSisa += Number(loan.sisaPinjaman || 0);
+    return acc;
+  }, {} as Record<string, { karyawan: any; loans: any[]; totalJumlah: number; totalSisa: number }>);
 
   // Load dropdown data when edit dialog opens
   useEffect(() => {
@@ -222,91 +246,128 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {loans.length === 0 ? (
+          {Object.keys(groupedLoans).length === 0 ? (
             <TableRow>
               <TableCell colSpan={8} className="text-center py-10 text-gray-500">
                 Belum ada data pinjaman.
               </TableCell>
             </TableRow>
           ) : (
-            loans.map((loan) => (
-              <TableRow key={loan.id} className="hover:bg-gray-50/50 transition-colors">
-                <TableCell>
-                  <div>
-                    <p className="font-bold text-gray-800">{loan.karyawan?.namaLengkap}</p>
-                    <p className="text-xs text-gray-500">{loan.karyawan?.nik} • {loan.karyawan?.jabatan}</p>
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs text-gray-600">
-                  <div className="flex items-center">
-                    <Calendar className="h-3 w-3 mr-1 text-gray-400" />
-                    {format(new Date(loan.tanggalPinjam), "dd MMM yyyy", { locale: id })}
-                  </div>
-                </TableCell>
-                <TableCell className="font-semibold text-gray-700">
-                  {formatCurrency(Number(loan.jumlahPinjaman))}
-                </TableCell>
-                <TableCell className="text-sm text-gray-600">{loan.tenor} Bulan</TableCell>
-                <TableCell className="font-medium text-blue-600">
-                  {formatCurrency(Number(loan.angsuranBulanan))}
-                </TableCell>
-                <TableCell className="font-bold text-amber-600">
-                  {formatCurrency(Number(loan.sisaPinjaman))}
-                </TableCell>
-                <TableCell>{getStatusBadge(loan.status)}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    {/* === DRAFT-only actions === */}
-                    {loan.status === "DRAFT" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg"
-                          onClick={() => setPostingLoanId(loan.id)}
-                          title="Posting ke Jurnal"
-                        >
-                          <SendHorizontal className="h-4 w-4 mr-1" />
-                          Posting
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg"
-                          onClick={() => setEditingLoan(loan)}
-                          title="Edit pinjaman"
-                        >
-                          <Pencil className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg"
-                          onClick={() => {
-                            setDeletingLoanId(loan.id);
-                            setDeletingLoanName(loan.karyawan?.namaLengkap || "");
-                          }}
-                          title="Hapus pinjaman"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Hapus
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-gray-100 hover:text-gray-700 rounded-lg"
-                      onClick={() => setSelectedLoan(loan)}
-                      title="Lihat detail"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      Detail
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
+            Object.values(groupedLoans).map((group: any) => (
+              <React.Fragment key={group.karyawan?.id || "unknown"}>
+                {/* Header Row per Karyawan */}
+                <TableRow 
+                  className="bg-gray-100/50 hover:bg-gray-100 cursor-pointer transition-colors" 
+                  onClick={() => toggleGroup(group.karyawan?.id || "unknown")}
+                >
+                  <TableCell colSpan={2}>
+                    <div className="flex items-center gap-2">
+                      {expandedGroups[group.karyawan?.id || "unknown"] ? (
+                        <ChevronDown className="h-4 w-4 text-gray-600" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-gray-600" />
+                      )}
+                      <div>
+                        <p className="font-bold text-gray-800">{group.karyawan?.namaLengkap || "Unknown"}</p>
+                        <p className="text-xs text-gray-500">
+                          {group.karyawan?.nik || "-"} • {group.karyawan?.jabatan || "-"}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-semibold text-gray-800">
+                    {formatCurrency(group.totalJumlah)}
+                  </TableCell>
+                  <TableCell colSpan={2} className="text-sm text-gray-600 font-medium">
+                    {group.loans.length} Pinjaman
+                  </TableCell>
+                  <TableCell className="font-bold text-amber-700">
+                    {formatCurrency(group.totalSisa)}
+                  </TableCell>
+                  <TableCell colSpan={2}></TableCell>
+                </TableRow>
+
+                {/* Sub Rows (Pinjaman detail) */}
+                {expandedGroups[group.karyawan?.id || "unknown"] &&
+                  group.loans.map((loan: any) => (
+                    <TableRow key={loan.id} className="hover:bg-gray-50 transition-colors bg-white">
+                      <TableCell className="pl-12">
+                        <span className="text-xs text-gray-400 font-medium">
+                          ID: {loan.id.substring(0, 8).toUpperCase()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-600">
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1 text-gray-400" />
+                          {format(new Date(loan.tanggalPinjam), "dd MMM yyyy", { locale: id })}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium text-gray-600">
+                        {formatCurrency(Number(loan.jumlahPinjaman))}
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">{loan.tenor} Bulan</TableCell>
+                      <TableCell className="font-medium text-blue-600">
+                        {formatCurrency(Number(loan.angsuranBulanan))}
+                      </TableCell>
+                      <TableCell className="font-medium text-amber-600">
+                        {formatCurrency(Number(loan.sisaPinjaman))}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(loan.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* === DRAFT-only actions === */}
+                          {loan.status === "DRAFT" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg"
+                                onClick={() => setPostingLoanId(loan.id)}
+                                title="Posting ke Jurnal"
+                              >
+                                <SendHorizontal className="h-4 w-4 mr-1" />
+                                Posting
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg"
+                                onClick={() => setEditingLoan(loan)}
+                                title="Edit pinjaman"
+                              >
+                                <Pencil className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg"
+                                onClick={() => {
+                                  setDeletingLoanId(loan.id);
+                                  setDeletingLoanName(loan.karyawan?.namaLengkap || "");
+                                }}
+                                title="Hapus pinjaman"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Hapus
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-gray-100 hover:text-gray-700 rounded-lg"
+                            onClick={() => setSelectedLoan(loan)}
+                            title="Lihat detail"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Detail
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </React.Fragment>
             ))
           )}
         </TableBody>

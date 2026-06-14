@@ -259,7 +259,10 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                         )}
                         {gaji.tunjanganKehadiran > 0 && (
                             <View style={styles.row}>
-                                <Text>Premi Hadir</Text>
+                                <Text>
+                                  Premi Hadir 
+                                  {gaji.karyawan?.tunjanganKehadiran ? ` (${Math.round(gaji.tunjanganKehadiran / gaji.karyawan.tunjanganKehadiran)} hari)` : ''}
+                                </Text>
                                 <Text>{formatCurrency(gaji.tunjanganKehadiran)}</Text>
                             </View>
                         )}
@@ -277,7 +280,7 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                         )}
                         {gaji.upahLembur > 0 && (
                             <View style={styles.row}>
-                                <Text>Upah Lembur</Text>
+                                <Text>Upah Lembur ({gaji.totalJamLembur} jam)</Text>
                                 <Text>{formatCurrency(gaji.upahLembur)}</Text>
                             </View>
                         )}
@@ -296,10 +299,16 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                                 <Text>-{formatCurrency(gaji.potongan)}</Text>
                             </View>
                         )}
-                        {(gaji.potonganPinjaman > 0 || gaji.potonganKasbon > 0) && (
+                        {gaji.potonganPinjaman > 0 && (
                             <View style={styles.row}>
-                                <Text>Pinjaman/Kasbon</Text>
-                                <Text>-{formatCurrency((gaji.potonganPinjaman || 0) + (gaji.potonganKasbon || 0))}</Text>
+                                <Text>Pinjaman</Text>
+                                <Text>-{formatCurrency(gaji.potonganPinjaman)}</Text>
+                            </View>
+                        )}
+                        {gaji.potonganKasbon > 0 && (
+                            <View style={styles.row}>
+                                <Text>Kasbon</Text>
+                                <Text>-{formatCurrency(gaji.potonganKasbon)}</Text>
                             </View>
                         )}
                         {gaji.potonganDpGaji > 0 && (

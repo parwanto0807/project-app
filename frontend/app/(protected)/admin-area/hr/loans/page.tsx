@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2, PlusCircle, Banknote, Building2 } from "lucide-react";
 import CreateLoanDialogWrapper from "./CreateLoanDialogWrapper";
 import CreateKasbonDialog from "@/components/hr/loan/CreateKasbonDialog";
+import SimulasiPotongan from "@/components/hr/loan/SimulasiPotongan";
 
 export default function LoansManagementPage() {
   const [loans, setLoans] = useState<any[]>([]);
@@ -146,6 +147,13 @@ export default function LoansManagementPage() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger
+              value="simulasi"
+              className="rounded-xl px-6 py-2.5 data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
+              <Banknote className="h-4 w-4 mr-2" />
+              Simulasi Potongan
+            </TabsTrigger>
           </TabsList>
 
           {/* ── Tab: Pinjaman ── */}
@@ -181,6 +189,10 @@ export default function LoansManagementPage() {
                 <KasbonTable kasbon={kasbon} onRefresh={loadKasbon} />
               </div>
             )}
+          </TabsContent>
+          {/* ── Tab: Simulasi ── */}
+          <TabsContent value="simulasi" className="mt-6">
+            <SimulasiPotongan loans={loans} kasbon={kasbon} />
           </TabsContent>
         </Tabs>
 

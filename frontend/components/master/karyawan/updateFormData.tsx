@@ -186,7 +186,6 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
 
         // Serialize semua field ke FormData
         Object.entries(values).forEach(([key, value]) => {
-            if (key === 'payrollConfigId' && value === 'none') value = null;
             if (value === undefined || value === null) return;
 
             if (value instanceof Date) {
