@@ -36,6 +36,7 @@ function getBasePath(role?: string) {
 
 export default function CreateEmployeeForm({ role }: { role: string }) {
     const [filePreview, setFilePreview] = useState<string | null>(null);
+    const [fotoKtpPreview, setFotoKtpPreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string }>({ success: false, message: '' });
     const router = useRouter();
@@ -71,6 +72,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             tanggalMasuk: undefined,
             tanggalKeluar: undefined,
             foto: undefined,
+            fotoKtp: undefined,
             teamIds: [],
             attendanceLocationId: "",
             namaBank: "",
@@ -97,7 +99,8 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
 
     const handleFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
-        onChange: (value: File | undefined) => void
+        onChange: (value: File | undefined) => void,
+        setPreview: (val: string | null) => void
     ) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -106,7 +109,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
 
         // Buat preview
         const reader = new FileReader();
-        reader.onload = () => setFilePreview(reader.result as string);
+        reader.onload = () => setPreview(reader.result as string);
         reader.readAsDataURL(file);
     };
 
@@ -124,8 +127,8 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
 
             if (value instanceof Date) {
                 formData.append(key, value.toISOString());
-            } else if (key === "foto" && value instanceof File) {
-                formData.append("foto", value, value.name);
+            } else if ((key === "foto" || key === "fotoKtp") && value instanceof File) {
+                formData.append(key, value, value.name);
             } else if (Array.isArray(value)) {
                 value.forEach((v) => formData.append(`${key}[]`, v));
             } else {
@@ -369,12 +372,13 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                                     className="mt-2 border px-3 py-2 rounded-md text-sm"
                                                     value={formatDateForInput(field.value)}
                                                     onChange={(e) => {
+                                                        if (e.target.validity && e.target.validity.badInput) return;
+                                                        if (!e.target.value) {
+                                                            field.onChange(undefined);
+                                                            return;
+                                                        }
                                                         const date = parseDateFromInput(e.target.value);
-                                                        if (
-                                                            date &&
-                                                            date <= new Date() &&
-                                                            date >= new Date("1930-01-01")
-                                                        ) {
+                                                        if (date && date <= new Date() && date >= new Date("1930-01-01")) {
                                                             field.onChange(date);
                                                         } else {
                                                             field.onChange(undefined);
@@ -390,6 +394,83 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                 <FormField name="alamat" control={form.control} render={({ field }) => (
                                     <FormItem className="md:col-span-2"><FormLabel>Alamat</FormLabel><FormControl><Textarea placeholder="Masukkan alamat lengkap..." {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                                 )} />
+                                
+                                <FormField
+                                    control={form.control}
+                                    name="fotoKtp"
+                                    render={({ field: { value, onChange, ...fieldProps } }) => (
+                                        <FormItem className="md:col-span-2">
+                                            <FormLabel>Foto KTP</FormLabel>
+                                            <FormControl>
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mt-2">
+                                                    {/* Preview Area */}
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <div className="relative w-96 h-60 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-100">
+                                                            {fotoKtpPreview ? (
+                                                                <Image
+                                                                    src={fotoKtpPreview}
+                                                                    alt="Preview Foto KTP"
+                                                                    fill
+                                                                    className="object-contain"
+                                                                />
+                                                            ) : (
+                                                                <div className="flex flex-col items-center justify-center text-gray-400">
+                                                                    <Camera className="h-8 w-8 mb-1" />
+                                                                    <span className="text-xs">No Image</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {value instanceof File && (
+                                                            <span className="text-sm text-muted-foreground text-center max-w-96 truncate">
+                                                                {value.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Upload Controls */}
+                                                    <div className="flex flex-col gap-3">
+                                                        <label
+                                                            htmlFor="file-upload-ktp"
+                                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90 transition-colors w-fit"
+                                                        >
+                                                            <Upload className="h-4 w-4" />
+                                                            <span>{fotoKtpPreview ? 'Ganti Foto KTP' : 'Upload Foto KTP'}</span>
+                                                            <Input
+                                                                id="file-upload-ktp"
+                                                                type="file"
+                                                                className="hidden"
+                                                                accept="image/*"
+                                                                onChange={(e) => handleFileChange(e, onChange, setFotoKtpPreview)}
+                                                                {...fieldProps}
+                                                            />
+                                                        </label>
+
+                                                        {fotoKtpPreview && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    onChange(null);
+                                                                    setFotoKtpPreview(null);
+                                                                }}
+                                                                className="flex items-center gap-2 w-fit"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                                Hapus Foto KTP
+                                                            </Button>
+                                                        )}
+
+                                                        <p className="text-xs text-muted-foreground max-w-64">
+                                                            Format: JPG, PNG, atau GIF. Maksimal 2MB.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
                         </div>
 
@@ -433,6 +514,11 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                                     className="mt-2 border px-3 py-2 rounded-md text-sm"
                                                     value={formatDateForInput(field.value)}
                                                     onChange={(e) => {
+                                                        if (e.target.validity && e.target.validity.badInput) return;
+                                                        if (!e.target.value) {
+                                                            field.onChange(undefined);
+                                                            return;
+                                                        }
                                                         const date = parseDateFromInput(e.target.value);
                                                         if (date) {
                                                             field.onChange(date);
@@ -642,7 +728,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                                             type="file"
                                                             className="hidden"
                                                             accept="image/*"
-                                                            onChange={(e) => handleFileChange(e, onChange)}
+                                                            onChange={(e) => handleFileChange(e, onChange, setFilePreview)}
                                                             {...fieldProps}
                                                         />
                                                     </label>

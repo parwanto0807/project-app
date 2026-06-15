@@ -235,6 +235,7 @@ model Karyawan {
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   foto                 String?
+  fotoKtp              String?
   namaBank             String?             @db.VarChar(100)
   nomorRekening        String?             @db.VarChar(50)
   namaRekening         String?             @db.VarChar(255)

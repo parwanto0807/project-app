@@ -1,7 +1,8 @@
 "use client";
 
 import * as z from "zod";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { toast } from "sonner";
 import { CardWrapper } from "./card-wrapper";
 import { useForm } from "react-hook-form";
 import { useSearchParams } from "next/navigation";
@@ -28,6 +29,24 @@ const LoginAdminForm = () => {
         searchParams.get("error") === "OAuthAccountNotLinked"
             ? "Email already in use with different provider!"
             : "";
+
+
+
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorParam = urlParams.get('error');
+        const reasonParam = urlParams.get('reason');
+
+        if (errorParam || reasonParam) {
+            if (reasonParam === 'karyawan_non_aktif') {
+                toast.error("Status Karyawan Non-Aktif, Anda tidak bisa login ke sistem.", {
+                    position: "top-center"
+                });
+            }
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, []);
 
     const [error, setError] = useState<string | undefined>("");
     const [success, setSuccess] = useState<string | undefined>("");

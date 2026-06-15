@@ -463,6 +463,7 @@ export const employeeFormSchema = z.object({
   tanggalKeluar: z.coerce.date().optional(),
 
   foto: z.any().optional(),
+  fotoKtp: z.any().optional(),
   teamIds: z.array(z.string()).optional(),
   attendanceLocationId: z.string().optional().nullable(),
 });

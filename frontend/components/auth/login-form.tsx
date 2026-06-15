@@ -52,6 +52,11 @@ const LoginForm = () => {
     const reasonParam = urlParams.get('reason');
 
     if (errorParam || reasonParam) {
+      if (reasonParam === 'karyawan_non_aktif') {
+        toast.error("Status Karyawan Non-Aktif, Anda tidak bisa login ke sistem.", {
+          position: "top-center"
+        });
+      }
       ;((...args: any[]) => {})("🔴 [URL CLEANUP] Removing error params:", { errorParam, reasonParam });
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
@@ -83,6 +88,11 @@ const LoginForm = () => {
         const loginData = await loginRes.json();
 
         if (!loginRes.ok || !loginData.success) {
+          if (loginData.isKaryawanNonAktif) {
+            toast.error(loginData.error || "Status Karyawan Non-Aktif, Anda tidak bisa login ke sistem.", {
+              position: "top-center"
+            });
+          }
           setError(loginData.error || "Login gagal");
           return;
         }

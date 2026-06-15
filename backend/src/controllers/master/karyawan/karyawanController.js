@@ -22,7 +22,8 @@ export async function getKaryawanCount(req, res) {
 export const createKaryawan = async (req, res) => {
   try {
     const code = await getNextKaryawanCode();
-    const fotoPath = req.file ? `/images/employee/${req.file.filename}` : null;
+    const fotoPath = req.files && req.files.foto && req.files.foto[0] ? `/images/employee/${req.files.foto[0].filename}` : null;
+    const fotoKtpPath = req.files && req.files.fotoKtp && req.files.fotoKtp[0] ? `/images/employee/${req.files.fotoKtp[0].filename}` : null;
 
     const {
       namaLengkap,
@@ -115,6 +116,7 @@ export const createKaryawan = async (req, res) => {
         potongan: potongan ? Number(potongan) : 0,
         userId: userId || null, // ✅ Set null jika tidak ada
         foto: fotoPath,
+        fotoKtp: fotoKtpPath,
         isActive: true,
         wajibAbsen: wajibAbsen === undefined ? true : (wajibAbsen === true || wajibAbsen === "true"),
         payrollConfigId: (payrollConfigId === "none" || !payrollConfigId) ? null : payrollConfigId,
@@ -290,9 +292,14 @@ export const updateKaryawan = async (req, res) => {
     };
 
     // 🖼️ handle file foto
-    if (req.file) {
+    if (req.files && req.files.foto && req.files.foto[0]) {
       // simpan path atau filename ke DB
-      data.foto = `/images/employee/${req.file.filename}`;
+      data.foto = `/images/employee/${req.files.foto[0].filename}`;
+    }
+
+    // 🖼️ handle file foto KTP
+    if (req.files && req.files.fotoKtp && req.files.fotoKtp[0]) {
+      data.fotoKtp = `/images/employee/${req.files.fotoKtp[0].filename}`;
     }
 
     // normalisasi tanggal

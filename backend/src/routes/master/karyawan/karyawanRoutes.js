@@ -51,8 +51,8 @@ router.get("/getKaryawanById/:id", getKaryawanById);
 router.get("/me", authenticateToken, getKaryawanMe);
 
 // ⬇️ contoh: upload single image dengan field name = "foto"
-router.post("/createKaryawan", upload.single("foto"), createKaryawan);
-router.put("/updateKaryawan/:id", upload.single("foto"), updateKaryawan);
+router.post("/createKaryawan", upload.fields([{ name: "foto", maxCount: 1 }, { name: "fotoKtp", maxCount: 1 }]), createKaryawan);
+router.put("/updateKaryawan/:id", upload.fields([{ name: "foto", maxCount: 1 }, { name: "fotoKtp", maxCount: 1 }]), updateKaryawan);
 router.delete("/deleteKaryawan/:id", deleteKaryawan);
 
 /* ----------------------------- GAJI ROUTES ----------------------------- */

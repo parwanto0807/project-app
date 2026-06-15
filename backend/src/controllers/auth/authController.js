@@ -497,7 +497,19 @@ export const googleLogin = async (req, res) => {
 
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
+      include: { karyawan: true },
     });
+
+    if (existingUser?.karyawan) {
+      if (
+        existingUser.karyawan.statusKerja?.toLowerCase() === "non-aktif" ||
+        existingUser.karyawan.isActive === false
+      ) {
+        return res.redirect(
+          `${loginUrl}?error=Akun+Karyawan+Non-Aktif.+Hubungi+HR.&reason=karyawan_non_aktif`
+        );
+      }
+    }
 
     if (
       existingUser &&
@@ -1154,9 +1166,19 @@ export const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ 
+      where: { email },
+      include: { karyawan: true }
+    });
 
     if (!user) return res.status(403).json({ error: "Invalid credentials" });
+
+    // Cek jika Karyawan Non-Aktif
+    if (user.karyawan) {
+      if (user.karyawan.statusKerja?.toLowerCase() === "non-aktif" || user.karyawan.isActive === false) {
+        return res.status(403).json({ error: "Akun Karyawan Non-Aktif. Hubungi HR.", isKaryawanNonAktif: true });
+      }
+    }
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(403).json({ error: "Invalid credentials" });
