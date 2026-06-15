@@ -20,11 +20,11 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: ["@react-pdf/renderer"],
-  serverActions: {
-    bodySizeLimit: "5mb",
-    allowedOrigins: ["rylif-app.com", "www.rylif-app.com", "*.rylif-app.com", "localhost:3000"],
-  },
   experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",
+      allowedOrigins: ["rylif-app.com", "www.rylif-app.com", "*.rylif-app.com", "localhost:3000"],
+    },
   },
   webpack: (config, { isServer }) => {
     config.resolve.alias.canvas = false;
