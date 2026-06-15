@@ -68,28 +68,23 @@ class TrialBalanceController {
         const periodDebit = Number(record.periodDebit) || 0;
         const periodCredit = Number(record.periodCredit) || 0;
         
-        // If database version is 0 but opening exists, calculate on the fly
+        // If database ending balance is 0 but opening exists, calculate on the fly
         let endingDebit = Number(record.endingDebit) || 0;
         let endingCredit = Number(record.endingCredit) || 0;
         
-        if (endingDebit === 0 && endingCredit === 0 && (openingDebit !== 0 || openingCredit !== 0)) {
-          // Calculate based on Normal Balance
-          const netOpening = openingDebit - openingCredit;
-          const netPeriod = periodDebit - periodCredit;
-          const totalNet = netOpening + netPeriod;
-          
+        if (endingDebit === 0 && endingCredit === 0 && (openingDebit !== 0 || openingCredit !== 0 || periodDebit !== 0 || periodCredit !== 0)) {
           if (record.coa.normalBalance === 'DEBIT') {
+            // DEBIT normal balance accounts (Assets, Expenses, COGS):
+            // Net = (openingDebit - openingCredit) + (periodDebit - periodCredit)
+            const totalNet = (openingDebit - openingCredit) + (periodDebit - periodCredit);
             endingDebit = totalNet > 0 ? totalNet : 0;
             endingCredit = totalNet < 0 ? Math.abs(totalNet) : 0;
           } else {
-            endingCredit = totalNet < 0 ? Math.abs(totalNet) : 0;
-            endingDebit = totalNet > 0 ? totalNet : 0;
-            // Wait, for credit accounts: Net = Credit - Debit
-            const netOpeningCr = openingCredit - openingDebit;
-            const netPeriodCr = periodCredit - periodDebit;
-            const totalNetCr = netOpeningCr + netPeriodCr;
-            endingCredit = totalNetCr > 0 ? totalNetCr : 0;
-            endingDebit = totalNetCr < 0 ? Math.abs(totalNetCr) : 0;
+            // CREDIT normal balance accounts (Liabilities, Equity, Revenue):
+            // Net = (openingCredit - openingDebit) + (periodCredit - periodDebit)
+            const totalNet = (openingCredit - openingDebit) + (periodCredit - periodDebit);
+            endingCredit = totalNet > 0 ? totalNet : 0;
+            endingDebit = totalNet < 0 ? Math.abs(totalNet) : 0;
           }
         }
 

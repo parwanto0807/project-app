@@ -338,14 +338,24 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                             <FileSpreadsheet className="h-4 w-4" />
                             Export CSV
                         </Button>
-                        <Button
-                            variant="outline"
-                            className="gap-2"
-                            onClick={() => setIsSummaryPdfOpen(true)}
-                        >
-                            <Printer className="h-4 w-4" />
-                            Print Summary (A4 Landscape)
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="gap-2 border-blue-200 hover:bg-blue-50 text-blue-700"
+                                        onClick={() => setIsSummaryPdfOpen(true)}
+                                    >
+                                        <Printer className="h-4 w-4" />
+                                        Print Page (A4)
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs text-center">
+                                    <p>Mencetak data yang tampil di <b>halaman ini saja</b>.</p>
+                                    <p className="text-xs text-slate-300 mt-1">Ubah 'Items per page' untuk mencetak lebih banyak data sekaligus.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                     {/* Desktop View */}
                     <div className="hidden md:block rounded-md border m-0">

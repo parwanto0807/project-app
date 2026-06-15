@@ -518,10 +518,27 @@ class LedgerController {
           });
 
           if (tb) {
-            const newPeriodDebit = Math.max(0, Number(tb.periodDebit) - line.debitAmount);
-            const newPeriodCredit = Math.max(0, Number(tb.periodCredit) - line.creditAmount);
-            const newEndingDebit = Number(tb.openingDebit) + newPeriodDebit;
-            const newEndingCredit = Number(tb.openingCredit) + newPeriodCredit;
+            const newPeriodDebit = Math.max(0, Number(tb.periodDebit) - Number(line.debitAmount));
+            const newPeriodCredit = Math.max(0, Number(tb.periodCredit) - Number(line.creditAmount));
+            const openingDebit = Number(tb.openingDebit) || 0;
+            const openingCredit = Number(tb.openingCredit) || 0;
+
+            // ✅ FIX: Calculate ending balance based on normalBalance of the account
+            // instead of blindly summing opening + period without considering direction
+            let newEndingDebit = 0;
+            let newEndingCredit = 0;
+
+            if (line.coa.normalBalance === 'DEBIT') {
+              // DEBIT accounts (Assets, Expenses, COGS): Net = openingDebit - openingCredit + periodDebit - periodCredit
+              const totalNet = (openingDebit - openingCredit) + (newPeriodDebit - newPeriodCredit);
+              newEndingDebit = totalNet > 0 ? totalNet : 0;
+              newEndingCredit = totalNet < 0 ? Math.abs(totalNet) : 0;
+            } else {
+              // CREDIT accounts (Liabilities, Equity, Revenue): Net = openingCredit - openingDebit + periodCredit - periodDebit
+              const totalNet = (openingCredit - openingDebit) + (newPeriodCredit - newPeriodDebit);
+              newEndingCredit = totalNet > 0 ? totalNet : 0;
+              newEndingDebit = totalNet < 0 ? Math.abs(totalNet) : 0;
+            }
 
             await tx.trialBalance.update({
               where: { periodId_coaId: { periodId: target.periodId, coaId: line.coaId } },

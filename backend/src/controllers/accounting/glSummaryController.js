@@ -113,10 +113,9 @@ class GLSummaryController {
 
   /**
    * Get Grand Total with proper accounting calculation
-   * Total Debit = Sum of all ASET accounts (code starts with 1)
-   * Total Credit = Sum of LIABILITAS (code starts with 2) + EKUITAS (code starts with 3) + PENDAPATAN (code starts with 4)
-   * Opening Balance = Sum of all EKUITAS opening balances (represents total initial capital)
-   * Status = BALANCED if Total Debit = Total Credit
+   * Total Debit = Sum of all debitTotal columns across all GL Summary records
+   * Total Credit = Sum of all creditTotal columns across all GL Summary records
+   * In a balanced system, Total Debit should equal Total Credit
    */
   async getGrandTotal(req, res) {
     try {
@@ -141,42 +140,15 @@ class GLSummaryController {
             select: {
               code: true,
               name: true,
-              type: true
+              type: true,
+              normalBalance: true
             }
           }
         }
       });
 
-      // Calculate Total Debit (ASET accounts - code starts with 1)
-      const totalDebit = summaries
-        .filter(s => s.coa.code.startsWith('1'))
-        .reduce((sum, item) => {
-          const closing = Number(item.closingBalance) || 0;
-          return sum + (closing > 0 ? closing : 0); // Only positive balances
-        }, 0);
-
-      // Calculate Total Credit (LIABILITAS + EKUITAS + PENDAPATAN - codes start with 2, 3, or 4)
-      const totalCredit = summaries
-        .filter(s => s.coa.code.startsWith('2') || s.coa.code.startsWith('3') || s.coa.code.startsWith('4'))
-        .reduce((sum, item) => {
-          const closing = Number(item.closingBalance) || 0;
-          return sum + Math.abs(closing); // Use absolute value for credit accounts
-        }, 0);
-
-      // Calculate Opening Balance from ALL Equity accounts (code starts with 3)
-      // This represents the total initial capital, not just one account
-      const openingBalance = summaries
-        .filter(s => s.coa.code.startsWith('3')) // All EKUITAS accounts
-        .reduce((sum, item) => {
-          const opening = Number(item.openingBalance) || 0;
-          return sum + Math.abs(opening); // Use absolute value
-        }, 0);
-
-      // Calculate balance status
-      const difference = Math.abs(totalDebit - totalCredit);
-      const isBalanced = difference < 0.01; // Allow for rounding errors
-
-      // Calculate totals from all summaries (for reference)
+      // ✅ FIX: Calculate Total Debit & Credit properly by summing the transaction columns
+      // In double-entry bookkeeping, Total Debit MUST equal Total Credit across ALL accounts
       const aggregatedTotals = summaries.reduce((acc, item) => {
         return {
           debit: acc.debit + (Number(item.debitTotal) || 0),
@@ -186,17 +158,49 @@ class GLSummaryController {
         };
       }, { debit: 0, credit: 0, opening: 0, closing: 0 });
 
+      // ✅ Proper: Use aggregated debit/credit totals
+      const totalDebit = aggregatedTotals.debit;
+      const totalCredit = aggregatedTotals.credit;
+
+      // Calculate Opening Balance: sum of Net Balance for EKUITAS accounts only
+      // (represents accumulated capital/equity as starting point)
+      const openingBalance = summaries
+        .filter(s => s.coa.type === 'EKUITAS')
+        .reduce((sum, item) => {
+          const opening = Number(item.openingBalance) || 0;
+          // For CREDIT normal balance accounts, a positive opening means credit balance
+          return sum + Math.abs(opening);
+        }, 0);
+
+      // ✅ Net Position per account type for summary insight
+      const netByType = summaries.reduce((acc, item) => {
+        const type = item.coa.type;
+        const debit = Number(item.debitTotal) || 0;
+        const credit = Number(item.creditTotal) || 0;
+        const net = item.coa.normalBalance === 'DEBIT' ? (debit - credit) : (credit - debit);
+        if (!acc[type]) acc[type] = 0;
+        acc[type] += net;
+        return acc;
+      }, {});
+
+      // Calculate balance status
+      const difference = Math.abs(totalDebit - totalCredit);
+      const isBalanced = difference < 0.01; // Allow for rounding errors
+
       return res.status(200).json({
         success: true,
         data: {
-          // Proper accounting totals (Balance Sheet approach)
-          totalDebit,      // Total ASET (closing balance)
-          totalCredit,     // Total LIABILITAS + EKUITAS + PENDAPATAN (closing balance)
-          openingBalance,  // Total initial capital from all Equity accounts
+          // ✅ Correct accounting totals: sum of all debit/credit transactions
+          totalDebit,
+          totalCredit,
+          openingBalance,
           isBalanced,
           difference,
+
+          // Net position breakdown by account type
+          netByType,
           
-          // Aggregated transaction totals (for reference)
+          // Aggregated transaction totals
           aggregatedTotals,
           
           // Metadata

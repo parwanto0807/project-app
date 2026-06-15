@@ -298,27 +298,32 @@ export const financialReportService = {
       };
 
       if (ASSET_TYPES.includes(account.type)) {
-        if (account.code.startsWith('1-1')) {
-          reportData.assets.currentAssets.accounts.push(formattedAccount);
-          reportData.assets.currentAssets.total += balance;
-        } else if (account.code.startsWith('1-2')) {
+        // ✅ FIX Bug #4: Gunakan cashflowType dan rentang kode untuk klasifikasi yang lebih akurat
+        // Aset Tetap (Fixed Assets): cashflowType = INVESTING atau kode dimulai '1-2'
+        // Aset Lancar (Current Assets): semua aset lainnya
+        const isFixedAsset = 
+          account.cashflowType === 'INVESTING' || 
+          account.code.startsWith('1-2');
+        
+        if (isFixedAsset) {
           reportData.assets.fixedAssets.accounts.push(formattedAccount);
           reportData.assets.fixedAssets.total += balance;
         } else {
-          // Fallback if code doesn't match pattern, put in current
+          // Aset Lancar: kas, piutang, persediaan, pajak dibayar dimuka, dll.
           reportData.assets.currentAssets.accounts.push(formattedAccount);
           reportData.assets.currentAssets.total += balance;
         }
         reportData.assets.total += balance;
       } else if (LIABILITY_TYPES.includes(account.type)) {
-        if (account.code.startsWith('2-1')) {
-          reportData.liabilities.currentLiabilities.accounts.push(formattedAccount);
-          reportData.liabilities.currentLiabilities.total += balance;
-        } else if (account.code.startsWith('2-2')) {
+        // Liabilitas Jangka Panjang: cashflowType = FINANCING atau kode dimulai '2-2'
+        const isLongTerm = 
+          account.code.startsWith('2-2') ||
+          (account.cashflowType === 'FINANCING' && !account.code.startsWith('2-1'));
+
+        if (isLongTerm) {
           reportData.liabilities.longTermLiabilities.accounts.push(formattedAccount);
           reportData.liabilities.longTermLiabilities.total += balance;
         } else {
-          // Fallback
           reportData.liabilities.currentLiabilities.accounts.push(formattedAccount);
           reportData.liabilities.currentLiabilities.total += balance;
         }
@@ -359,22 +364,30 @@ export const financialReportService = {
     const start = getJakartaStartOfDay(startDate);
     const end = getJakartaEndOfDay(endDate);
 
-    // 1. Identify Cash & Bank accounts (Assets that are reconcilable or marked as cash/bank)
+    // ✅ FIX Bug #5 (REFINED): Identifikasi akun Kas & Bank menggunakan isReconcilable: true
+    // DAN rentang kode '1-100' (Kas & Bank group di COA Anda: 1-10001 s/d 1-10009)
+    // Ini mencegah akun Piutang (1-10101, 1-10102) yang juga isReconcilable=true
+    // ikut terhitung sebagai akun kas dalam laporan arus kas.
     const cashAccounts = await prisma.chartOfAccounts.findMany({
       where: {
         type: 'ASET',
-        OR: [
-          { isReconcilable: true },
-          { code: { startsWith: '1-11' } }, // Typical code for Cash & Bank
-          { name: { contains: 'Kas', mode: 'insensitive' } },
-          { name: { contains: 'Bank', mode: 'insensitive' } },
-          { name: { contains: 'Petty', mode: 'insensitive' } }
+        isReconcilable: true,
+        // Batasi hanya pada grup Kas & Bank (kode '1-100xx')
+        // Piutang ada di '1-101xx' dst, sehingga tidak ikut masuk
+        code: { startsWith: '1-10' },
+        // Exclude akun Piutang (kode mengandung '1-101', '1-102', '1-103', '1-104')
+        NOT: [
+          { code: { startsWith: '1-101' } }, // Piutang Usaha
+          { code: { startsWith: '1-102' } }, // Persediaan
+          { code: { startsWith: '1-103' } }, // Piutang Lain-lain
+          { code: { startsWith: '1-104' } }, // Pajak Dibayar Dimuka
         ]
       },
       select: { id: true, code: true, name: true }
     });
 
     const cashAccountIds = cashAccounts.map(a => a.id);
+    console.info(`[CashFlow] Identified ${cashAccounts.length} cash/bank accounts:`, cashAccounts.map(a => `${a.code} - ${a.name}`));
 
     // 2. Calculate Beginning Balance (Sum of all posted ledger lines before startDate)
     const beginningBalanceAgg = await prisma.ledgerLine.aggregate({
