@@ -145,6 +145,9 @@ export async function updateGeneralLedgerSummary({ coaId, periodId, date, debitA
   if (existing) {
     // Update existing record
     const netChange = debitAmount - creditAmount;
+    const newDebitTotal = Number(existing.debitTotal) + debitAmount;
+    const newCreditTotal = Number(existing.creditTotal) + creditAmount;
+    const newClosingBalance = Number(existing.openingBalance) + newDebitTotal - newCreditTotal;
     
     await prismaClient.generalLedgerSummary.update({
       where: {
@@ -155,9 +158,9 @@ export async function updateGeneralLedgerSummary({ coaId, periodId, date, debitA
         }
       },
       data: {
-        debitTotal: { increment: debitAmount },
-        creditTotal: { increment: creditAmount },
-        closingBalance: { increment: netChange },
+        debitTotal: newDebitTotal,
+        creditTotal: newCreditTotal,
+        closingBalance: newClosingBalance,
         transactionCount: { increment: 1 }
       }
     });
@@ -185,18 +188,20 @@ export async function updateGeneralLedgerSummary({ coaId, periodId, date, debitA
 
 /**
  * Helper: Calculate opening balance for a specific date
- * Gets closing balance from previous day
+ * Gets closing balance from the most recent GL Summary record BEFORE this date,
+ * searching ACROSS ALL PERIODS so that balances carry forward correctly.
  */
 async function calculateOpeningBalance(coaId, periodId, date, prismaClient) {
-  // Get previous day
+  // Get the day before
   const previousDay = new Date(date);
   previousDay.setDate(previousDay.getDate() - 1);
 
-  // Find summary for previous day
+  // ✅ FIX: Search across ALL periods (remove periodId filter)
+  // This ensures balance is carried forward from previous periods correctly
   const previousSummary = await prismaClient.generalLedgerSummary.findFirst({
     where: {
       coaId,
-      periodId,
+      // No periodId filter here — allow cross-period carry-forward
       date: { lte: previousDay }
     },
     orderBy: {
@@ -204,13 +209,20 @@ async function calculateOpeningBalance(coaId, periodId, date, prismaClient) {
     }
   });
 
-  return previousSummary?.closingBalance || 0;
+  if (previousSummary) {
+    return Number(previousSummary.closingBalance);
+  }
+
+  // No previous record at all — this is the very first transaction for this COA
+  return 0;
 }
 
 /**
- * Batch update Trial Balance for all accounts in a period
- * Useful for recalculation or period closing
- * 
+ * Batch recalculate Trial Balance for a specific accounting period.
+ * - Calculates opening balance from ALL posted lines BEFORE this period (cross-period carry-forward)
+ * - Includes accounts with carry-forward opening balances even if no transactions in current period
+ * - Produces a properly balanced Trial Balance
+ *
  * @param {string} periodId - Accounting period ID
  */
 export async function recalculateTrialBalance(periodId) {
@@ -222,77 +234,94 @@ export async function recalculateTrialBalance(periodId) {
     throw new Error('Accounting period not found');
   }
 
-  // Get all ledger lines in this period
-  const ledgerLines = await prisma.ledgerLine.findMany({
-    where: {
-      ledger: {
-        periodId,
-        status: 'POSTED'
-      }
-    },
-    include: {
-      ledger: true
-    }
+  // Step 1: Get all posted ledger lines IN this period
+  const periodLines = await prisma.ledgerLine.findMany({
+    where: { ledger: { periodId, status: 'POSTED' } },
+    select: { coaId: true, debitAmount: true, creditAmount: true }
   });
 
-  // Group by COA
-  const coaMap = new Map();
+  // Group period activity by COA
+  const periodTotals = new Map();
+  for (const l of periodLines) {
+    if (!periodTotals.has(l.coaId)) periodTotals.set(l.coaId, { debit: 0, credit: 0 });
+    const t = periodTotals.get(l.coaId);
+    t.debit += Number(l.debitAmount);
+    t.credit += Number(l.creditAmount);
+  }
 
-  ledgerLines.forEach(line => {
-    if (!coaMap.has(line.coaId)) {
-      coaMap.set(line.coaId, {
-        debit: 0,
-        credit: 0
-      });
-    }
-
-    const coa = coaMap.get(line.coaId);
-    coa.debit += line.debitAmount;
-    coa.credit += line.creditAmount;
+  // Step 2: Get all posted ledger lines BEFORE this period (for opening balances)
+  const priorLines = await prisma.ledgerLine.findMany({
+    where: { ledger: { status: 'POSTED', transactionDate: { lt: period.startDate } } },
+    select: { coaId: true, debitAmount: true, creditAmount: true }
   });
 
-  // Update or create trial balance records
-  for (const [coaId, amounts] of coaMap.entries()) {
+  // Group prior activity by COA
+  const priorTotals = new Map();
+  for (const l of priorLines) {
+    if (!priorTotals.has(l.coaId)) priorTotals.set(l.coaId, { debit: 0, credit: 0 });
+    const t = priorTotals.get(l.coaId);
+    t.debit += Number(l.debitAmount);
+    t.credit += Number(l.creditAmount);
+  }
+
+  // Step 3: Union of all COA IDs (both current period AND prior periods with carry-forward balance)
+  const allCoaIds = new Set([...periodTotals.keys(), ...priorTotals.keys()]);
+
+  let accountsUpdated = 0;
+
+  for (const coaId of allCoaIds) {
+    const prior = priorTotals.get(coaId) || { debit: 0, credit: 0 };
+    const period_ = periodTotals.get(coaId) || { debit: 0, credit: 0 };
+
+    // Opening net (positive = debit side, negative = credit side)
+    const openingNet = prior.debit - prior.credit;
+    const openingDebit = openingNet > 0 ? openingNet : 0;
+    const openingCredit = openingNet < 0 ? Math.abs(openingNet) : 0;
+
+    // Ending = opening + period activity
+    const endingNet = openingNet + period_.debit - period_.credit;
+    const endingDebit = endingNet > 0 ? endingNet : 0;
+    const endingCredit = endingNet < 0 ? Math.abs(endingNet) : 0;
+
     await prisma.trialBalance.upsert({
-      where: {
-        periodId_coaId: {
-          periodId,
-          coaId
-        }
-      },
+      where: { periodId_coaId: { periodId, coaId } },
       update: {
-        periodDebit: amounts.debit,
-        periodCredit: amounts.credit,
-        endingDebit: amounts.debit, // Simplified, should include opening
-        endingCredit: amounts.credit,
-        ytdDebit: amounts.debit,
-        ytdCredit: amounts.credit,
+        openingDebit,
+        openingCredit,
+        periodDebit: period_.debit,
+        periodCredit: period_.credit,
+        endingDebit,
+        endingCredit,
+        ytdDebit: endingDebit,
+        ytdCredit: endingCredit,
         calculatedAt: new Date()
       },
       create: {
         periodId,
         coaId,
-        openingDebit: 0,
-        openingCredit: 0,
-        periodDebit: amounts.debit,
-        periodCredit: amounts.credit,
-        endingDebit: amounts.debit,
-        endingCredit: amounts.credit,
-        ytdDebit: amounts.debit,
-        ytdCredit: amounts.credit,
+        openingDebit,
+        openingCredit,
+        periodDebit: period_.debit,
+        periodCredit: period_.credit,
+        endingDebit,
+        endingCredit,
+        ytdDebit: endingDebit,
+        ytdCredit: endingCredit,
         currency: 'IDR',
         calculatedAt: new Date()
       }
     });
+    accountsUpdated++;
   }
 
   return {
     periodId,
-    accountsUpdated: coaMap.size,
-    totalDebit: Array.from(coaMap.values()).reduce((sum, a) => sum + a.debit, 0),
-    totalCredit: Array.from(coaMap.values()).reduce((sum, a) => sum + a.credit, 0)
+    accountsUpdated,
+    totalDebit: periodLines.reduce((s, l) => s + Number(l.debitAmount), 0),
+    totalCredit: periodLines.reduce((s, l) => s + Number(l.creditAmount), 0)
   };
 }
+
 
 /**
  * Batch update GL Summary for a specific date range

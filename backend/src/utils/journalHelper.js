@@ -106,8 +106,8 @@ async function updateGeneralLedgerSummary(coaId, periodId, date, debit, credit, 
   // Normalize date to start of day in Jakarta
   const normalizedDate = normalizeToJakartaStartOfDay(date);
 
-  // Get or create summary record
-  let summary = await prismaClient.generalLedgerSummary.findUnique({
+  // Get existing record for this exact date
+  const summary = await prismaClient.generalLedgerSummary.findUnique({
     where: {
       coaId_periodId_date: {
         coaId,
@@ -118,22 +118,38 @@ async function updateGeneralLedgerSummary(coaId, periodId, date, debit, credit, 
   });
 
   if (!summary) {
-    // Create new summary
-    summary = await prismaClient.generalLedgerSummary.create({
+    // ✅ FIX: Cari opening balance dari record GL Summary terakhir SEBELUM tanggal ini
+    // Cari lintas SEMUA period agar balance carry-forward antar bulan bekerja dengan benar
+    const previousDay = new Date(normalizedDate);
+    previousDay.setDate(previousDay.getDate() - 1);
+
+    const previousSummary = await prismaClient.generalLedgerSummary.findFirst({
+      where: {
+        coaId,
+        // Tidak filter periodId agar lintas period bisa carry-forward
+        date: { lte: previousDay }
+      },
+      orderBy: { date: 'desc' }
+    });
+
+    const openingBalance = previousSummary ? Number(previousSummary.closingBalance) : 0;
+    const closingBalance = openingBalance + debit - credit;
+
+    await prismaClient.generalLedgerSummary.create({
       data: {
         coaId,
         periodId,
         date: normalizedDate,
-        openingBalance: 0,
+        openingBalance,
         debitTotal: debit,
         creditTotal: credit,
-        closingBalance: debit - credit,
+        closingBalance,
         transactionCount: 1,
         currency: 'IDR'
       }
     });
   } else {
-    // Update existing summary
+    // ✅ Update existing record: recalculate closingBalance from openingBalance
     const newDebitTotal = Number(summary.debitTotal) + debit;
     const newCreditTotal = Number(summary.creditTotal) + credit;
     const newClosingBalance = Number(summary.openingBalance) + newDebitTotal - newCreditTotal;
