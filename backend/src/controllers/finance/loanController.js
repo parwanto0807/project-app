@@ -49,6 +49,7 @@ export const createPinjaman = async (req, res) => {
       bunga = 0,
       keterangan,
       bankAccountId,
+      bulanMulaiPotongan, // format: YYYY-MM (opsional, default: bulan setelah tanggalPinjam)
     } = req.body;
 
     const amount = parseFloat(jumlahPinjaman);
@@ -76,18 +77,36 @@ export const createPinjaman = async (req, res) => {
       });
 
       // 2. Create PinjamanDetails (Schedule)
-      const startDate = new Date(tanggalPinjam || Date.now());
       const detailsData = [];
-      for (let i = 1; i <= months; i++) {
-        const dueDate = new Date(startDate);
-        dueDate.setMonth(dueDate.getMonth() + i);
-        detailsData.push({
-          pinjamanId: loan.id,
-          bulanKe: i,
-          tanggalJatuhTempo: dueDate,
-          jumlahBayar: angsuranBulanan,
-          status: "PENDING",
-        });
+      if (bulanMulaiPotongan) {
+        // Jika user mengatur bulanMulaiPotongan spesifik (format YYYY-MM)
+        // Cicilan pertama langsung jatuh di bulan tersebut
+        const [year, month] = bulanMulaiPotongan.split('-');
+        const baseYear = parseInt(year);
+        const baseMonth = parseInt(month) - 1; // 0-indexed
+        for (let i = 1; i <= months; i++) {
+          const dueDate = new Date(baseYear, baseMonth + (i - 1), 1);
+          detailsData.push({
+            pinjamanId: loan.id,
+            bulanKe: i,
+            tanggalJatuhTempo: dueDate,
+            jumlahBayar: angsuranBulanan,
+            status: "PENDING",
+          });
+        }
+      } else {
+        const startDate = new Date(tanggalPinjam || Date.now());
+        for (let i = 1; i <= months; i++) {
+          const dueDate = new Date(startDate);
+          dueDate.setMonth(dueDate.getMonth() + i);
+          detailsData.push({
+            pinjamanId: loan.id,
+            bulanKe: i,
+            tanggalJatuhTempo: dueDate,
+            jumlahBayar: angsuranBulanan,
+            status: "PENDING",
+          });
+        }
       }
       await tx.pinjamanDetail.createMany({ data: detailsData });
 
@@ -115,49 +134,87 @@ export const updatePinjaman = async (req, res) => {
       bunga = 0,
       keterangan,
       bankAccountId,
+      bulanMulaiPotongan, // format: YYYY-MM
     } = req.body;
 
     const loan = await prisma.pinjaman.findUnique({ where: { id } });
     if (!loan) return res.status(404).json({ message: "Pinjaman tidak ditemukan" });
-    if (loan.status !== "DRAFT") return res.status(400).json({ message: "Hanya pinjaman berstatus DRAFT yang dapat diedit" });
 
-    const amount = parseFloat(jumlahPinjaman);
-    const months = parseInt(tenor);
-    const interest = parseFloat(bunga || 0);
+    // Cek apakah sudah ada pelunasan
+    const hasPaid = await prisma.pinjamanDetail.findFirst({ where: { pinjamanId: id, status: "PAID" } });
+    if (hasPaid) {
+      return res.status(400).json({ message: "Pinjaman yang sudah memiliki pelunasan tidak dapat diedit" });
+    }
+
+    // Jika sudah POSTED (ACTIVE), hanya boleh ubah tanggalPinjam (Bulan mulai potongan)
+    let amount = Number(loan.jumlahPinjaman);
+    let months = loan.tenor;
+    let interest = Number(loan.bunga || 0);
+
+    if (loan.status === "DRAFT") {
+      amount = parseFloat(jumlahPinjaman || loan.jumlahPinjaman);
+      months = parseInt(tenor || loan.tenor);
+      interest = parseFloat(bunga !== undefined ? bunga : loan.bunga);
+    }
+
     const totalWithInterest = amount + (amount * (interest / 100));
     const angsuranBulanan = Math.ceil(totalWithInterest / months);
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Update Pinjaman
+      const updateData = {
+        tanggalPinjam: new Date(tanggalPinjam || loan.tanggalPinjam),
+        keterangan: keterangan !== undefined ? keterangan : loan.keterangan,
+      };
+
+      if (loan.status === "DRAFT") {
+        updateData.karyawanId = karyawanId || loan.karyawanId;
+        updateData.jumlahPinjaman = amount;
+        updateData.tenor = months;
+        updateData.bunga = interest;
+        updateData.angsuranBulanan = angsuranBulanan;
+        updateData.sisaPinjaman = totalWithInterest;
+        if (bankAccountId !== undefined) updateData.bankAccountId = bankAccountId || null;
+      }
+
       const updated = await tx.pinjaman.update({
         where: { id },
-        data: {
-          karyawanId,
-          tanggalPinjam: new Date(tanggalPinjam || Date.now()),
-          jumlahPinjaman: amount,
-          tenor: months,
-          bunga: interest,
-          angsuranBulanan,
-          sisaPinjaman: totalWithInterest,
-          keterangan,
-          bankAccountId: bankAccountId || null,
-        },
+        data: updateData,
       });
 
-      // 2. Regenerate PinjamanDetails
+      // 2. Regenerate PinjamanDetails (KARENA BELUM ADA YANG PAID)
       await tx.pinjamanDetail.deleteMany({ where: { pinjamanId: id } });
-      const startDate = new Date(tanggalPinjam || Date.now());
+      
       const detailsData = [];
-      for (let i = 1; i <= months; i++) {
-        const dueDate = new Date(startDate);
-        dueDate.setMonth(dueDate.getMonth() + i);
-        detailsData.push({
-          pinjamanId: id,
-          bulanKe: i,
-          tanggalJatuhTempo: dueDate,
-          jumlahBayar: angsuranBulanan,
-          status: "PENDING",
-        });
+      if (bulanMulaiPotongan) {
+        // Jika user mengatur bulanMulaiPotongan spesifik (format YYYY-MM)
+        // Cicilan pertama langsung jatuh di bulan tersebut
+        const [year, month] = bulanMulaiPotongan.split('-');
+        const baseYear = parseInt(year);
+        const baseMonth = parseInt(month) - 1; // 0-indexed
+        for (let i = 1; i <= months; i++) {
+          const dueDate = new Date(baseYear, baseMonth + (i - 1), 1);
+          detailsData.push({
+            pinjamanId: id,
+            bulanKe: i,
+            tanggalJatuhTempo: dueDate,
+            jumlahBayar: angsuranBulanan,
+            status: "PENDING",
+          });
+        }
+      } else {
+        const startDate = new Date(tanggalPinjam || loan.tanggalPinjam);
+        for (let i = 1; i <= months; i++) {
+          const dueDate = new Date(startDate);
+          dueDate.setMonth(dueDate.getMonth() + i);
+          detailsData.push({
+            pinjamanId: id,
+            bulanKe: i,
+            tanggalJatuhTempo: dueDate,
+            jumlahBayar: angsuranBulanan,
+            status: "PENDING",
+          });
+        }
       }
       await tx.pinjamanDetail.createMany({ data: detailsData });
 

@@ -3,6 +3,38 @@ import financialSummaryService from './financialSummaryService.js';
 
 class ClosingService {
     /**
+     * Validate Stock Balance Calculation
+     * Ensures stockAkhir = stockAwal + stockIn - stockOut + justIn - justOut
+     * CRITICAL: This prevents data corruption during period closing
+     */
+    validateStockBalance(balance, context = '') {
+        const stockAwal = Number(balance.stockAwal) || 0;
+        const stockIn = Number(balance.stockIn) || 0;
+        const stockOut = Number(balance.stockOut) || 0;
+        const justIn = Number(balance.justIn) || 0;
+        const justOut = Number(balance.justOut) || 0;
+        const stockAkhir = Number(balance.stockAkhir) || 0;
+        
+        const expectedStockAkhir = stockAwal + stockIn - stockOut + justIn - justOut;
+        const diff = Math.abs(stockAkhir - expectedStockAkhir);
+        
+        if (diff > 0.01) { // Allow small floating point tolerance
+            const errorMsg = `[${context}] Stock balance validation failed for Product ${balance.productId}, Warehouse ${balance.warehouseId}: ` +
+                           `Expected stockAkhir=${expectedStockAkhir}, got ${stockAkhir} (diff=${diff})`;
+            console.error('❌', errorMsg);
+            // Don't throw, just log - we'll fix it automatically
+            return {
+                isValid: false,
+                expected: expectedStockAkhir,
+                actual: stockAkhir,
+                diff: diff
+            };
+        }
+        
+        return { isValid: true };
+    }
+
+    /**
      * Helper: Get System Account by Key
      */
     async getSystemAccount(tx, key) {
@@ -575,14 +607,17 @@ class ClosingService {
 
             if (nextPeriodStart) {
                 // A. Hapus "data stock sampah" di periode berikutnya
-                // Sampah = data yang tidak ada mutasi (stockIn/Out/JustIn/Out = 0) tapi sudah terlanjur dibuat
+                // Sampah = data yang TIDAK PUNYA STOCK dan tidak ada mutasi
+                // FIXED: Don't delete records that have stock (stockAkhir > 0) even if no mutations
                 await tx.stockBalance.deleteMany({
                     where: {
                         period: nextPeriodStart,
                         stockIn: 0,
                         stockOut: 0,
                         justIn: 0,
-                        justOut: 0
+                        justOut: 0,
+                        stockAkhir: 0, // ONLY delete if no stock at all
+                        stockAwal: 0   // AND no opening stock
                     }
                 });
 
@@ -594,6 +629,14 @@ class ClosingService {
                 ;(() => {})(`[CLOSING] Found ${currentStockBalances.length} stock records to rollover from ${period.periodName}`);
 
                 for (const sb of currentStockBalances) {
+                    // VALIDATE current period stock before rollover
+                    const validation = this.validateStockBalance(sb, `CLOSING ${period.periodName}`);
+                    if (!validation.isValid) {
+                        console.warn(`⚠️  Auto-fixing stock balance for Product ${sb.productId}, Warehouse ${sb.warehouseId}`);
+                        // Auto-fix: use calculated value
+                        sb.stockAkhir = validation.expected;
+                    }
+
                     const nextSB = await tx.stockBalance.findUnique({
                         where: {
                             productId_warehouseId_period: {
@@ -625,8 +668,8 @@ class ClosingService {
                         // Stock Akhir = Stock Awal (baru) + Mutasi periode berikutnya
                         const newStockAkhir = nStockAwal + nextStockIn - nextStockOut + nextJustIn - nextJustOut;
                         
-                        // Available Stock = Stock Akhir - Booked Stock
-                        const newAvailableStock = newStockAkhir - nBooked;
+                        // Available Stock = Stock Akhir - Booked Stock (min 0)
+                        const newAvailableStock = Math.max(0, newStockAkhir - nBooked);
 
                         await tx.stockBalance.update({
                             where: { id: nextSB.id },
@@ -638,7 +681,10 @@ class ClosingService {
                                 inventoryValue: nValue,
                                 // Recalculate berdasarkan stock awal baru + mutasi periode ini
                                 stockAkhir: newStockAkhir,
-                                availableStock: newAvailableStock
+                                availableStock: newAvailableStock,
+                                // CRITICAL: Ensure stockAkhir calculation is correct
+                                // Add validation comment for future developers
+                                // stockAkhir MUST equal: stockAwal + stockIn - stockOut + justIn - justOut
                             }
                         });
                     } else {
@@ -657,7 +703,7 @@ class ClosingService {
                                 onPR: nOnPR,
                                 bookedStock: nBooked,
                                 stockAkhir: nStockAwal,
-                                availableStock: nStockAwal - nBooked,
+                                availableStock: Math.max(0, nStockAwal - nBooked),
                                 inventoryValue: nValue
                             }
                         });

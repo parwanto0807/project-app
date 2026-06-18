@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Loader2, Calculator, CheckCircle2, AlertTriangle, User,
-  CreditCard, Banknote, Clock, ChevronDown, ChevronUp,
+  CreditCard, Banknote, Clock, ChevronDown, ChevronUp, Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -53,6 +53,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
     manualPinjaman: "",
     manualKasbon: "",
     hitungLembur: true,
+    hitungUangMakan: true,
+    hitungUangMakanLembur: true,
   });
 
   useEffect(() => {
@@ -67,6 +69,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
           manualPinjaman: gajiToEdit.potonganPinjaman?.toString() || "",
           manualKasbon: gajiToEdit.potonganKasbon?.toString() || "",
           hitungLembur: true,
+          hitungUangMakan: true,
+          hitungUangMakanLembur: true,
         });
       } else {
         setForm({
@@ -78,6 +82,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
           manualPinjaman: "",
           manualKasbon: "",
           hitungLembur: true,
+          hitungUangMakan: true,
+          hitungUangMakanLembur: true,
         });
       }
       fetchAllEmployees().then(setEmployees);
@@ -105,6 +111,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
         manualPinjaman: (form.manualPinjaman !== "" && form.manualPinjaman !== undefined) ? parseFloat(form.manualPinjaman) : undefined,
         manualKasbon: (form.manualKasbon !== "" && form.manualKasbon !== undefined) ? parseFloat(form.manualKasbon) : undefined,
         hitungLembur: form.hitungLembur,
+        hitungUangMakan: form.hitungUangMakan,
+        hitungUangMakanLembur: form.hitungUangMakanLembur,
       });
       if (res.error) { toast.error(res.error); return; }
       setPreview(res.data);
@@ -129,6 +137,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
         manualPinjaman: (form.manualPinjaman !== "" && form.manualPinjaman !== undefined) ? parseFloat(form.manualPinjaman) : undefined,
         manualKasbon: (form.manualKasbon !== "" && form.manualKasbon !== undefined) ? parseFloat(form.manualKasbon) : undefined,
         hitungLembur: form.hitungLembur,
+        hitungUangMakan: form.hitungUangMakan,
+        hitungUangMakanLembur: form.hitungUangMakanLembur,
       };
 
       const res = gajiToEdit 
@@ -159,12 +169,27 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[1200px] rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-xl font-bold">
-            <Calculator className="mr-2 h-5 w-5 text-blue-600" />
-            {step === "form" 
-              ? (gajiToEdit ? "Edit & Hitung Ulang Draft Gaji" : "Proses Gaji Karyawan") 
-              : "Preview Slip Gaji"}
-          </DialogTitle>
+          <div className="flex items-center justify-between w-full pr-8">
+            <DialogTitle className="flex items-center text-xl font-bold">
+              <Calculator className="mr-2 h-5 w-5 text-blue-600" />
+              {step === "form" 
+                ? (gajiToEdit ? "Edit & Hitung Ulang Draft Gaji" : "Proses Gaji Karyawan") 
+                : "Preview Slip Gaji"}
+            </DialogTitle>
+            {step === "preview" && preview && (
+              <Button 
+                size="sm"
+                variant="outline" 
+                className="rounded-xl border-cyan-200 text-cyan-700 hover:bg-cyan-50 shadow-sm"
+                onClick={() => {
+                  import("@/lib/pdf/slipGajiPdf").then((m) => m.generateSlipGajiPdf(preview, fmt));
+                }}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Cetak PDF
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {/* ── STEP 1: Form ── */}
@@ -252,6 +277,44 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                 </label>
                 <p className="text-xs text-muted-foreground">
                   Jika dinonaktifkan, jam lembur tidak akan diakumulasi ke dalam total gaji bersih.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 bg-gray-50 border border-gray-100 rounded-xl p-3">
+              <Checkbox 
+                id="hitungUangMakan" 
+                checked={form.hitungUangMakan}
+                onCheckedChange={(checked) => setForm({ ...form, hitungUangMakan: !!checked })}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <label
+                  htmlFor="hitungUangMakan"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Hitung Uang Makan
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Jika dinonaktifkan, tunjangan makan harian tidak akan dihitung (karyawan HARIAN).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 bg-gray-50 border border-gray-100 rounded-xl p-3">
+              <Checkbox 
+                id="hitungUangMakanLembur" 
+                checked={form.hitungUangMakanLembur}
+                onCheckedChange={(checked) => setForm({ ...form, hitungUangMakanLembur: !!checked })}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <label
+                  htmlFor="hitungUangMakanLembur"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Hitung Uang Makan Lembur
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Jika dinonaktifkan, uang makan lembur tidak akan dihitung walaupun ada jam lembur.
                 </p>
               </div>
             </div>
@@ -350,6 +413,9 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Jam Kerja</th>
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Lembur</th>
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Terlambat</th>
+                        <th className="text-right px-2 py-2 text-cyan-700 font-bold">Gaji Harian</th>
+                        <th className="text-right px-2 py-2 text-cyan-700 font-bold">Uang Makan</th>
+                        <th className="text-right px-2 py-2 text-cyan-700 font-bold">UM Lembur</th>
                         <th className="text-right px-2 py-2 text-cyan-700 font-bold">Upah Lembur</th>
                       </tr>
                     </thead>
@@ -380,6 +446,15 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                           </td>
                           <td className="px-2 py-1.5 text-center text-orange-500">
                             {d.menitTerlambat > 0 ? `${d.menitTerlambat}m` : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-semibold text-emerald-600">
+                            {d.gajiKerjaHariIni > 0 ? fmt(d.gajiKerjaHariIni) : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-semibold text-emerald-600">
+                            {d.uangMakanHariIni > 0 ? fmt(d.uangMakanHariIni) : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-semibold text-emerald-600">
+                            {d.uangMakanLemburHariIni > 0 ? fmt(d.uangMakanLemburHariIni) : "—"}
                           </td>
                           <td className="px-2 py-1.5 text-right font-semibold text-emerald-600">
                             {d.upahLemburHariIni > 0 ? fmt(d.upahLemburHariIni) : "—"}

@@ -69,7 +69,7 @@ export default function InventoryFilterBar({
                 <div className="relative w-full xl:max-w-md group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 md:w-4 md:h-4 text-slate-400 group-focus-within:text-indigo-600 dark:group-focus-within:text-indigo-400 transition-colors" />
                     <Input
-                        placeholder="Find by product name or SKU code..."
+                        placeholder="Find by product name, SKU, or category..."
                         className="pl-12 h-10 md:h-12 text-[10px] md:text-sm bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl focus-visible:ring-indigo-500 dark:focus-visible:ring-indigo-400 shadow-inner dark:text-white"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}

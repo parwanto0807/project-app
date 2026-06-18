@@ -1,3 +1,204 @@
+# ==========================================
+# Backend .gitignore
+# ==========================================
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env*.local
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Documentation (auto-generated)
+docs/
+
+# ==========================================
+# Prisma
+# ==========================================
+prisma/generated/
+prisma/dev.db
+prisma/dev.db-journal
+
+# ==========================================
+# Secrets & Keys (NEVER COMMIT!)
+# ==========================================
+service-account-key.json
+*.pem
+*.key
+
+# ==========================================
+# Uploads & Images (User Content)
+# ==========================================
+public/images/
+public/uploads/
+public/images/spk/
+public/uploads/receipts/
+
+# ==========================================
+# Temp / Debug / Output Files
+# ==========================================
+
+# JSON output files
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!permissions_list.json
+!coa_types.json
+
+# JavaScript debug scripts
+test*.js
+check*.js
+fix*.js
+debug*.js
+temp*.js
+temp*.cjs
+temp*.mjs
+*.cjs
+*.mjs
+
+# Text output files
+*.txt
+!prisma/schema.prisma
+
+# Error & validation logs
+*.error.log
+validation.log
+validate_error.log
+
+# Scratch directory
+scratch/
+
+# ==========================================
+# Specific Known Temp Files
+# ==========================================
+add_period_month.sql
+adj_audit.txt
+fix*.txt
+fix*.log
+merge.js
+query_coa.js
+restoreDb.mjs
+getPhotos.mjs
+test-req.js
+test.js
+test.mjs
+test2.mjs
+test3.mjs
+test4.mjs
+output.json
+checkAccounts.js
+checkStockDetail.js
+checkStockHistory.js
+check_aris.js
+check_emails.js
+check_pos.js
+check_gl_summary.sql
+debugProduct.js
+find_petty.js
+fixNegativeStock.js
+fixStockOrphans.cjs
+fixDb.mjs
+fixController.cjs
+updateKaryawanController.cjs
+updatePayrollController.cjs
+seed_loan_account.js
+seed_kasbon_system_account.js
+injectOvertime.cjs
+diagnoseStock.cjs
+
+# All inventory/stock check outputs
+all_inventory_tb_feb.json
+all_stock_values.json
+bad_journals_check.json
+debugProduct.json
+ending_balance_fix_log.json
+feb_inventory_values.json
+feb_ledgers_check.json
+feb_tb_check.json
+final_state_verification.json
+gls_check.txt
+inventory_recon_check.json
+periods.json
+periods_full.json
+periods_ordered.json
+specific_tb_raw.json
+stockHistory.json
+stock_periods.json
+tb_audit.txt
+tb_check.json
+warehouse_mapping_result.json
+force_recon_feb_log.json
+cleanupFebBadJournals.js
+cleanupFebFinal.js
+cleanupJanRecon.js
+checkFebInventory.js
+checkFebLedgers.js
+checkFebStatusNew.js
+checkFebTB.js
+checkFebTBReal.js
+checkFullLedger.js
+checkGLS.js
+checkGLSummary.js
+checkGhostInvoice.js
+checkGhostLedger.js
+checkId.js
+checkInventoryRecon.js
+checkLemAlteko.cjs
+checkLemTaco.cjs
+checkPaymentAccounts.js
+checkAllInvTB.js
+checkAllPeriods.js
+checkAllStock.js
+checkBadJournals.js
+checkCOATypes.js
+checkCoaHierarchy.js
+checkDeep.js
+checkFebInventory.js
+checkFebLedgers.js
+checkFebStatusNew.js
+checkFebTB.js
+checkFebTBReal.js
+checkFullLedger.js
+checkGLS.js
+checkGLSummary.js
+checkGhostInvoice.js
+checkGhostLedger.js
+checkId.js
+checkInventoryRecon.js
+checkPeriods.js
+checkPeriods2.cjs
+checkRecent.js
+checkSimple.js
+checkSpecific.js
+checkSpecificIdv2.js
+checkSpecificTB.js
+checkStockData.js
+checkStockPeriods.js
+checkTBAccount.js
+checkTrialBalance.js
+compareDates.js
+compareStockPeriods.js
+createBankChargeAccount.js
+dumpAllTB.js
+verify_sa.js
+verify_final.js
+
+# Database migration SQL (temporary)
+temp_check_*.sql
 node_modules/
 .env
 dist/

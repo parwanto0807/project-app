@@ -300,11 +300,15 @@ export const stockOpnameController = {
               // Revaluasi: Total Stok Baru * Harga Satuan saat ini
               const revaluedInventory = stockAkhirAfterAdj * hargaSatuan;
 
+              // Recalculate availableStock = stockAkhir - bookedStock (min 0)
+              const currentBooked = parseFloat(balance.bookedStock) || 0;
+              const newAvailable = Math.max(0, stockAkhirAfterAdj - currentBooked);
+
               await tx.stockBalance.update({
                 where: { id: balance.id },
                 data: {
-                  stockAkhir: { increment: selisih },
-                  availableStock: { increment: selisih },
+                  stockAkhir: { set: stockAkhirAfterAdj },
+                  availableStock: { set: newAvailable },
                   inventoryValue: revaluedInventory,
                   
                   // Mencatat selisih ke kolom adjustment agar mudah ditelusuri

@@ -79,6 +79,7 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
     bunga: "0",
     keterangan: "",
     bankAccountId: "",
+    bulanMulaiPotongan: "",
   });
 
   // Delete state
@@ -128,7 +129,11 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
       };
       load();
 
-      // Populate form with existing loan data
+      const firstDetail = editingLoan.details?.[0];
+      const bulanMulai = firstDetail?.tanggalJatuhTempo 
+        ? new Date(firstDetail.tanggalJatuhTempo).toISOString().slice(0, 7)
+        : "";
+
       setEditForm({
         karyawanId: editingLoan.karyawanId || "",
         tanggalPinjam: editingLoan.tanggalPinjam
@@ -139,6 +144,7 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
         bunga: String(editingLoan.bunga || "0"),
         keterangan: editingLoan.keterangan || "",
         bankAccountId: editingLoan.bankAccountId || "",
+        bulanMulaiPotongan: bulanMulai,
       });
     }
   }, [editingLoan]);
@@ -331,16 +337,6 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg"
-                                onClick={() => setEditingLoan(loan)}
-                                title="Edit pinjaman"
-                              >
-                                <Pencil className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
                                 className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg"
                                 onClick={() => {
                                   setDeletingLoanId(loan.id);
@@ -352,6 +348,19 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
                                 Hapus
                               </Button>
                             </>
+                          )}
+                          {/* === Edit Button (DRAFT atau belum ada PAID) === */}
+                          {(!loan.details || !loan.details.some((d: any) => d.status === "PAID")) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg"
+                              onClick={() => setEditingLoan(loan)}
+                              title="Edit pinjaman"
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
                           )}
                           <Button
                             variant="ghost"
@@ -442,15 +451,24 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
           <DialogHeader>
             <DialogTitle className="flex items-center text-xl font-bold">
               <Pencil className="mr-2 h-5 w-5 text-blue-600" />
-              Edit Pinjaman Draft
+              {editingLoan?.status === "DRAFT" ? "Edit Pinjaman Draft" : "Edit Pinjaman"}
             </DialogTitle>
-            <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 mt-1">
-              <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-blue-700">
-                Perubahan akan meregenerasi jadwal angsuran secara otomatis. Pinjaman tetap
-                berstatus <strong>Draft</strong> hingga di-Posting.
-              </p>
-            </div>
+            {editingLoan?.status === "DRAFT" ? (
+              <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 mt-1">
+                <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-blue-700">
+                  Perubahan akan meregenerasi jadwal angsuran secara otomatis. Pinjaman tetap
+                  berstatus <strong>Draft</strong> hingga di-Posting.
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 mt-1">
+                <Info className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-700">
+                  Pinjaman ini sudah di-posting. Anda hanya dapat mengubah <strong>Tanggal Pencairan / Mulai Potongan</strong> dan <strong>Keterangan</strong>. Nominal dan tenor tidak dapat diubah lagi.
+                </p>
+              </div>
+            )}
           </DialogHeader>
 
           <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
@@ -461,6 +479,7 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
                 <Select
                   value={editForm.karyawanId}
                   onValueChange={(val) => setEditForm({ ...editForm, karyawanId: val })}
+                  disabled={editingLoan?.status !== "DRAFT"}
                 >
                   <SelectTrigger className="rounded-xl border-gray-200">
                     <SelectValue placeholder="Pilih Karyawan" />
@@ -483,6 +502,18 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
                   className="rounded-xl border-gray-200"
                   value={editForm.tanggalPinjam}
                   onChange={(e) => setEditForm({ ...editForm, tanggalPinjam: e.target.value })}
+                  disabled={editingLoan?.status !== "DRAFT"}
+                />
+              </div>
+
+              {/* Bulan Mulai Potongan */}
+              <div className="space-y-2">
+                <Label className="text-gray-600">Bulan Mulai Potongan</Label>
+                <Input
+                  type="month"
+                  className="rounded-xl border-gray-200"
+                  value={editForm.bulanMulaiPotongan}
+                  onChange={(e) => setEditForm({ ...editForm, bulanMulaiPotongan: e.target.value })}
                 />
               </div>
 
@@ -492,6 +523,7 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
                 <Select
                   value={editForm.tenor}
                   onValueChange={(val) => setEditForm({ ...editForm, tenor: val })}
+                  disabled={editingLoan?.status !== "DRAFT"}
                 >
                   <SelectTrigger className="rounded-xl border-gray-200">
                     <SelectValue placeholder="Pilih Tenor" />
@@ -513,6 +545,7 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
                   className="rounded-xl border-gray-200"
                   value={editForm.jumlahPinjaman}
                   onChange={(e) => setEditForm({ ...editForm, jumlahPinjaman: e.target.value })}
+                  disabled={editingLoan?.status !== "DRAFT"}
                 />
               </div>
 
@@ -525,6 +558,7 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
                   className="rounded-xl border-gray-200"
                   value={editForm.bunga}
                   onChange={(e) => setEditForm({ ...editForm, bunga: e.target.value })}
+                  disabled={editingLoan?.status !== "DRAFT"}
                 />
               </div>
 
@@ -537,6 +571,7 @@ const LoanTable: React.FC<LoanTableProps> = ({ loans, onRefresh }) => {
                 <Select
                   value={editForm.bankAccountId}
                   onValueChange={(val) => setEditForm({ ...editForm, bankAccountId: val })}
+                  disabled={editingLoan?.status !== "DRAFT"}
                 >
                   <SelectTrigger className="rounded-xl border-blue-200 bg-blue-50/30">
                     <SelectValue placeholder="Pilih Akun Pembayaran" />

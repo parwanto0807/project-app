@@ -889,6 +889,9 @@ export const createGoodsReceiptFromPO = async (req, res) => {
           }
         }
       }
+    }, {
+      timeout: 30000,
+      maxWait: 35000
     });
 
     if (!purchaseOrder) {
@@ -1033,6 +1036,9 @@ export const createGoodsReceiptFromPO = async (req, res) => {
                     }
                 });
             }
+        }, {
+          timeout: 30000,
+          maxWait: 35000
         });
 
          const response = new ApiResponse({
@@ -1169,6 +1175,9 @@ export const createGoodsReceiptFromPO = async (req, res) => {
           }
         }
       }
+    }, {
+      timeout: 30000,
+      maxWait: 35000
     });
 
     const response = new ApiResponse({
@@ -1420,6 +1429,9 @@ export const updateQCStatus = async (req, res) => {
           }
         }
       }
+    }, {
+      timeout: 30000,
+      maxWait: 35000
     });
 
     const response = new ApiResponse({
@@ -1562,6 +1574,11 @@ export const deleteGoodsReceipt = async (req, res) => {
 
     // Start transaction for deletion
     await prisma.$transaction(async (tx) => {
+      // Get the period for this GR
+      const period = new Date(goodsReceipt.receivedDate || goodsReceipt.createdAt);
+      period.setDate(1);
+      period.setHours(0, 0, 0, 0);
+
       // Reverse stock adjustments and delete stock details
       for (const item of goodsReceipt.items) {
         if (item.stockDetail) {
@@ -1574,6 +1591,38 @@ export const deleteGoodsReceipt = async (req, res) => {
               }
             }
           });
+
+          // Reverse StockBalance changes
+          const qtyConverted = parseFloat(item.qtyPassed) * (Number(item.product?.conversionToStorage) || 1);
+          const transactionValue = qtyConverted * (Number(item.stockDetail.pricePerUnit) || 0);
+          
+          const stockBalance = await tx.stockBalance.findFirst({
+            where: {
+              productId: item.productId,
+              warehouseId: goodsReceipt.warehouseId,
+              period: period
+            }
+          });
+
+          if (stockBalance) {
+            const currentStockAkhir = parseFloat(stockBalance.stockAkhir) || 0;
+            const newStockAkhir = Math.max(0, currentStockAkhir - qtyConverted);
+            const currentBooked = parseFloat(stockBalance.bookedStock) || 0;
+            const newAvailable = Math.max(0, newStockAkhir - currentBooked);
+            // Clear inventoryValue when stock reaches 0
+            const newInventoryValue = newStockAkhir <= 0 ? 0 : Math.max(0, parseFloat(stockBalance.inventoryValue) - transactionValue);
+
+            await tx.stockBalance.update({
+              where: { id: stockBalance.id },
+              data: {
+                stockIn: { decrement: qtyConverted },
+                stockAkhir: { set: newStockAkhir },
+                availableStock: { set: newAvailable },
+                inventoryValue: { set: newInventoryValue },
+                onPR: goodsReceipt.sourceType !== 'TRANSFER' ? { increment: qtyConverted } : undefined,
+              }
+            });
+          }
 
           // Delete stock detail
           await tx.stockDetail.delete({
@@ -1603,6 +1652,9 @@ export const deleteGoodsReceipt = async (req, res) => {
       await tx.goodsReceipt.delete({
         where: { id }
       });
+    }, {
+      timeout: 30000,
+      maxWait: 35000
     });
 
     const response = new ApiResponse({
@@ -2060,6 +2112,9 @@ export const markGoodsArrived = async (req, res) => {
           Warehouse: true
         }
       });
+    }, {
+      timeout: 30000,
+      maxWait: 35000
     });
 
     res.status(200).json({
@@ -2173,6 +2228,9 @@ export const recordQCCheck = async (req, res) => {
           Warehouse: true
         }
       });
+    }, {
+      timeout: 30000,
+      maxWait: 35000
     });
 
     res.status(200).json({
@@ -2687,6 +2745,9 @@ export const approveGR = async (req, res) => {
       }
 
       return { updatedGR, autoCreatedGR };
+    }, {
+      timeout: 30000,    // 30 seconds timeout
+      maxWait: 35000     // Max wait 35 seconds
     });
 
     // ✅ Create Transfer Journal AFTER main transaction commits

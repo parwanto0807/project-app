@@ -146,6 +146,7 @@ export function TransferForm({ initialData, onSuccess, onCancel }: TransferFormP
 
     const fromWarehouseId = watch('fromWarehouseId');
     const toWarehouseId = watch('toWarehouseId');
+    const watchedItems = watch('items');
 
     // Fetch warehouses, karyawan, and products on mount
     useEffect(() => {
@@ -219,7 +220,12 @@ export function TransferForm({ initialData, onSuccess, onCancel }: TransferFormP
                             warehouseId: item.warehouseId,
                             warehouseName: item.warehouseName || item.warehouse?.name || 'Unknown',
                             availableStock: displayStock,
-                            unit: unit
+                            unit: unit,
+                            // Add conversion info for display
+                            storageUnit: item.storageUnit,
+                            usageUnit: item.usageUnit,
+                            conversionToUsage: item.conversionToUsage,
+                            conversionToStorage: item.conversionToStorage
                         };
 
                         ;((...args: any[]) => {})(`📦 Product: ${product.code} | Unit: ${unit} | Stock: ${displayStock} (Raw: ${rawStock})`);
@@ -507,7 +513,9 @@ export function TransferForm({ initialData, onSuccess, onCancel }: TransferFormP
 
                     <div className="space-y-3">
                         {fields.map((field, index) => {
-                            const selectedProduct = products.find(p => p.id === watch(`items.${index}.productId`) && p.warehouseId === fromWarehouseId);
+                            const currentProductId = watchedItems?.[index]?.productId || field.productId;
+                            const currentQuantity = watchedItems?.[index]?.quantity;
+                            const selectedProduct = products.find(p => p.id === currentProductId && p.warehouseId === fromWarehouseId);
 
                             return (
                                 <Card key={field.id} className="border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
@@ -596,15 +604,10 @@ export function TransferForm({ initialData, onSuccess, onCancel }: TransferFormP
                                                     type="number"
                                                     step="0.01"
                                                     {...register(`items.${index}.quantity`, {
-                                                        valueAsNumber: true,
-                                                        max: {
-                                                            value: selectedProduct?.availableStock || 0,
-                                                            message: `Maks. ${selectedProduct?.availableStock || 0}`
-                                                        }
+                                                        valueAsNumber: true
                                                     })}
-                                                    max={selectedProduct?.availableStock}
                                                     placeholder="0"
-                                                    className={`mt-1.5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 shadow-sm ${(errors.items?.[index]?.quantity || (watch(`items.${index}.quantity`) > (selectedProduct?.availableStock || 0))) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                                                    className={`mt-1.5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 shadow-sm ${(errors.items?.[index]?.quantity || (currentQuantity > (selectedProduct?.availableStock || 0))) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                                                 />
                                                 {errors.items?.[index]?.quantity && (
                                                     <p className="text-sm text-red-500 mt-1 flex items-center gap-1">

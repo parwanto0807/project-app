@@ -8,8 +8,9 @@ export const createTransfer = async (req, res) => {
   const { fromWarehouseId, toWarehouseId, senderId, notes, items } = req.body;
 
   try {
+    // Add timeout to prevent transaction from hanging
     const result = await prisma.$transaction(async (tx) => {
-      // Generate transfer number (Format: TF-YYYYMM-XXXX)
+      // Generate transfer number (Format: TF-YYYYMM-XXXX) with retry
       const now = new Date();
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -24,7 +25,8 @@ export const createTransfer = async (req, res) => {
         },
         orderBy: {
           transferNumber: 'desc'
-        }
+        },
+        select: { transferNumber: true } // Only select for speed
       });
 
       let sequence = 1;
@@ -38,52 +40,112 @@ export const createTransfer = async (req, res) => {
         }
       }
 
-      const transferNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
+      // Create transfer with retry logic
+      let transfer = null;
+      let tfRetryCount = 0;
+      const tfMaxRetries = 3;
 
-      // Create transfer
-      const transfer = await tx.stockTransfer.create({
-        data: {
-          transferNumber,
-          fromWarehouseId,
-          toWarehouseId,
-          senderId,
-          notes,
-          status: 'DRAFT',
-          items: {
-            create: items.map(item => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unit: item.unit
-            }))
-          }
-        },
-        include: {
-          items: {
+      while (tfRetryCount < tfMaxRetries) {
+        const transferNumber = `${prefix}-${String(sequence + tfRetryCount).padStart(4, '0')}`;
+
+        try {
+          transfer = await tx.stockTransfer.create({
+            data: {
+              transferNumber,
+              fromWarehouseId,
+              toWarehouseId,
+              senderId,
+              notes,
+              status: 'DRAFT',
+              items: {
+                create: items.map(item => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                  unit: item.unit
+                }))
+              }
+            },
             include: {
-              product: true
+              items: {
+                include: {
+                  product: true
+                }
+              },
+              fromWarehouse: true,
+              toWarehouse: true,
+              sender: true
             }
-          },
-          fromWarehouse: true,
-          toWarehouse: true,
-          sender: true
+          });
+          
+          ;(() => {})(`✅ Created Transfer: ${transfer.transferNumber}`);
+          break; // Success
+        } catch (error) {
+          if (error.code === 'P2002' && tfRetryCount < tfMaxRetries - 1) {
+            ;(() => {})(`⚠️ TF number ${transferNumber} already exists, retrying...`);
+            tfRetryCount++;
+          } else {
+            throw error;
+          }
         }
-      });
+      }
+
+      if (!transfer) {
+        throw new Error('Failed to create transfer after multiple retries');
+      }
 
       // ============================================
       // UPDATE STOCK BALANCE (BOOKING)
       // ============================================
-      const periodDate = new Date();
-      periodDate.setDate(1);
-      periodDate.setHours(0, 0, 0, 0);
-      periodDate.setMinutes(0);
-      periodDate.setSeconds(0);
-      periodDate.setMilliseconds(0);
+      // IMPORTANT: Use proper period date format (UTC midnight anchored to Jakarta date)
+      // Same logic as mrController.js line 97-99
+      const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // shift to WIB
+      const periodDate = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
 
       ;(() => {})('🔄 Updating Stock Balance for period:', periodDate);
 
       for (const item of items) {
+        // ============================================
+        // CONVERT UNIT TO STORAGE UNIT (BASE UNIT)
+        // ============================================
+        // Get product to check units and conversion ratios
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: {
+            storageUnit: true,
+            usageUnit: true,
+            purchaseUnit: true,
+            conversionToUsage: true,
+            conversionToStorage: true
+          }
+        });
+
+        if (!product) {
+          throw new Error(`Product ${item.productId} not found`);
+        }
+
+        // Calculate quantity in storage unit (base unit)
+        let quantityInStorageUnit = parseFloat(item.quantity);
+        
+        if (item.unit === product.usageUnit && product.usageUnit !== product.storageUnit) {
+          // User input in usageUnit (e.g., Liter), convert to storageUnit (e.g., Kg)
+          // Formula: storageQty = usageQty / conversionToUsage
+          const conversion = Number(product.conversionToUsage) || 1;
+          quantityInStorageUnit = parseFloat(item.quantity) / conversion;
+          
+          ;(() => {})(`🔄 Unit conversion: ${item.quantity} ${item.unit} → ${quantityInStorageUnit} ${product.storageUnit} (÷ ${conversion})`);
+        } else if (item.unit === product.purchaseUnit && product.purchaseUnit !== product.storageUnit) {
+          // User input in purchaseUnit (e.g., Box), convert to storageUnit (e.g., Pcs)
+          // Formula: storageQty = purchaseQty × conversionToStorage
+          const conversion = Number(product.conversionToStorage) || 1;
+          quantityInStorageUnit = parseFloat(item.quantity) * conversion;
+          
+          ;(() => {})(`🔄 Unit conversion: ${item.quantity} ${item.unit} → ${quantityInStorageUnit} ${product.storageUnit} (× ${conversion})`);
+        } else {
+          ;(() => {})(`✅ No conversion needed: ${item.quantity} ${item.unit} = ${quantityInStorageUnit} ${product.storageUnit}`);
+        }
+
         // Update sender warehouse stock balance
-        // Increase bookedStock, Decrease availableStock
+        // Increase bookedStock, Decrease availableStock (in storage unit)
         const updateResult = await tx.stockBalance.updateMany({
           where: {
             productId: item.productId,
@@ -91,16 +153,15 @@ export const createTransfer = async (req, res) => {
             period: periodDate
           },
           data: {
-            bookedStock: { increment: parseFloat(item.quantity) },
-            availableStock: { decrement: parseFloat(item.quantity) }
+            bookedStock: { increment: quantityInStorageUnit },
+            availableStock: { decrement: quantityInStorageUnit }
           }
         });
 
-        ;(() => {})(`📦 Updated Stock for Product ${item.productId}:`, updateResult);
+        ;(() => {})(`📦 Updated Stock for Product ${item.productId}: Booked +${quantityInStorageUnit}, Available -${quantityInStorageUnit}`, updateResult);
 
         if (updateResult.count === 0) {
           console.warn(`⚠️ No StockBalance found for Product ${item.productId} in Warehouse ${fromWarehouseId} for period ${periodDate}`);
-          // Optional: Create if not exists? Usually stock must exist to be transferred.
         }
       }
 
@@ -111,9 +172,9 @@ export const createTransfer = async (req, res) => {
       // ============================================
       
       // Generate MR Number (Format: MR-YYYYMM-XXXX)
-      const mrNow = new Date();
-      const mrYear = mrNow.getFullYear();
-      const mrMonth = String(mrNow.getMonth() + 1).padStart(2, '0');
+      // Use transfer data instead of re-fetching to avoid transaction timeout
+      const mrYear = now.getFullYear();
+      const mrMonth = String(now.getMonth() + 1).padStart(2, '0');
       const mrPrefix = `MR-${mrYear}${mrMonth}`;
 
       // Find last MR with this prefix
@@ -125,7 +186,8 @@ export const createTransfer = async (req, res) => {
         },
         orderBy: {
           mrNumber: 'desc'
-        }
+        },
+        select: { mrNumber: true } // Only select mrNumber for speed
       });
 
       let mrSequence = 1;
@@ -139,57 +201,68 @@ export const createTransfer = async (req, res) => {
         }
       }
 
-      const mrNumber = `${mrPrefix}-${String(mrSequence).padStart(4, '0')}`;
+      // Create MR with retry logic for unique constraint
+      let createdMR = null;
+      let retryCount = 0;
+      const maxRetries = 3;
 
-      // Create MR
-      await tx.materialRequisition.create({
-        data: {
-          mrNumber,
-          projectId: null, // Transfer antar gudang tidak selalu ada project
-          requestedById: senderId, // Sender = Karyawan ID
-          warehouseId: fromWarehouseId,
-          status: 'PENDING',
-          // Add context that this MR is from an Internal Transfer
-          notes: `AUTO-GENERATED-TRANSFER: Internal Stock Transfer [${transferNumber}] to: ${transfer.toWarehouse?.name || toWarehouseId}. ${notes ? `(${notes})` : ''}`,
-          items: {
-            create: items.map(item => ({
-              productId: item.productId,
-              qtyRequested: item.quantity,
-              qtyIssued: 0,
-              unit: item.unit
-            }))
+      while (retryCount < maxRetries) {
+        const mrNumber = `${mrPrefix}-${String(mrSequence + retryCount).padStart(4, '0')}`;
+        
+        try {
+          createdMR = await tx.materialRequisition.create({
+            data: {
+              mrNumber,
+              projectId: null,
+              requestedById: senderId,
+              warehouseId: fromWarehouseId,
+              status: 'PENDING',
+              notes: `AUTO-GENERATED-TRANSFER: Internal Stock Transfer [${transfer.transferNumber}] to: ${toWarehouseId}. ${notes ? `(${notes})` : ''}`,
+              items: {
+                create: items.map(item => ({
+                  productId: item.productId,
+                  qtyRequested: item.quantity,
+                  qtyIssued: 0,
+                  unit: item.unit
+                }))
+              }
+            },
+            select: { id: true, mrNumber: true }
+          });
+          
+          ;(() => {})(`✅ Auto-created MR: ${createdMR.mrNumber}`);
+          break; // Success, exit retry loop
+        } catch (error) {
+          if (error.code === 'P2002' && retryCount < maxRetries - 1) {
+            // Unique constraint failed, retry with next sequence
+            ;(() => {})(`⚠️ MR number ${mrNumber} already exists, retrying with next sequence...`);
+            retryCount++;
+          } else {
+            throw error; // Re-throw if max retries reached or different error
           }
         }
-      });
+      }
 
-      // ============================================
-      // AUTO-CREATE GOODS RECEIPT (DRAFT)
-      // ============================================
+      if (!createdMR) {
+        throw new Error('Failed to create MR after multiple retries');
+      }
 
-      // 1. Get User ID from Sender (Karyawan)
+      // Get sender user ID for GR (reuse from earlier)
       const senderKaryawan = await tx.karyawan.findUnique({
         where: { id: senderId },
         select: { userId: true }
       });
 
-      // We need a valid User ID for receivedById. If Karyawan doesn't have a user, 
-      // we might fail or use a system user. For now, we assume sender has a user or fail.
-      // If null, we'll try to use the first admin or just fail if strictly required.
-      // Strict behavior:
-      if (!senderKaryawan?.userId) {
-          console.warn('⚠️ Sender Karyawan does not have a linked User Account. GR created with system fallback or might fail if foreign key enforced.');
-          // Note: In a real app, you might want to stop here.
-          // For now, let's proceed and if it fails, the transaction rolls back.
-          // Optimistically assuming widespread usage of linked users.
-      }
+      const receivedById = senderKaryawan?.userId;
 
-      const receivedById = senderKaryawan?.userId; 
+      // ============================================
+      // AUTO-CREATE GOODS RECEIPT (DRAFT)
+      // ============================================
 
       if (receivedById) {
-          // 2. Generate GR Number
-          const grNow = new Date();
-          const grYear = grNow.getFullYear();
-          const grMonth = String(grNow.getMonth() + 1).padStart(2, '0');
+          // Generate GR Number
+          const grYear = now.getFullYear();
+          const grMonth = String(now.getMonth() + 1).padStart(2, '0');
           const grPrefix = `GRN-${grYear}${grMonth}`;
 
           const lastGR = await tx.goodsReceipt.findFirst({
@@ -205,41 +278,66 @@ export const createTransfer = async (req, res) => {
               grSequence = parseInt(match[1]) + 1;
             }
           }
-          const grNumber = `${grPrefix}-${String(grSequence).padStart(4, '0')}`;
 
-          // 3. Create GR Header
-          const newGR = await tx.goodsReceipt.create({
-            data: {
-              grNumber,
-              receivedDate: null, // Not received yet
-              expectedDate: new Date(), // Expected today/soon
-              vendorDeliveryNote: transferNumber, // Use Transfer Number as reference
-              vehicleNumber: null,
-              driverName: null,
-              warehouseId: toWarehouseId,
-              receivedById: receivedById,
-              sourceType: 'TRANSFER',
-              status: 'DRAFT',
-              notes: `AUTO-GENERATED-TRANSFER: Incoming Transfer from: ${transfer.fromWarehouse?.name || fromWarehouseId} [${transferNumber}]. ${notes || ''}`,
-              items: {
-                create: items.map(item => ({
-                  productId: item.productId,
-                  qtyPlanReceived: item.quantity,
-                  qtyReceived: 0, 
-                  qtyPassed: 0,
-                  qtyRejected: 0,
-                  unit: item.unit,
-                  status: 'RECEIVED', // Default initial status
-                  qcStatus: 'PENDING'
-                }))
+          // Create GR with retry logic for unique constraint
+          let newGR = null;
+          let grRetryCount = 0;
+          const grMaxRetries = 3;
+
+          while (grRetryCount < grMaxRetries) {
+            const grNumber = `${grPrefix}-${String(grSequence + grRetryCount).padStart(4, '0')}`;
+
+            try {
+              newGR = await tx.goodsReceipt.create({
+                data: {
+                  grNumber,
+                  receivedDate: null,
+                  expectedDate: now,
+                  vendorDeliveryNote: transfer.transferNumber,
+                  vehicleNumber: null,
+                  driverName: null,
+                  warehouseId: toWarehouseId,
+                  receivedById: receivedById,
+                  sourceType: 'TRANSFER',
+                  status: 'DRAFT',
+                  notes: `AUTO-GENERATED-TRANSFER: Incoming Transfer from: ${fromWarehouseId} [${transfer.transferNumber}]. ${notes || ''}`,
+                  items: {
+                    create: items.map(item => ({
+                      productId: item.productId,
+                      qtyPlanReceived: item.quantity,
+                      qtyReceived: 0, 
+                      qtyPassed: 0,
+                      qtyRejected: 0,
+                      unit: item.unit,
+                      status: 'RECEIVED',
+                      qcStatus: 'PENDING'
+                    }))
+                  }
+                },
+                select: { id: true, grNumber: true }
+              });
+              
+              ;(() => {})(`✅ Auto-created GR: ${newGR.grNumber}`);
+              break; // Success
+            } catch (error) {
+              if (error.code === 'P2002' && grRetryCount < grMaxRetries - 1) {
+                ;(() => {})(`⚠️ GR number ${grNumber} already exists, retrying...`);
+                grRetryCount++;
+              } else {
+                throw error;
               }
             }
-          });
-          
-          ;(() => {})(`✅ Auto-created GR: ${newGR.grNumber}`);
+          }
+
+          if (!newGR) {
+            console.warn('⚠️ Failed to create GR after retries, but continuing (GR is optional)');
+          }
       }
 
       return transfer;
+    }, {
+      timeout: 30000, // 30 seconds timeout
+      maxWait: 35000  // Max wait 35 seconds
     });
 
     res.status(201).json({
@@ -694,11 +792,23 @@ export const updateTransferStatus = async (req, res) => {
           });
 
           if (stockBalance) {
+            // Recalculate availableStock = stockAkhir - bookedStock
+            const currentStockAkhir = parseFloat(stockBalance.stockAkhir) || 0;
+            const newStockAkhir = Math.max(0, currentStockAkhir - parseFloat(item.quantity));
+            const currentBooked = parseFloat(stockBalance.bookedStock) || 0;
+            const newAvailable = Math.max(0, newStockAkhir - currentBooked);
+            // Clear inventoryValue when stock reaches 0
+            const currentInvValue = parseFloat(stockBalance.inventoryValue) || 0;
+            const newInvValue = newStockAkhir <= 0 ? 0 : currentInvValue;
+
             await tx.stockBalance.update({
               where: { id: stockBalance.id },
               data: {
-                qtyOut: { increment: item.quantity },
-                endingStock: { decrement: item.quantity }
+                stockOut: { increment: item.quantity },
+                stockAkhir: { set: newStockAkhir },
+                bookedStock: { decrement: parseFloat(item.quantity) },
+                availableStock: { set: newAvailable },
+                inventoryValue: { set: newInvValue }
               }
             });
           }
@@ -741,11 +851,17 @@ export const updateTransferStatus = async (req, res) => {
           });
 
           if (stockBalance) {
+            const currentStockAkhir = parseFloat(stockBalance.stockAkhir) || 0;
+            const newStockAkhir = currentStockAkhir + parseFloat(item.quantity);
+            const currentBooked = parseFloat(stockBalance.bookedStock) || 0;
+            const newAvailable = Math.max(0, newStockAkhir - currentBooked);
+
             await tx.stockBalance.update({
               where: { id: stockBalance.id },
               data: {
-                qtyIn: { increment: item.quantity },
-                endingStock: { increment: item.quantity }
+                stockIn: { increment: item.quantity },
+                stockAkhir: { set: newStockAkhir },
+                availableStock: { set: newAvailable }
               }
             });
           } else {
@@ -753,11 +869,14 @@ export const updateTransferStatus = async (req, res) => {
               data: {
                 productId: item.productId,
                 warehouseId: transfer.toWarehouseId,
-                period: currentPeriod,
-                openingStock: 0,
-                qtyIn: item.quantity,
-                qtyOut: 0,
-                endingStock: item.quantity,
+                period: new Date(currentPeriod + '-01'),
+                stockAwal: 0,
+                stockIn: item.quantity,
+                stockOut: 0,
+                stockAkhir: item.quantity,
+                availableStock: item.quantity,
+                bookedStock: 0,
+                onPR: 0,
                 inventoryValue: 0
               }
             });
@@ -810,32 +929,93 @@ export const cancelTransfer = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const transfer = await prisma.stockTransfer.findUnique({
-      where: { id }
-    });
-
-    if (!transfer) {
-      return res.status(404).json({
-        success: false,
-        error: 'Transfer tidak ditemukan'
+    const result = await prisma.$transaction(async (tx) => {
+      const transfer = await tx.stockTransfer.findUnique({
+        where: { id },
+        include: { items: true }
       });
-    }
 
-    if (transfer.status === 'RECEIVED') {
-      return res.status(400).json({
-        success: false,
-        error: 'Transfer yang sudah diterima tidak dapat dibatalkan'
+      if (!transfer) {
+        throw new Error('Transfer tidak ditemukan');
+      }
+
+      if (transfer.status === 'RECEIVED') {
+        throw new Error('Transfer yang sudah diterima tidak dapat dibatalkan');
+      }
+
+      // Reverse stock booking when cancelling
+      if (transfer.status !== 'CANCELLED') {
+        // IMPORTANT: Use proper period date format (UTC midnight anchored to Jakarta date)
+        const now = new Date();
+        const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // shift to WIB
+        const periodDate = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
+
+        ;(() => {})(`🔄 Releasing stock booking for cancelled transfer, period:`, periodDate);
+
+        for (const item of transfer.items) {
+          // ============================================
+          // CONVERT UNIT TO STORAGE UNIT (BASE UNIT)
+          // ============================================
+          const product = await tx.product.findUnique({
+            where: { id: item.productId },
+            select: {
+              storageUnit: true,
+              usageUnit: true,
+              purchaseUnit: true,
+              conversionToUsage: true,
+              conversionToStorage: true
+            }
+          });
+
+          if (!product) {
+            throw new Error(`Product ${item.productId} not found`);
+          }
+
+          // Calculate quantity in storage unit (base unit)
+          let quantityInStorageUnit = parseFloat(item.quantity);
+          
+          if (item.unit === product.usageUnit && product.usageUnit !== product.storageUnit) {
+            const conversion = Number(product.conversionToUsage) || 1;
+            quantityInStorageUnit = parseFloat(item.quantity) / conversion;
+            
+            ;(() => {})(`🔄 Cancel conversion: ${item.quantity} ${item.unit} → ${quantityInStorageUnit} ${product.storageUnit} (÷ ${conversion})`);
+          } else if (item.unit === product.purchaseUnit && product.purchaseUnit !== product.storageUnit) {
+            const conversion = Number(product.conversionToStorage) || 1;
+            quantityInStorageUnit = parseFloat(item.quantity) * conversion;
+            
+            ;(() => {})(`🔄 Cancel conversion: ${item.quantity} ${item.unit} → ${quantityInStorageUnit} ${product.storageUnit} (× ${conversion})`);
+          } else {
+            ;(() => {})(`✅ No conversion needed: ${item.quantity} ${item.unit} = ${quantityInStorageUnit} ${product.storageUnit}`);
+          }
+
+          // Release booked stock back to available (in storage unit)
+          await tx.stockBalance.updateMany({
+            where: {
+              productId: item.productId,
+              warehouseId: transfer.fromWarehouseId,
+              period: periodDate
+            },
+            data: {
+              bookedStock: { decrement: quantityInStorageUnit },
+              availableStock: { increment: quantityInStorageUnit }
+            }
+          });
+
+          ;(() => {})(`📦 Released Stock for Product ${item.productId}: Booked -${quantityInStorageUnit}, Available +${quantityInStorageUnit}`);
+        }
+      }
+
+      const updatedTransfer = await tx.stockTransfer.update({
+        where: { id },
+        data: { status: 'CANCELLED' }
       });
-    }
 
-    const updatedTransfer = await prisma.stockTransfer.update({
-      where: { id },
-      data: { status: 'CANCELLED' }
+      return updatedTransfer;
     });
 
     res.json({
       success: true,
-      data: updatedTransfer,
+      data: result,
       message: 'Transfer berhasil dibatalkan'
     });
   } catch (error) {
@@ -870,14 +1050,53 @@ export const deletePermanentTransfer = async (req, res) => {
       }
 
       // Rollback stock booking since cancel might not have done it
-      const periodDate = new Date();
-      periodDate.setDate(1);
-      periodDate.setHours(0, 0, 0, 0);
-      periodDate.setMinutes(0);
-      periodDate.setSeconds(0);
-      periodDate.setMilliseconds(0);
+      // IMPORTANT: Use proper period date format (UTC midnight anchored to Jakarta date)
+      const now = new Date();
+      const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // shift to WIB
+      const periodDate = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
+
+      ;(() => {})(`🔄 Rolling back stock booking for period:`, periodDate);
 
       for (const item of transfer.items) {
+        // ============================================
+        // CONVERT UNIT TO STORAGE UNIT (BASE UNIT)
+        // ============================================
+        // Get product to check units and conversion ratios
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: {
+            storageUnit: true,
+            usageUnit: true,
+            purchaseUnit: true,
+            conversionToUsage: true,
+            conversionToStorage: true
+          }
+        });
+
+        if (!product) {
+          throw new Error(`Product ${item.productId} not found`);
+        }
+
+        // Calculate quantity in storage unit (base unit)
+        let quantityInStorageUnit = parseFloat(item.quantity);
+        
+        if (item.unit === product.usageUnit && product.usageUnit !== product.storageUnit) {
+          // Item stored in usageUnit, convert to storageUnit
+          const conversion = Number(product.conversionToUsage) || 1;
+          quantityInStorageUnit = parseFloat(item.quantity) / conversion;
+          
+          ;(() => {})(`🔄 Rollback conversion: ${item.quantity} ${item.unit} → ${quantityInStorageUnit} ${product.storageUnit} (÷ ${conversion})`);
+        } else if (item.unit === product.purchaseUnit && product.purchaseUnit !== product.storageUnit) {
+          // Item stored in purchaseUnit, convert to storageUnit
+          const conversion = Number(product.conversionToStorage) || 1;
+          quantityInStorageUnit = parseFloat(item.quantity) * conversion;
+          
+          ;(() => {})(`🔄 Rollback conversion: ${item.quantity} ${item.unit} → ${quantityInStorageUnit} ${product.storageUnit} (× ${conversion})`);
+        } else {
+          ;(() => {})(`✅ No conversion needed: ${item.quantity} ${item.unit} = ${quantityInStorageUnit} ${product.storageUnit}`);
+        }
+
+        // Release booked stock back to available (in storage unit)
         await tx.stockBalance.updateMany({
           where: {
             productId: item.productId,
@@ -885,10 +1104,12 @@ export const deletePermanentTransfer = async (req, res) => {
             period: periodDate
           },
           data: {
-            bookedStock: { decrement: parseFloat(item.quantity) },
-            availableStock: { increment: parseFloat(item.quantity) }
+            bookedStock: { decrement: quantityInStorageUnit },
+            availableStock: { increment: quantityInStorageUnit }
           }
         });
+
+        ;(() => {})(`📦 Released Stock for Product ${item.productId}: Booked -${quantityInStorageUnit}, Available +${quantityInStorageUnit}`);
       }
 
       // Find and delete MR

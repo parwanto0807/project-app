@@ -20,40 +20,59 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, PlusCircle, AlertCircle, Info } from "lucide-react";
-import { createLoan, fetchAllEmployees, fetchBankAccounts } from "@/lib/action/hr/loans";
+import { updateLoan, fetchAllEmployees, fetchBankAccounts } from "@/lib/action/hr/loans";
 import { toast } from "sonner";
 
-interface CreateLoanDialogProps {
+interface EditLoanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  loan: any;
   onSuccess?: () => void;
 }
 
-const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange, onSuccess }) => {
+const EditLoanDialog: React.FC<EditLoanDialogProps> = ({ open, onOpenChange, loan, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   
-  // Compute default "Bulan Mulai Potongan" = next month from tanggalPinjam
-  const getDefaultBulanMulai = (tglPinjam: string) => {
-    const d = new Date(tglPinjam || Date.now());
+  // Compute default "Bulan Mulai Potongan" from loan details or tanggalPinjam
+  const getInitialBulanMulai = (loanData: any) => {
+    // Try from first detail's jatuh tempo
+    const firstDetail = loanData?.details?.[0];
+    if (firstDetail?.tanggalJatuhTempo) {
+      const d = new Date(firstDetail.tanggalJatuhTempo);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    }
+    // Fallback: next month from tanggalPinjam
+    const d = new Date(loanData?.tanggalPinjam || Date.now());
     d.setMonth(d.getMonth() + 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   };
 
   const [formData, setFormData] = useState({
-    karyawanId: "",
-    tanggalPinjam: new Date().toISOString().split("T")[0],
-    jumlahPinjaman: "",
-    tenor: "12",
-    bunga: "0",
-    keterangan: "",
-    bankAccountId: "",
-    bulanMulaiPotongan: getDefaultBulanMulai(new Date().toISOString().split("T")[0]),
+    karyawanId: loan?.karyawanId || "",
+    tanggalPinjam: loan?.tanggalPinjam ? new Date(loan.tanggalPinjam).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+    jumlahPinjaman: loan?.jumlahPinjaman?.toString() || "",
+    tenor: loan?.tenor?.toString() || "12",
+    bunga: loan?.bunga?.toString() || "0",
+    keterangan: loan?.keterangan || "",
+    bankAccountId: loan?.bankAccountId || "",
+    bulanMulaiPotongan: getInitialBulanMulai(loan),
   });
 
   useEffect(() => {
     if (open) {
+      setFormData({
+        karyawanId: loan?.karyawanId || "",
+        tanggalPinjam: loan?.tanggalPinjam ? new Date(loan.tanggalPinjam).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+        jumlahPinjaman: loan?.jumlahPinjaman?.toString() || "",
+        tenor: loan?.tenor?.toString() || "12",
+        bunga: loan?.bunga?.toString() || "0",
+        keterangan: loan?.keterangan || "",
+        bankAccountId: loan?.bankAccountId || "",
+        bulanMulaiPotongan: getInitialBulanMulai(loan),
+      });
+
       const loadData = async () => {
         const [empData, bankData] = await Promise.all([
           fetchAllEmployees(),
@@ -64,36 +83,28 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
       };
       loadData();
     }
-  }, [open]);
+  }, [open, loan]);
+
+  const isDraft = loan?.status === "DRAFT";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.karyawanId || !formData.jumlahPinjaman) {
+    if (isDraft && (!formData.karyawanId || !formData.jumlahPinjaman)) {
       toast.error("Harap isi semua bidang wajib (Karyawan & Jumlah Pinjaman)");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await createLoan(formData);
+      const res = await updateLoan(loan.id, formData);
       if (res.success) {
-        toast.success("Pinjaman berhasil disimpan sebagai Draft. Lakukan Posting untuk sinkron ke laporan keuangan.", {
+        toast.success("Pinjaman berhasil diupdate", {
           duration: 5000,
         });
         onOpenChange(false);
         if (onSuccess) onSuccess();
-        setFormData({
-          karyawanId: "",
-          tanggalPinjam: new Date().toISOString().split("T")[0],
-          jumlahPinjaman: "",
-          tenor: "12",
-          bunga: "0",
-          keterangan: "",
-          bankAccountId: "",
-          bulanMulaiPotongan: getDefaultBulanMulai(new Date().toISOString().split("T")[0]),
-        });
       } else {
-        toast.error(res.error || "Gagal membuat pinjaman");
+        toast.error(res.error || "Gagal mengupdate pinjaman");
       }
     } catch (error) {
       toast.error("Terjadi kesalahan sistem");
@@ -116,14 +127,16 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
         <DialogHeader>
           <DialogTitle className="flex items-center text-xl font-bold">
             <PlusCircle className="mr-2 h-5 w-5 text-blue-600" />
-            Buat Pinjaman Baru
+            Edit Pinjaman
           </DialogTitle>
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2">
-            <Info className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-amber-700">
-              Pinjaman akan disimpan sebagai <strong>Draft</strong>. Gunakan tombol <strong>Posting</strong> di tabel untuk menyinkronkan ke jurnal akuntansi.
-            </p>
-          </div>
+          {!isDraft && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2">
+              <Info className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-700">
+                Pinjaman ini sudah di-posting. Anda hanya dapat mengubah <strong>Tanggal Pencairan / Mulai Potongan</strong> dan <strong>Keterangan</strong>. Nominal dan tenor tidak dapat diubah lagi.
+              </p>
+            </div>
+          )}
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -133,6 +146,7 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
               <Select
                 value={formData.karyawanId}
                 onValueChange={(val) => setFormData({ ...formData, karyawanId: val })}
+                disabled={!isDraft}
               >
                 <SelectTrigger className="rounded-xl border-gray-200">
                   <SelectValue placeholder="Pilih Karyawan" />
@@ -153,14 +167,7 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
                 type="date"
                 className="rounded-xl border-gray-200"
                 value={formData.tanggalPinjam}
-                onChange={(e) => {
-                  const newTgl = e.target.value;
-                  setFormData({
-                    ...formData,
-                    tanggalPinjam: newTgl,
-                    bulanMulaiPotongan: getDefaultBulanMulai(newTgl),
-                  });
-                }}
+                onChange={(e) => setFormData({ ...formData, tanggalPinjam: e.target.value })}
               />
             </div>
 
@@ -180,6 +187,7 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
               <Select
                 value={formData.tenor}
                 onValueChange={(val) => setFormData({ ...formData, tenor: val })}
+                disabled={!isDraft}
               >
                 <SelectTrigger className="rounded-xl border-gray-200">
                   <SelectValue placeholder="Pilih Tenor" />
@@ -202,6 +210,7 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
                 className="rounded-xl border-gray-200"
                 value={formData.jumlahPinjaman}
                 onChange={(e) => setFormData({ ...formData, jumlahPinjaman: e.target.value })}
+                disabled={!isDraft}
               />
             </div>
 
@@ -213,6 +222,7 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
                 className="rounded-xl border-gray-200"
                 value={formData.bunga}
                 onChange={(e) => setFormData({ ...formData, bunga: e.target.value })}
+                disabled={!isDraft}
               />
             </div>
 
@@ -224,6 +234,7 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
               <Select
                 value={formData.bankAccountId}
                 onValueChange={(val) => setFormData({ ...formData, bankAccountId: val })}
+                disabled={!isDraft}
               >
                 <SelectTrigger className="rounded-xl border-blue-200 bg-blue-50/30">
                   <SelectValue placeholder="Pilih Akun Pembayaran" />
@@ -265,7 +276,6 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
               </span>
             </div>
             <p className="text-[10px] text-blue-500 mt-1">* Angsuran akan otomatis dipotong saat Payroll bulanan.</p>
-            <p className="text-[10px] text-amber-600 mt-1">⚠ Pinjaman tersimpan sebagai Draft — belum tercatat di laporan keuangan.</p>
           </div>
 
           <DialogFooter className="mt-6 gap-2">
@@ -285,7 +295,7 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
               {loading ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan...</>
               ) : (
-                "Simpan sebagai Draft"
+                "Simpan Perubahan"
               )}
             </Button>
           </DialogFooter>
@@ -295,4 +305,4 @@ const CreateLoanDialog: React.FC<CreateLoanDialogProps> = ({ open, onOpenChange,
   );
 };
 
-export default CreateLoanDialog;
+export default EditLoanDialog;

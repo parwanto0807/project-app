@@ -134,6 +134,28 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#15803d',
     },
+    sisaPinjamanContainer: {
+        marginTop: 4,
+        padding: 4,
+        backgroundColor: '#fff7ed',
+        borderRadius: 4,
+        borderWidth: 0.5,
+        borderColor: '#fed7aa',
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        gap: 4,
+    },
+    sisaPinjamanLabel: {
+        fontSize: 7,
+        color: '#9a3412',
+        fontStyle: 'italic',
+    },
+    sisaPinjamanValue: {
+        fontSize: 8,
+        fontWeight: 'bold',
+        color: '#c2410c',
+    },
     footer: {
         marginTop: 20,
         flexDirection: 'row',
@@ -157,6 +179,20 @@ const formatCurrency = (amount: number) => {
         currency: 'IDR',
         minimumFractionDigits: 0,
     }).format(amount);
+};
+
+const countWorkingDays = (start: Date, end: Date): number => {
+    let count = 0;
+    const d = new Date(start);
+    d.setHours(0, 0, 0, 0);
+    const e = new Date(end);
+    e.setHours(0, 0, 0, 0);
+    while (d <= e) {
+        const day = d.getDay();
+        if (day !== 0 && day !== 6) count++;
+        d.setDate(d.getDate() + 1);
+    }
+    return count;
 };
 
 interface PayrollSlipPdfProps {
@@ -221,6 +257,10 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                             <Text style={styles.infoLabel}>Periode</Text>
                             <Text style={styles.infoValue}>: {format(new Date(gaji.periode), "MMMM yyyy", { locale: id })}</Text>
                         </View>
+                        <View style={styles.infoRow}>
+                            <Text style={styles.infoLabel}>Hari Kerja</Text>
+                            <Text style={styles.infoValue}>: {countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari</Text>
+                        </View>
                     </View>
                 </View>
 
@@ -230,7 +270,7 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                     <View style={styles.contentColumn}>
                         <Text style={styles.sectionTitle}>PENDAPATAN</Text>
                         <View style={styles.row}>
-                            <Text>Gaji Pokok / Kerja</Text>
+                            <Text>Gaji Pokok / Kerja ({countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari)</Text>
                             <Text>{formatCurrency(gaji.gajiPokok)}</Text>
                         </View>
                         {gaji.tunjanganJabatan > 0 && (
@@ -335,6 +375,23 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                     <Text style={styles.grandTotalLabel}>GAJI BERSIH DITERIMA (TAKE HOME PAY)</Text>
                     <Text style={styles.grandTotalValue}>{formatCurrency(gaji.total)}</Text>
                 </View>
+
+                {/* Sisa Pinjaman */}
+                {(() => {
+                    const activeLoans = gaji.karyawan?.pinjaman?.filter((p: any) => p.status === "ACTIVE") || [];
+                    if (activeLoans.length === 0 || !(gaji.potonganPinjaman > 0)) return null;
+                    const totalSisa = activeLoans.reduce((sum: number, p: any) => sum + Number(p.sisaPinjaman || 0), 0);
+                    // For DRAFT gaji, subtract current deduction to show balance AFTER this payroll
+                    const sisaAfter = gaji.status === "DRAFT" 
+                        ? totalSisa - (gaji.potonganPinjaman || 0) 
+                        : totalSisa;
+                    return (
+                        <View style={styles.sisaPinjamanContainer}>
+                            <Text style={styles.sisaPinjamanLabel}>Sisa Pinjaman setelah potongan bulan ini:</Text>
+                            <Text style={styles.sisaPinjamanValue}>{formatCurrency(Math.max(0, sisaAfter))}</Text>
+                        </View>
+                    );
+                })()}
 
                 {/* Footer */}
                 <View style={styles.footer}>

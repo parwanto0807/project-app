@@ -21,9 +21,11 @@ interface TableProps {
   onViewDetail: (record: any) => void;
   onRefresh?: () => void;
   groupByTeam?: boolean;
+  jamKerjaNormal?: number; // dalam jam, default 9
 }
 
 const JAM_STANDAR_KELUAR = "17:00";
+const DEFAULT_JAM_KERJA_NORMAL = 9;
 
 function isSuspicious(jamMasuk: string | null, jamKeluar: string | null): boolean {
   if (!jamMasuk || !jamKeluar) return false;

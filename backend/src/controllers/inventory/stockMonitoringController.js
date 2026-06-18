@@ -24,14 +24,37 @@ export const stockMonitoringController = {
 
       // Filter Berdasarkan Nama/Kode Product
       if (search) {
-        where.product = {
-          // Hanya filter isActive jika tidak sedang mencari produk inactive
-          isActive: status === 'inactive' ? undefined : true, 
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { code: { contains: search, mode: 'insensitive' } },
-          ],
-        };
+        const searchTrimmed = search.trim();
+        
+        // Jika search tidak kosong setelah trim
+        if (searchTrimmed) {
+          // Split search menjadi kata-kata untuk multi-word search
+          const words = searchTrimmed.split(/\s+/).filter(w => w.length > 0);
+          
+          if (words.length === 1) {
+            // Single word search - cari di salah satu field
+            where.product = {
+              isActive: status === 'inactive' ? undefined : true,
+              OR: [
+                { name: { contains: words[0], mode: 'insensitive' } },
+                { code: { contains: words[0], mode: 'insensitive' } },
+                { category: { name: { contains: words[0], mode: 'insensitive' } } },
+              ],
+            };
+          } else {
+            // Multiple words search - cari yang mengandung semua kata
+            where.product = {
+              isActive: status === 'inactive' ? undefined : true,
+              AND: words.map((word) => ({
+                OR: [
+                  { name: { contains: word, mode: 'insensitive' } },
+                  { code: { contains: word, mode: 'insensitive' } },
+                  { category: { name: { contains: word, mode: 'insensitive' } } },
+                ],
+              })),
+            };
+          }
+        }
       } else {
          // Default: hanya tampilkan produk aktif, kecuali user eksplisit minta inactive
          if (status !== 'inactive') {

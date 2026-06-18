@@ -1,3 +1,163 @@
+# ==========================================
+# ROOT .gitignore - Project Wide Exclusions
+# ==========================================
+
+# Gemini AI artifacts and documentation
+.gemini/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables (NEVER commit these!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.turbo/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.pem
+*.tmp
+*.temp
+
+# ==========================================
+# Backend Specific
+# ==========================================
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Prisma
+prisma/generated/
+prisma/dev.db
+prisma/dev.db-journal
+
+# Backend temp/output files
+backend/*.json
+!backend/package.json
+!backend/package-lock.json
+!backend/tsconfig.json
+!backend/permissions_list.json
+!backend/coa_types.json
+!backend/service-account-key.json
+
+backend/*.js
+!backend/test*.js
+!backend/check*.js
+!backend/fix*.js
+
+backend/*.mjs
+backend/*.cjs
+
+# Backend scratch & debug files
+backend/scratch/
+backend/test*.txt
+backend/fix*.txt
+backend/*.error.log
+backend/validation.log
+backend/validate_error.log
+
+# Backend output files
+backend/all_inventory_tb_feb.json
+backend/all_stock_values.json
+backend/bad_journals_check.json
+backend/debugProduct.json
+backend/ending_balance_fix_log.json
+backend/feb_inventory_values.json
+backend/feb_ledgers_check.json
+backend/feb_tb_check.json
+backend/final_state_verification.json
+backend/gls_check.txt
+backend/inventory_recon_check.json
+backend/output.json
+backend/periods.json
+backend/periods_full.json
+backend/periods_ordered.json
+backend/specific_tb_raw.json
+backend/stockHistory.json
+backend/stock_periods.json
+backend/tb_audit.txt
+backend/tb_check.json
+backend/tb_check2.json
+backend/warehouse_mapping_result.json
+backend/check_pos.js
+
+# Public uploads & images (user-generated content)
+backend/public/images/
+backend/public/uploads/
+backend/public/images/spk/
+backend/public/uploads/receipts/
+
+# Secrets
+backend/service-account-key.json
+
+# ==========================================
+# Frontend Specific
+# ==========================================
+
+# Frontend temp/output files
+frontend/*.cjs
+frontend/*.mjs
+frontend/tsc_output.txt
+
+# ==========================================
+# Documentation (Optional - comment if needed)
+# ==========================================
+
+# Auto-generated docs (keep manual docs)
+.docs/*.md
+!.docs/README.md
+
+# ==========================================
+# Qoder / AI Tools
+# ==========================================
+.qoder/
+brain/
+
+# ==========================================
+# Mobile (if exists)
+# ==========================================
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-shared/
 # Gemini AI artifacts and documentation
 .gemini/
 

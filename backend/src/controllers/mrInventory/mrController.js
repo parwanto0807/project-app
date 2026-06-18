@@ -189,7 +189,13 @@ export const mrController = {
           
           // Update existing StockBalance (we already fetched it above)
           const currentInventoryValue = Number(stockBalance.inventoryValue) || 0;
-          const newInventoryValue = Math.max(0, currentInventoryValue - totalCost);
+          const currentStockAkhir = Number(stockBalance.stockAkhir) || 0;
+          const newStockAkhir = currentStockAkhir - baseQtyDeduction;
+          // If all stock is gone, clear inventoryValue to prevent orphan values
+          const newInventoryValue = newStockAkhir <= 0 ? 0 : Math.max(0, currentInventoryValue - totalCost);
+          // Recalculate availableStock = stockAkhir - bookedStock (min 0)
+          const newBookedStock = Math.max(0, Number(stockBalance.bookedStock) - bookedToTake);
+          const newAvailable = Math.max(0, newStockAkhir - newBookedStock);
           
           stockBalance = await tx.stockBalance.update({
             where: {
@@ -201,10 +207,10 @@ export const mrController = {
             },
             data: {
               stockOut: { increment: baseQtyDeduction },
-              stockAkhir: { decrement: baseQtyDeduction },
-              bookedStock: { decrement: bookedToTake },
-              availableStock: { decrement: unbookedToTake }, // Decrement availableStock if we took from it
-              inventoryValue: { set: newInventoryValue } // Clamped to prevent negative
+              stockAkhir: { set: newStockAkhir },
+              bookedStock: { set: newBookedStock },
+              availableStock: { set: newAvailable },
+              inventoryValue: { set: newInventoryValue }
             }
           });
 

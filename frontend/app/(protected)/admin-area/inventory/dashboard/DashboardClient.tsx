@@ -57,6 +57,24 @@ export default function DashboardClient({
     const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+    // --- Debounce Search Term ---
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(filters.searchTerm);
+
+    useEffect(() => {
+        // Hanya debounce jika search term minimal 2 karakter atau kosong
+        if (filters.searchTerm.length === 0 || filters.searchTerm.length >= 2) {
+            const handler = setTimeout(() => {
+                setDebouncedSearchTerm(filters.searchTerm);
+            }, 500);
+            return () => {
+                clearTimeout(handler);
+            };
+        } else {
+            // Jika kurang dari 2 karakter, langsung reset tanpa debounce
+            setDebouncedSearchTerm(filters.searchTerm);
+        }
+    }, [filters.searchTerm]);
+
     // --- Responsive View Logic ---
     useEffect(() => {
         const checkMobile = () => setViewMode(window.innerWidth < 1024 ? 'mobile' : 'desktop');
@@ -72,7 +90,7 @@ export default function DashboardClient({
         try {
             const res = await getInventoryMonitoring({
                 period: filters.period,
-                search: filters.searchTerm,
+                search: debouncedSearchTerm,
                 warehouseId: filters.warehouseFilter === "all" ? undefined : filters.warehouseFilter,
                 status: filters.statusFilter === "all" ? undefined : filters.statusFilter,
                 page: filters.page,
@@ -102,7 +120,7 @@ export default function DashboardClient({
         } finally {
             setLoading(false);
         }
-    }, [filters.period, filters.searchTerm, filters.warehouseFilter, filters.page, filters.statusFilter]);
+    }, [filters.period, debouncedSearchTerm, filters.warehouseFilter, filters.page, filters.statusFilter]);
 
     // Flag to skip initial fetch since we have server data
     const isFirstRender = React.useRef(true);
@@ -116,7 +134,7 @@ export default function DashboardClient({
         }
 
         loadData();
-    }, [filters.period, filters.page, filters.warehouseFilter, filters.searchTerm, filters.statusFilter, loadData]);
+    }, [filters.period, filters.page, filters.warehouseFilter, debouncedSearchTerm, filters.statusFilter, loadData]);
 
 
 
@@ -134,7 +152,7 @@ export default function DashboardClient({
         try {
             const res = await getInventoryMonitoring({
                 period: filters.period,
-                search: filters.searchTerm,
+                search: debouncedSearchTerm,
                 warehouseId: filters.warehouseFilter === "all" ? undefined : filters.warehouseFilter,
                 status: filters.statusFilter === "all" ? undefined : filters.statusFilter,
                 page: 1,
@@ -150,7 +168,7 @@ export default function DashboardClient({
             toast.error("Gagal mengambil data lengkap untuk laporan");
             return [];
         }
-    }, [filters.period, filters.searchTerm, filters.warehouseFilter, filters.statusFilter]);
+    }, [filters.period, debouncedSearchTerm, filters.warehouseFilter, filters.statusFilter]);
 
     return (
         <TabelMonitoring

@@ -32,7 +32,7 @@ export async function fetchPayrollSummary(periode: string) {
 export async function fetchPayrollPreview(
   karyawanId: string, 
   periode: string,
-  params: { pajak?: number; potonganDpGaji?: number; potonganLain?: number; manualPinjaman?: number; manualKasbon?: number; hitungLembur?: boolean } = {}
+  params: { pajak?: number; potonganDpGaji?: number; potonganLain?: number; manualPinjaman?: number; manualKasbon?: number; hitungLembur?: boolean; hitungUangMakan?: boolean; hitungUangMakanLembur?: boolean } = {}
 ) {
   try {
     const q = new URLSearchParams();
@@ -43,6 +43,8 @@ export async function fetchPayrollPreview(
     if (params.manualPinjaman !== undefined) q.append("manualPinjaman", params.manualPinjaman.toString());
     if (params.manualKasbon !== undefined) q.append("manualKasbon", params.manualKasbon.toString());
     if (params.hitungLembur !== undefined) q.append("hitungLembur", params.hitungLembur.toString());
+    if (params.hitungUangMakan !== undefined) q.append("hitungUangMakan", params.hitungUangMakan.toString());
+    if (params.hitungUangMakanLembur !== undefined) q.append("hitungUangMakanLembur", params.hitungUangMakanLembur.toString());
 
     const res = await fetch(
       `${API_URL}/api/payroll/preview/${karyawanId}?${q}`,
@@ -67,6 +69,8 @@ export async function createGaji(formData: {
   manualPinjaman?: number;
   manualKasbon?: number;
   hitungLembur?: boolean;
+  hitungUangMakan?: boolean;
+  hitungUangMakanLembur?: boolean;
 }) {
   try {
     const res = await fetch(`${API_URL}/api/payroll/gaji`, {

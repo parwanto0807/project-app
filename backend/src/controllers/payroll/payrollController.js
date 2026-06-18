@@ -107,19 +107,50 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
       jamLembur = fracPart < 0.5 ? intPart : Math.round(rawLembur * 100) / 100;
     }
 
-    // Uang Makan Harian (Berdasarkan threshold config) - DINONAKTIFKAN KARENA DICAIRKAN TERPISAH
+    // Uang Makan Harian (Custom Rule Proyek)
     let uangMakanHariIni = 0;
-    // if (a.status === "HADIR" || a.status === "TERLAMBAT") {
-    //   if (jamKerja > minJamKerjaUangMakan) {
-    //     uangMakanHariIni = baseTunjanganMakan;
-    //   }
-    // }
+    let gajiKerjaHariIni = 0;
+    const normalJam = Math.max(0, jamKerja - jamLembur);
+    const useUangMakan = overrides.hitungUangMakan !== false;
 
-    // Uang Makan Lembur (Berdasarkan threshold config) - DINONAKTIFKAN KARENA DICAIRKAN TERPISAH
+    if (useUangMakan && (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") && (a.status === "HADIR" || a.status === "TERLAMBAT")) {
+      const dailyRate = karyawan.gajiPokok > 0 ? karyawan.gajiPokok : (config?.gajiPerHari || 0);
+      const hourlyRateCustom = dailyRate / 7;
+      const nominalUangMakan = baseTunjanganMakan || 0;
+      
+      if (normalJam > 0 && normalJam <= 3) {
+        // <= 3 jam: minimum 3 jam (Gaji Pokok / 7 * 3)
+        gajiKerjaHariIni = hourlyRateCustom * 3;
+      } else if (normalJam > 3 && normalJam <= 4) {
+        // 4 jam: 4 jam (Gaji Pokok / 7 * 4) + Uang Makan
+        gajiKerjaHariIni = hourlyRateCustom * 4;
+        uangMakanHariIni = nominalUangMakan;
+      } else if (normalJam > 4) {
+        // > 5 jam s/d 8 jam: (Gaji Pokok / 7) * (jamKerja - 1) + Uang Makan
+        // Math.max digunakan untuk mencegah dip gaji jika jamKerja antara 4 dan 5 (masa istirahat)
+        gajiKerjaHariIni = hourlyRateCustom * Math.max(4, normalJam - 1);
+        uangMakanHariIni = nominalUangMakan;
+      }
+    } else if (!useUangMakan && (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") && (a.status === "HADIR" || a.status === "TERLAMBAT")) {
+      // Uang makan disabled — tetap hitung gaji kerja harian tanpa uang makan
+      const dailyRate = karyawan.gajiPokok > 0 ? karyawan.gajiPokok : (config?.gajiPerHari || 0);
+      const hourlyRateCustom = dailyRate / 7;
+      
+      if (normalJam > 0 && normalJam <= 3) {
+        gajiKerjaHariIni = hourlyRateCustom * 3;
+      } else if (normalJam > 3 && normalJam <= 4) {
+        gajiKerjaHariIni = hourlyRateCustom * 4;
+      } else if (normalJam > 4) {
+        gajiKerjaHariIni = hourlyRateCustom * Math.max(4, normalJam - 1);
+      }
+    }
+
+    // Uang Makan Lembur (Berdasarkan threshold config)
     let uangMakanLemburHariIni = 0;
-    // if (jamLembur > minJamLemburUangMakan) {
-    //   uangMakanLemburHariIni = baseUangMakanLembur;
-    // }
+    const useUangMakanLembur = overrides.hitungUangMakanLembur !== false;
+    if (useUangMakanLembur && jamLembur >= minJamLemburUangMakan) {
+      uangMakanLemburHariIni = baseUangMakanLembur;
+    }
 
     // Upah Lembur Harian (Berdasarkan pengali config)
     let upahHariIni = 0;
@@ -161,12 +192,15 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
       uangMakanHariIni,
       uangMakanLemburHariIni,
       upahLemburHariIni: Math.round(upahHariIni),
+      gajiKerjaHariIni: Math.round(gajiKerjaHariIni),
     };
   });
 
   const totalJamKerja  = detailHarian.reduce((s, d) => s + d.jamKerja, 0);
   const totalJamLembur = detailHarian.reduce((s, d) => s + d.jamLembur, 0);
   const upahLemburDinamis = detailHarian.reduce((s, d) => s + d.upahLemburHariIni, 0);
+  const totalGajiKerjaHarian = detailHarian.reduce((s, d) => s + (d.gajiKerjaHariIni || 0), 0);
+
 
   // Hitung Tunjangan Tidak Tetap
   const tunjanganMakan = detailHarian.reduce((s, d) => s + d.uangMakanHariIni, 0);
@@ -186,17 +220,8 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
   let potonganTerlambat = 0;
 
   if (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") {
-    // Gaji harian: Kalkulasi berdasarkan durasi jam kerja (pro-rate)
-    const dailyRate = karyawan.gajiPokok > 0 ? karyawan.gajiPokok : (config?.gajiPerHari || 0);
-    const jamStandar = config?.jamKerjaPerHari || 9;
-    const hourlyRate = dailyRate / jamStandar;
-    
-    const potonganPerTerlambat = config?.potonganTerlambat || 0;
-
-    // Hitung jam kerja normal (Total Durasi - Lembur)
-    const normalHours = Math.max(0, totalJamKerja - totalJamLembur);
-    
-    gajiKerja = Math.round(normalHours * hourlyRate);
+    // Gaji harian: Kalkulasi berdasarkan rule harian dinamis (custom project)
+    gajiKerja = totalGajiKerjaHarian;
     const useLembur = overrides.hitungLembur !== false;
     // Menggunakan perhitungan lembur dinamis (berdasarkan UU / Pengali)
     upahLembur = useLembur ? Math.round(upahLemburDinamis) : 0;
@@ -275,6 +300,11 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
  * Ambil data yang dibutuhkan untuk kalkulasi satu karyawan
  */
 async function fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, gajiEnd) {
+  const karyawanInfo = await prisma.karyawan.findUnique({
+    where: { id: karyawanId },
+    select: { payrollConfigId: true },
+  });
+
   const [absensiList, loanDetails, kasbonList, config] = await Promise.all([
     prisma.absensi.findMany({
       where: { karyawanId, tanggal: { gte: cutoffStart, lte: cutoffEnd } },
@@ -303,7 +333,9 @@ async function fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, g
         bulanPotong: { gte: gajiStart, lte: gajiEnd } 
       },
     }),
-    prisma.payrollConfig.findFirst({ where: { isActive: true } }),
+    karyawanInfo?.payrollConfigId
+      ? prisma.payrollConfig.findUnique({ where: { id: karyawanInfo.payrollConfigId } })
+      : prisma.payrollConfig.findFirst({ where: { isActive: true } }),
   ]);
   return { absensiList, loanDetails, kasbonList, config };
 }
@@ -339,7 +371,12 @@ export const getAllGaji = async (req, res) => {
             tunjanganKehadiran: true,
             namaBank: true,
             nomorRekening: true,
-            namaRekening: true
+            namaRekening: true,
+            pinjaman: {
+              where: { status: { in: ["ACTIVE", "COMPLETED"] } },
+              select: { id: true, sisaPinjaman: true, jumlahPinjaman: true, status: true },
+              orderBy: { createdAt: "desc" },
+            },
           },
         },
       },
@@ -370,7 +407,12 @@ export const getPayrollSummary = async (req, res) => {
             tunjanganKehadiran: true,
             namaBank: true,
             nomorRekening: true,
-            namaRekening: true
+            namaRekening: true,
+            pinjaman: {
+              where: { status: { in: ["ACTIVE", "COMPLETED"] } },
+              select: { id: true, sisaPinjaman: true, jumlahPinjaman: true, status: true },
+              orderBy: { createdAt: "desc" },
+            },
           } 
         } 
       },
@@ -406,7 +448,7 @@ export const getPayrollSummary = async (req, res) => {
 export const getPayrollPreview = async (req, res) => {
   try {
     const { karyawanId } = req.params;
-    const { periode, pajak, potonganDpGaji, potonganLain, manualPinjaman, manualKasbon, hitungLembur } = req.query;
+    const { periode, pajak, potonganDpGaji, potonganLain, manualPinjaman, manualKasbon, hitungLembur, hitungUangMakan, hitungUangMakanLembur } = req.query;
     if (!periode) return res.status(400).json({ message: "periode wajib diisi" });
 
     const { gajiStart, gajiEnd, cutoffStart, cutoffEnd } = getPayrollDateRanges(periode);
@@ -425,6 +467,8 @@ export const getPayrollPreview = async (req, res) => {
       potonganPinjaman: manualPinjaman !== undefined ? parseFloat(manualPinjaman) : undefined,
       potonganKasbon: manualKasbon !== undefined ? parseFloat(manualKasbon) : undefined,
       hitungLembur: hitungLembur === "false" ? false : true,
+      hitungUangMakan: hitungUangMakan === "false" ? false : true,
+      hitungUangMakanLembur: hitungUangMakanLembur === "false" ? false : true,
     };
 
     const kalkulasi = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config, overrides);
@@ -453,7 +497,7 @@ export const getPayrollPreview = async (req, res) => {
  */
 export const createGaji = async (req, res) => {
   try {
-    const { karyawanId, periode, pajak = 0, potonganDpGaji = 0, potonganLain = 0, manualPinjaman, manualKasbon, hitungLembur } = req.body;
+    const { karyawanId, periode, pajak = 0, potonganDpGaji = 0, potonganLain = 0, manualPinjaman, manualKasbon, hitungLembur, hitungUangMakan, hitungUangMakanLembur } = req.body;
     if (!karyawanId || !periode) return res.status(400).json({ message: "karyawanId dan periode wajib diisi" });
 
     const { periodDate, gajiStart, gajiEnd, cutoffStart, cutoffEnd } = getPayrollDateRanges(periode);
@@ -478,6 +522,8 @@ export const createGaji = async (req, res) => {
       potonganPinjaman: manualPinjaman !== undefined ? parseFloat(manualPinjaman) : undefined,
       potonganKasbon: manualKasbon !== undefined ? parseFloat(manualKasbon) : undefined,
       hitungLembur: hitungLembur !== false,
+      hitungUangMakan: hitungUangMakan !== false,
+      hitungUangMakanLembur: hitungUangMakanLembur !== false,
     });
 
     const result = await prisma.$transaction(async (tx) => {
@@ -539,7 +585,7 @@ export const deleteGaji = async (req, res) => {
 export const updateGaji = async (req, res) => {
   try {
     const { id } = req.params;
-    const { pajak, potonganDpGaji, potonganLain, manualPinjaman, manualKasbon, hitungLembur } = req.body;
+    const { pajak, potonganDpGaji, potonganLain, manualPinjaman, manualKasbon, hitungLembur, hitungUangMakan, hitungUangMakanLembur } = req.body;
 
     const existing = await prisma.gaji.findUnique({
       where: { id },
@@ -562,6 +608,8 @@ export const updateGaji = async (req, res) => {
       potonganPinjaman: manualPinjaman !== undefined ? parseFloat(manualPinjaman) : undefined,
       potonganKasbon: manualKasbon !== undefined ? parseFloat(manualKasbon) : undefined,
       hitungLembur: hitungLembur !== false,
+      hitungUangMakan: hitungUangMakan !== false,
+      hitungUangMakanLembur: hitungUangMakanLembur !== false,
     };
 
     const k = await kalkulasiGaji(existing.karyawan, absensiList, loanDetails, kasbonList, config, overrides);
@@ -618,12 +666,10 @@ export const getBulkPayrollPreview = async (req, res) => {
     });
     const sudahDiprosesSet = new Set(sudahDiprosesRows.map((g) => g.karyawanId));
 
-    const config = await prisma.payrollConfig.findFirst({ where: { isActive: true } });
-
     const previews = await Promise.all(
       karyawanList.map(async (karyawan) => {
         const sudah = sudahDiprosesSet.has(karyawan.id);
-        const { absensiList, loanDetails, kasbonList } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
+        const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
         const k = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config);
         return { karyawan, sudahDiproses: sudah, kalkulasi: k };
       })
@@ -671,12 +717,11 @@ export const processBulkPayroll = async (req, res) => {
       return res.status(400).json({ message: "Semua karyawan sudah diproses untuk periode ini" });
     }
 
-    const config = await prisma.payrollConfig.findFirst({ where: { isActive: true } });
     const results = { success: [], failed: [] };
 
     for (const karyawan of toBeProcesed) {
       try {
-        const { absensiList, loanDetails, kasbonList } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
+        const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
         const k = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config);
 
         await prisma.$transaction(async (tx) => {

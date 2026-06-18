@@ -29,6 +29,20 @@ const Row = ({ label, value, bold, color }: { label: string; value: string; bold
   </div>
 );
 
+const countWorkingDays = (start: Date, end: Date): number => {
+    let count = 0;
+    const d = new Date(start);
+    d.setHours(0, 0, 0, 0);
+    const e = new Date(end);
+    e.setHours(0, 0, 0, 0);
+    while (d <= e) {
+        const day = d.getDay();
+        if (day !== 0 && day !== 6) count++;
+        d.setDate(d.getDate() + 1);
+    }
+    return count;
+};
+
 const PayrollSlipDialog: React.FC<PayrollSlipDialogProps> = ({ gaji, open, onClose }) => {
   const [isPrinting, setIsPrinting] = React.useState(false);
 
@@ -90,6 +104,9 @@ const PayrollSlipDialog: React.FC<PayrollSlipDialogProps> = ({ gaji, open, onClo
                   {format(new Date(gaji.periodeMulai), "dd MMM", { locale: id })} –{" "}
                   {format(new Date(gaji.periodeSelesai), "dd MMM yyyy", { locale: id })}
                 </p>
+                <p className="text-blue-100 text-xs mt-1 font-semibold">
+                  Hari Kerja: {countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari
+                </p>
               </div>
             </div>
           </div>
@@ -97,7 +114,7 @@ const PayrollSlipDialog: React.FC<PayrollSlipDialogProps> = ({ gaji, open, onClo
           {/* Pendapatan */}
           <div className="bg-gray-50 rounded-2xl p-4 space-y-1">
             <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Pendapatan</p>
-            <Row label="Gaji Pokok" value={fmt(gaji.gajiPokok)} />
+            <Row label={`Gaji Pokok (${countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari)`} value={fmt(gaji.gajiPokok)} />
             {gaji.tunjanganJabatan > 0 && <Row label="Tunjangan Jabatan" value={fmt(gaji.tunjanganJabatan)} />}
             {gaji.tunjanganKeluarga > 0 && <Row label="Tunjangan Keluarga" value={fmt(gaji.tunjanganKeluarga)} />}
             {gaji.tunjanganMakan > 0 && <Row label="Tunjangan Makan" value={fmt(gaji.tunjanganMakan)} />}
@@ -139,6 +156,22 @@ const PayrollSlipDialog: React.FC<PayrollSlipDialogProps> = ({ gaji, open, onClo
               </div>
             </div>
           </div>
+
+          {/* Sisa Pinjaman Info */}
+          {(() => {
+            const activeLoans = gaji.karyawan?.pinjaman?.filter((p: any) => p.status === "ACTIVE") || [];
+            if (activeLoans.length === 0 || !(gaji.potonganPinjaman > 0)) return null;
+            const totalSisa = activeLoans.reduce((sum: number, p: any) => sum + Number(p.sisaPinjaman || 0), 0);
+            const sisaAfter = gaji.status === "DRAFT"
+              ? totalSisa - (gaji.potonganPinjaman || 0)
+              : totalSisa;
+            return (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 flex justify-between items-center">
+                <p className="text-xs text-orange-700 italic">Sisa Pinjaman setelah potongan bulan ini</p>
+                <p className="text-sm font-bold text-orange-700">{fmt(Math.max(0, sisaAfter))}</p>
+              </div>
+            );
+          })()}
 
           <p className="text-center text-xs text-gray-400">
             Digenerate pada {format(new Date(gaji.createdAt), "dd MMMM yyyy HH:mm", { locale: id })}
