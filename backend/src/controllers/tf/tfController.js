@@ -1268,3 +1268,250 @@ export const createTransferGR = async (req, res) => {
       });
     }
   };
+
+/**
+ * @desc Create direct internal transfer (Bengkel → WIP)
+ *       Instant stock movement, no MR/GR needed
+ * @route POST /api/tf/direct
+ */
+export const createDirectTransfer = async (req, res) => {
+  const { fromWarehouseId, toWarehouseId, senderId, notes, items } = req.body;
+
+  try {
+    // Validate input
+    if (!fromWarehouseId || !toWarehouseId || !senderId || !items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      });
+    }
+
+    if (fromWarehouseId === toWarehouseId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gudang asal dan tujuan harus berbeda'
+      });
+    }
+
+    // Calculate period date (WIB-anchored UTC midnight)
+    const now = new Date();
+    const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    const periodDate = new Date(Date.UTC(
+      jakartaNow.getUTCFullYear(),
+      jakartaNow.getUTCMonth(),
+      1
+    ));
+
+    // Generate transfer number (Format: DT-YYYYMM-XXXX)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const prefix = `DT-${year}${month}`;
+
+    const lastTransfer = await prisma.stockTransfer.findFirst({
+      where: {
+        transferNumber: {
+          startsWith: prefix
+        }
+      },
+      orderBy: {
+        transferNumber: 'desc'
+      },
+      select: { transferNumber: true }
+    });
+
+    let sequence = 1;
+    if (lastTransfer) {
+      const parts = lastTransfer.transferNumber.split('-');
+      if (parts.length === 3) {
+        const lastSeq = parseInt(parts[2]);
+        if (!isNaN(lastSeq)) {
+          sequence = lastSeq + 1;
+        }
+      }
+    }
+
+    const transferNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
+
+    // Execute in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create transfer record with status 'COMPLETED'
+      const transfer = await tx.stockTransfer.create({
+        data: {
+          transferNumber,
+          fromWarehouseId,
+          toWarehouseId,
+          senderId,
+          notes,
+          status: 'RECEIVED', // Direct completion
+          items: {
+            create: items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unit: item.unit,
+              cogs: item.pricePerUnit || 0
+            }))
+          }
+        },
+        include: {
+          items: { include: { product: true } },
+          fromWarehouse: true,
+          toWarehouse: true,
+          sender: true
+        }
+      });
+
+      // Process each item
+      for (const item of items) {
+        // Get product unit info
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: {
+            storageUnit: true,
+            usageUnit: true,
+            purchaseUnit: true,
+            conversionToUsage: true,
+            conversionToStorage: true,
+            id: true,
+            code: true,
+            name: true
+          }
+        });
+
+        if (!product) {
+          throw new Error(`Product ${item.productId} not found`);
+        }
+
+        // Convert to storage unit (CRITICAL!)
+        let qtyInStorageUnit = parseFloat(item.quantity);
+        
+        if (item.unit === product.usageUnit && product.usageUnit !== product.storageUnit) {
+          const conversion = Number(product.conversionToUsage) || 1;
+          qtyInStorageUnit = parseFloat(item.quantity) / conversion;
+        } else if (item.unit === product.purchaseUnit && product.purchaseUnit !== product.storageUnit) {
+          const conversion = Number(product.conversionToStorage) || 1;
+          qtyInStorageUnit = parseFloat(item.quantity) * conversion;
+        }
+
+        // Deduct from source warehouse
+        const sourceBalance = await tx.stockBalance.findFirst({
+          where: {
+            productId: item.productId,
+            warehouseId: fromWarehouseId,
+            period: periodDate
+          }
+        });
+
+        if (!sourceBalance) {
+          throw new Error(`Stock balance not found for ${product.code} in source warehouse`);
+        }
+
+        if (Number(sourceBalance.availableStock) < qtyInStorageUnit) {
+          throw new Error(`Stok tidak mencukupi untuk ${product.code}. Available: ${sourceBalance.availableStock}, Required: ${qtyInStorageUnit}`);
+        }
+
+        await tx.stockBalance.update({
+          where: { id: sourceBalance.id },
+          data: {
+            stockOut: { increment: qtyInStorageUnit },
+            stockAkhir: { decrement: qtyInStorageUnit },
+            availableStock: { decrement: qtyInStorageUnit }
+          }
+        });
+
+        // Create stockDetail OUT for source
+        await tx.stockDetail.create({
+          data: {
+            productId: item.productId,
+            warehouseId: fromWarehouseId,
+            type: 'OUT',
+            source: 'TRANSFER',
+            transQty: parseFloat(item.quantity),
+            transUnit: item.unit,
+            baseQty: qtyInStorageUnit,
+            pricePerUnit: item.pricePerUnit || 0,
+            referenceNo: transferNumber,
+            stockAwalSnapshot: sourceBalance.stockAkhir,
+            stockAkhirSnapshot: Number(sourceBalance.stockAkhir) - qtyInStorageUnit,
+            notes: notes || `Direct transfer to ${transfer.toWarehouse.name}`
+          }
+        });
+
+        // Add to destination warehouse
+        let destBalance = await tx.stockBalance.findFirst({
+          where: {
+            productId: item.productId,
+            warehouseId: toWarehouseId,
+            period: periodDate
+          }
+        });
+
+        if (!destBalance) {
+          // Create new balance if not exists
+          destBalance = await tx.stockBalance.create({
+            data: {
+              productId: item.productId,
+              warehouseId: toWarehouseId,
+              period: periodDate,
+              stockAwal: 0,
+              stockIn: 0,
+              stockOut: 0,
+              justIn: 0,
+              justOut: 0,
+              stockAkhir: 0,
+              bookedStock: 0,
+              availableStock: 0,
+              inventoryValue: 0
+            }
+          });
+        }
+
+        await tx.stockBalance.update({
+          where: { id: destBalance.id },
+          data: {
+            stockIn: { increment: qtyInStorageUnit },
+            stockAkhir: { increment: qtyInStorageUnit },
+            availableStock: { increment: qtyInStorageUnit },
+            inventoryValue: { increment: qtyInStorageUnit * (item.pricePerUnit || 0) }
+          }
+        });
+
+        // Create stockDetail IN for destination
+        await tx.stockDetail.create({
+          data: {
+            productId: item.productId,
+            warehouseId: toWarehouseId,
+            type: 'IN',
+            source: 'TRANSFER',
+            transQty: parseFloat(item.quantity),
+            transUnit: item.unit,
+            baseQty: qtyInStorageUnit,
+            pricePerUnit: item.pricePerUnit || 0,
+            referenceNo: transferNumber,
+            residualQty: qtyInStorageUnit,
+            stockAwalSnapshot: destBalance.stockAkhir,
+            stockAkhirSnapshot: Number(destBalance.stockAkhir) + qtyInStorageUnit,
+            notes: notes || `Direct transfer from ${transfer.fromWarehouse.name}`
+          }
+        });
+      }
+
+      return transfer;
+    }, {
+      timeout: 30000,
+      maxWait: 35000
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Direct transfer berhasil',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Direct transfer error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Gagal membuat direct transfer'
+    });
+  }
+};

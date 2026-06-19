@@ -31,7 +31,8 @@ import {
     FileText,
     XCircle,
     Edit,
-    Trash2
+    Trash2,
+    ArrowRightLeft
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { StockTransfer, TransferStatus } from '@/types/tfType';
@@ -278,6 +279,30 @@ export function TransferTable({ data, isLoading, pagination, onPageChange, initi
 
             {/* Main Table Card */}
             <Card className="border border-gray-200 shadow-sm overflow-hidden">
+                {/* Internal Transfer Info Banner */}
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-200 px-6 py-3">
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-full bg-emerald-100 p-1.5">
+                            <ArrowRightLeft className="h-4 w-4 text-emerald-600" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-medium text-emerald-900">
+                                Transfer Types:
+                            </p>
+                            <div className="flex flex-wrap gap-3 mt-1">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">DT-*</span>
+                                    <span className="text-xs text-emerald-700">Internal Transfer (Instant Stock Move)</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">TF-*</span>
+                                    <span className="text-xs text-blue-700">Regular Transfer (Requires GR Approval)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
                         <Table>
@@ -340,10 +365,25 @@ export function TransferTable({ data, isLoading, pagination, onPageChange, initi
                                         >
                                             <TableCell className="font-medium text-gray-900">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="p-1.5 bg-blue-50 rounded-md">
-                                                        <Package className="h-3.5 w-3.5 text-blue-600" />
+                                                    <div className={cn(
+                                                        "p-1.5 rounded-md",
+                                                        transfer.transferNumber?.startsWith('DT-') 
+                                                            ? 'bg-emerald-50' 
+                                                            : 'bg-blue-50'
+                                                    )}>
+                                                        <Package className={cn(
+                                                            "h-3.5 w-3.5",
+                                                            transfer.transferNumber?.startsWith('DT-') 
+                                                                ? 'text-emerald-600' 
+                                                                : 'text-blue-600'
+                                                        )} />
                                                     </div>
                                                     <span className="font-semibold">{transfer.transferNumber}</span>
+                                                    {transfer.transferNumber?.startsWith('DT-') && (
+                                                        <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                                            Internal
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-gray-600">
@@ -391,8 +431,8 @@ export function TransferTable({ data, isLoading, pagination, onPageChange, initi
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2 transition-opacity">
                                                     {/* Print Button */}
-                                                    {/* Create GR Button */}
-                                                    {!transfer.goodsReceiptId && (
+                                                    {/* Create GR Button - Only for Regular Transfers (TF-*) */}
+                                                    {!transfer.goodsReceiptId && !transfer.transferNumber?.startsWith('DT-') && (
                                                         <Button
                                                             variant="outline"
                                                             size="sm"

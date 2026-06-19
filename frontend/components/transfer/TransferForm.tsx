@@ -252,8 +252,10 @@ export function TransferForm({ initialData, onSuccess, onCancel }: TransferFormP
     }, []);
 
     // Filter products based on selected fromWarehouse
+    // Include ALL products (even with 0 stock) so user can see what's available
+    // Stock validation will happen on submit
     const availableProducts = fromWarehouseId
-        ? products.filter(p => p.warehouseId === fromWarehouseId && p.availableStock > 0)
+        ? products.filter(p => p.warehouseId === fromWarehouseId)
         : [];
 
     // Log available products when warehouse changes
@@ -271,7 +273,9 @@ export function TransferForm({ initialData, onSuccess, onCancel }: TransferFormP
 
         // Show products with stock
         const withStock = filtered.filter(p => p.availableStock > 0);
-        ;((...args: any[]) => {})('✅ Available products for this warehouse:', withStock.length);
+        const withoutStock = filtered.filter(p => p.availableStock === 0);
+        ;((...args: any[]) => {})('✅ Available products (with stock):', withStock.length);
+        ;((...args: any[]) => {})('⚠️ Products with 0 stock:', withoutStock.length);
 
         if (withStock.length > 0) {
             ;((...args: any[]) => {})('📋 First available product:', withStock[0]);
@@ -550,34 +554,49 @@ export function TransferForm({ initialData, onSuccess, onCancel }: TransferFormP
                                                                     <CommandList>
                                                                         <CommandEmpty>Produk tidak ditemukan.</CommandEmpty>
                                                                         <CommandGroup>
-                                                                            {availableProducts.map((product) => (
-                                                                                <CommandItem
-                                                                                    key={product.id}
-                                                                                    value={`${product.code} ${product.name}`}
-                                                                                    onSelect={() => {
-                                                                                        field.onChange(product.id);
-                                                                                        ;((...args: any[]) => {})('🔄 Selected Product:', product.code, 'Unit:', product.unit);
-                                                                                        setValue(`items.${index}.unit`, product.unit);
-                                                                                    }}
-                                                                                >
-                                                                                    <Check
-                                                                                        className={cn(
-                                                                                            "mr-2 h-4 w-4",
-                                                                                            product.id === field.value ? "opacity-100" : "opacity-0"
-                                                                                        )}
-                                                                                    />
-                                                                                    <div className="flex flex-col">
-                                                                                        <div className="flex items-center gap-2">
-                                                                                            <span className="font-bold text-indigo-600 dark:text-indigo-400">{product.code}</span>
-                                                                                            <span className="text-slate-400 font-light">|</span>
-                                                                                            <span className="font-medium text-slate-700 dark:text-slate-200">{product.name}</span>
+                                                                            {availableProducts.map((product) => {
+                                                                                const isOutOfStock = product.availableStock === 0 || product.availableStock < 0;
+                                                                                return (
+                                                                                    <CommandItem
+                                                                                        key={product.id}
+                                                                                        value={`${product.code} ${product.name}`}
+                                                                                        onSelect={() => {
+                                                                                            if (isOutOfStock) {
+                                                                                                toast.warning(`${product.name} stok habis (${product.availableStock} ${product.unit})`);
+                                                                                            }
+                                                                                            field.onChange(product.id);
+                                                                                            ;((...args: any[]) => {})('🔄 Selected Product:', product.code, 'Unit:', product.unit);
+                                                                                            setValue(`items.${index}.unit`, product.unit);
+                                                                                        }}
+                                                                                        className={isOutOfStock ? 'opacity-60' : ''}
+                                                                                    >
+                                                                                        <Check
+                                                                                            className={cn(
+                                                                                                "mr-2 h-4 w-4",
+                                                                                                product.id === field.value ? "opacity-100" : "opacity-0"
+                                                                                            )}
+                                                                                        />
+                                                                                        <div className="flex flex-col">
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <span className="font-bold text-indigo-600 dark:text-indigo-400">{product.code}</span>
+                                                                                                <span className="text-slate-400 font-light">|</span>
+                                                                                                <span className="font-medium text-slate-700 dark:text-slate-200">{product.name}</span>
+                                                                                                {isOutOfStock && (
+                                                                                                    <span className="text-[9px] bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded font-medium">HABIS</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            <span className="text-[10px] text-slate-500 mt-0.5">
+                                                                                                Stok Tersedia: <span className={cn(
+                                                                                                    "font-bold",
+                                                                                                    isOutOfStock 
+                                                                                                        ? "text-red-600 dark:text-red-400"
+                                                                                                        : "text-emerald-600 dark:text-emerald-400"
+                                                                                                )}>{product.availableStock} {product.unit}</span>
+                                                                                            </span>
                                                                                         </div>
-                                                                                        <span className="text-[10px] text-slate-500 mt-0.5">
-                                                                                            Stok Tersedia: <span className="font-bold text-emerald-600 dark:text-emerald-400">{product.availableStock} {product.unit}</span>
-                                                                                        </span>
-                                                                                    </div>
-                                                                                </CommandItem>
-                                                                            ))}
+                                                                                    </CommandItem>
+                                                                                );
+                                                                            })}
                                                                         </CommandGroup>
                                                                     </CommandList>
                                                                 </Command>

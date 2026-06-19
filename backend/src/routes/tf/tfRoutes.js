@@ -7,7 +7,8 @@ import {
   updateTransfer,
   cancelTransfer,
   deletePermanentTransfer,
-  createTransferGR
+  createTransferGR,
+  createDirectTransfer
 } from '../../controllers/tf/tfController.js';
 
 const router = express.Router();
@@ -35,5 +36,8 @@ router.delete('/:id/permanent', deletePermanentTransfer);
 
 // Create GR manually
 router.post('/:id/create-gr', createTransferGR);
+
+// Direct internal transfer (Simple: Bengkel → WIP)
+router.post('/direct', createDirectTransfer);
 
 export default router;
