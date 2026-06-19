@@ -1319,10 +1319,49 @@ export const getMyGaji = async (req, res) => {
         karyawanId: karyawan.id,
         status: "PUBLISHED", // Hanya yang sudah dipublish oleh Admin
       },
+      include: {
+        karyawan: {
+          select: { 
+            id: true, 
+            namaLengkap: true, 
+            nik: true, 
+            jabatan: true, 
+            departemen: true, 
+            gajiPokok: true, 
+            tunjangan: true, 
+            tipeKontrak: true,
+            tunjanganKehadiran: true,
+            namaBank: true,
+            nomorRekening: true,
+            namaRekening: true,
+            pinjaman: {
+              where: { status: { in: ["ACTIVE", "COMPLETED"] } },
+              select: { id: true, sisaPinjaman: true, jumlahPinjaman: true, status: true },
+              orderBy: { createdAt: "desc" },
+            },
+          }
+        }
+      },
       orderBy: { periode: "desc" },
     });
 
-    res.json({ success: true, data: gaji });
+    const gajiWithLainLain = gaji.map(g => {
+      const totalTunjanganDiketahui = 
+        (g.tunjanganJabatan || 0) + 
+        (g.tunjanganKeluarga || 0) + 
+        (g.tunjanganMakan || 0) + 
+        (g.uangMakanLembur || 0) + 
+        (g.tunjanganTransport || 0) + 
+        (g.tunjanganKehadiran || 0) + 
+        (g.tunjanganShift || 0);
+      
+      return {
+        ...g,
+        tunjanganLainLain: Math.max(0, (g.tunjangan || 0) - totalTunjanganDiketahui)
+      };
+    });
+
+    res.json({ success: true, data: gajiWithLainLain });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1341,7 +1380,25 @@ export const getMyGajiDetail = async (req, res) => {
       where: { id },
       include: { 
         karyawan: {
-          select: { namaLengkap: true, nik: true, jabatan: true, departemen: true }
+          select: { 
+            id: true, 
+            namaLengkap: true, 
+            nik: true, 
+            jabatan: true, 
+            departemen: true, 
+            gajiPokok: true, 
+            tunjangan: true, 
+            tipeKontrak: true,
+            tunjanganKehadiran: true,
+            namaBank: true,
+            nomorRekening: true,
+            namaRekening: true,
+            pinjaman: {
+              where: { status: { in: ["ACTIVE", "COMPLETED"] } },
+              select: { id: true, sisaPinjaman: true, jumlahPinjaman: true, status: true },
+              orderBy: { createdAt: "desc" },
+            },
+          }
         } 
       },
     });
@@ -1354,7 +1411,21 @@ export const getMyGajiDetail = async (req, res) => {
       return res.status(403).json({ message: "Anda tidak memiliki akses ke data ini" });
     }
 
-    res.json({ success: true, data: gaji });
+    const totalTunjanganDiketahui = 
+      (gaji.tunjanganJabatan || 0) + 
+      (gaji.tunjanganKeluarga || 0) + 
+      (gaji.tunjanganMakan || 0) + 
+      (gaji.uangMakanLembur || 0) + 
+      (gaji.tunjanganTransport || 0) + 
+      (gaji.tunjanganKehadiran || 0) + 
+      (gaji.tunjanganShift || 0);
+
+    const gajiWithLainLain = {
+      ...gaji,
+      tunjanganLainLain: Math.max(0, (gaji.tunjangan || 0) - totalTunjanganDiketahui)
+    };
+
+    res.json({ success: true, data: gajiWithLainLain });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
