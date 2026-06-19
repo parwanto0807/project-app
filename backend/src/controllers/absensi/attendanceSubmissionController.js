@@ -86,10 +86,53 @@ export const submitClockIn = async (req, res) => {
     });
 
     if (activeSession) {
-      return res.status(400).json({
-        message: "Anda masih memiliki sesi absen aktif yang belum clock-out. Lakukan absen keluar terlebih dahulu.",
-        activeAbsensi: activeSession,
+      // AUTO-CLOSE: Jika karyawan lupa clock-out, otomatis tutup sesi sebelumnya
+      // Gunakan jam 17:00 hari yang sama sebagai waktu keluar default
+      const autoCloseTime = new Date(activeSession.jamMasuk);
+      autoCloseTime.setHours(17, 0, 0, 0); // Default 17:00 WIB
+      
+      // Jika sekarang sudah lewat tengah malam, gunakan 23:59 hari sebelumnya
+      const now = new Date();
+      const hoursDiff = (now - activeSession.jamMasuk) / (1000 * 60 * 60);
+      
+      if (hoursDiff > 12) {
+        // Lebih dari 12 jam, kemungkinan besar lupa clock-out
+        // Set jamKeluar ke 17:00 hari yang sama
+        autoCloseTime.setHours(17, 0, 0, 0);
+      } else {
+        // Kurang dari 12 jam, mungkin masih di hari yang sama
+        // Set jamKeluar ke 1 jam sebelum clock-in sekarang
+        autoCloseTime = new Date(now.getTime() - (60 * 60 * 1000));
+      }
+
+      console.log(`[AUTO-CLOSE] Found active session from ${activeSession.jamMasuk}, auto-closing at ${autoCloseTime}`);
+      
+      await prisma.absensi.update({
+        where: { id: activeSession.id },
+        data: {
+          jamKeluar: autoCloseTime,
+          deviceKeluar: "Auto-closed (forgot to clock-out)",
+          catatanValidasi: "Auto-closed by system - employee forgot to clock-out and clocked-in again"
+        }
       });
+
+      // Kirim notifikasi ke admin
+      try {
+        await NotificationService.broadcastToAdmins({
+          title: "⚠️ Auto-Closed Attendance Session",
+          body: `${karyawan.namaLengkap} forgot to clock-out from session starting ${activeSession.jamMasuk.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}. System auto-closed at ${autoCloseTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
+          type: "attendance_auto_closed",
+          data: {
+            karyawanId: karyawan.id,
+            karyawanName: karyawan.namaLengkap,
+            originalStartTime: activeSession.jamMasuk.toISOString(),
+            autoClosedTime: autoCloseTime.toISOString(),
+            click_action: "FLUTTER_NOTIFICATION_CLICK",
+          },
+        });
+      } catch (err) {
+        console.error("[AUTO-CLOSE] Failed to send notification:", err);
+      }
     }
 
     // 4. Cek apakah sudah absen masuk hari ini (tanggal sama)
