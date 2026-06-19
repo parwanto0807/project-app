@@ -1414,7 +1414,8 @@ export const createDirectTransfer = async (req, res) => {
           data: {
             stockOut: { increment: qtyInStorageUnit },
             stockAkhir: { decrement: qtyInStorageUnit },
-            availableStock: { decrement: qtyInStorageUnit }
+            availableStock: { decrement: qtyInStorageUnit },
+            inventoryValue: { decrement: qtyInStorageUnit * (item.pricePerUnit || 0) }
           }
         });
 

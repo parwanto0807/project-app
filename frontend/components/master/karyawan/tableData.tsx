@@ -117,6 +117,7 @@ interface Karyawan {
   tanggalBergabung?: string;
   nomorTelepon?: string;
   foto?: string;
+  fotoKtp?: string;
   alamat?: string;
   tanggalLahir?: string;
   jenisKelamin?: string;
@@ -927,6 +928,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                       {getSortIcon('namaLengkap')}
                     </div>
                   </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      <CreditCard size={16} className="text-blue-500" />
+                      Foto KTP
+                    </div>
+                  </TableHead>
                   <TableHead
                     className="cursor-pointer hover:bg-gray-200 hover:dark:bg-gray-600"
                     onClick={() => handleSort('jabatan')}
@@ -980,7 +987,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                 {isLoading
                   ? Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={8}>
+                      <TableCell colSpan={9}>
                         <div className="flex items-center space-x-4 py-3">
                           <Skeleton className="h-12 w-12 rounded-full" />
                           <div className="space-y-2 flex-1">
@@ -1021,6 +1028,43 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                 )}
                               </div>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            {item.fotoKtp ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-2">
+                                      <div className="relative w-12 h-8 rounded border-2 border-green-300 overflow-hidden bg-green-50 cursor-pointer hover:border-green-500 transition-colors">
+                                        <img
+                                          src={makeImageSrc(item.fotoKtp)}
+                                          alt="KTP"
+                                          className="w-full h-full object-cover"
+                                          crossOrigin="anonymous"
+                                        />
+                                      </div>
+                                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                        <CheckCircle size={12} className="mr-1" />
+                                        Ada
+                                      </Badge>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="p-2">
+                                    <img
+                                      src={makeImageSrc(item.fotoKtp)}
+                                      alt="KTP Preview"
+                                      className="max-w-xs rounded border"
+                                      crossOrigin="anonymous"
+                                    />
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200">
+                                <XCircle size={12} className="mr-1" />
+                                Belum Ada
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell>{item.jabatan}</TableCell>
                           <TableCell>{item.departemen || "-"}</TableCell>
