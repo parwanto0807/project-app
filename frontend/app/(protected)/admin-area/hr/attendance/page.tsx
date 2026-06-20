@@ -27,6 +27,8 @@ export default function AttendanceMonitoringPage() {
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [groupByTeam, setGroupByTeam] = useState(false);
+  const [showInvalidOnly, setShowInvalidOnly] = useState(false);
+  const [invalidCount, setInvalidCount] = useState(0);
 
   const getTodayStr = () => {
     const d = new Date();
@@ -47,8 +49,30 @@ export default function AttendanceMonitoringPage() {
       const absensiResult = await fetchAllAbsensi(filters);
 
       if (absensiResult.absensi) {
-        setAbsensiData(absensiResult.absensi);
         const data = absensiResult.absensi;
+        setAbsensiData(data);
+        
+        let invCount = 0;
+        const now = new Date().getTime();
+        data.forEach((a: any) => {
+          let invalid = false;
+          // 1. Cuti/Izin tapi ada jam masuk/keluar
+          if ((a.status === 'CUTI' || a.status === 'IZIN') && (a.jamMasuk || a.jamKeluar)) {
+            invalid = true;
+          }
+          // 2. Jam keluar lebih awal dari jam masuk
+          if (a.jamMasuk && a.jamKeluar && new Date(a.jamKeluar) < new Date(a.jamMasuk)) {
+            invalid = true;
+          }
+          // 3. Menggantung (tidak ada jam keluar) dan sudah lewat 24 jam
+          if (a.jamMasuk && !a.jamKeluar) {
+            const hoursDiff = (now - new Date(a.jamMasuk).getTime()) / (1000 * 60 * 60);
+            if (hoursDiff > 24) invalid = true;
+          }
+          if (invalid) invCount++;
+        });
+        setInvalidCount(invCount);
+
         setStats({
           total: data.length,
           hadir: data.filter((a: any) => a.status === "HADIR").length,
@@ -73,12 +97,16 @@ export default function AttendanceMonitoringPage() {
     if (filters.groupByTeam !== undefined) {
       setGroupByTeam(filters.groupByTeam);
     }
+    if (filters.showInvalid !== undefined) {
+      setShowInvalidOnly(filters.showInvalid);
+    }
     setCurrentFilters(filters);
     loadData(filters);
   };
 
   const handleReset = () => {
     setGroupByTeam(false);
+    setShowInvalidOnly(false);
     const defaultFilters = { startDate: getStartDateStr(), endDate: getTodayStr() };
     setCurrentFilters(defaultFilters);
     loadData(defaultFilters);
@@ -127,9 +155,20 @@ export default function AttendanceMonitoringPage() {
           <AttendanceStats stats={stats} />
           
           <div className="space-y-4">
-            <AttendanceFilters onFilter={handleFilter} onReset={handleReset} />
+            <AttendanceFilters 
+              onFilter={handleFilter} 
+              onReset={handleReset} 
+              invalidCount={invalidCount}
+              showInvalidOnly={showInvalidOnly}
+            />
             <AttendanceTable 
-              data={absensiData} 
+              data={showInvalidOnly ? absensiData.filter((a: any) => {
+                const now = new Date().getTime();
+                if ((a.status === 'CUTI' || a.status === 'IZIN') && (a.jamMasuk || a.jamKeluar)) return true;
+                if (a.jamMasuk && a.jamKeluar && new Date(a.jamKeluar) < new Date(a.jamMasuk)) return true;
+                if (a.jamMasuk && !a.jamKeluar && ((now - new Date(a.jamMasuk).getTime()) / (1000 * 60 * 60)) > 24) return true;
+                return false;
+              }) : absensiData} 
               isLoading={isLoading} 
               onViewDetail={handleViewDetail}
               onRefresh={() => loadData(currentFilters)}

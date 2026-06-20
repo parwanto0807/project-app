@@ -12,9 +12,11 @@ import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 interface FilterProps {
   onFilter: (filters: any) => void;
   onReset: () => void;
+  invalidCount?: number;
+  showInvalidOnly?: boolean;
 }
 
-export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
+export function AttendanceFilters({ onFilter, onReset, invalidCount = 0, showInvalidOnly = false }: FilterProps) {
   const getTodayStr = () => {
     const d = new Date();
     return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -31,6 +33,7 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
   const [startDate, setStartDate] = useState(getStartDateStr());
   const [endDate, setEndDate] = useState(getTodayStr());
   const [groupByTeam, setGroupByTeam] = useState(false);
+  const [showInvalid, setShowInvalid] = useState(showInvalidOnly);
   const [teamId, setTeamId] = useState("ALL");
   const [teams, setTeams] = useState<any[]>([]);
 
@@ -45,7 +48,7 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
   }, []);
 
   const handleApply = () => {
-    onFilter({ employeeName, status, startDate, endDate, groupByTeam, teamId });
+    onFilter({ employeeName, status, startDate, endDate, groupByTeam, teamId, showInvalid });
   };
 
   const handleReset = () => {
@@ -55,6 +58,7 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
     setStartDate(getStartDateStr());
     setEndDate(getTodayStr());
     setGroupByTeam(false);
+    setShowInvalid(false);
     onReset();
   };
 
@@ -122,6 +126,23 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
           Group by Team
         </Label>
       </div>
+
+      <Button
+        variant={showInvalid ? "destructive" : "outline"}
+        onClick={() => {
+          const next = !showInvalid;
+          setShowInvalid(next);
+          onFilter({ employeeName, status, startDate, endDate, groupByTeam, teamId, showInvalid: next });
+        }}
+        className={`rounded-xl border-red-200 transition-colors ${showInvalid ? 'shadow-lg shadow-red-500/20' : 'hover:bg-red-50 hover:text-red-600 text-gray-600'}`}
+      >
+        ⚠️ Cek Data Invalid
+        {invalidCount > 0 && (
+          <span className="ml-2 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+            {invalidCount}
+          </span>
+        )}
+      </Button>
 
       <div className="flex items-center gap-2 ml-auto">
         <Button 
