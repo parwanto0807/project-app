@@ -41,6 +41,83 @@ export async function getInventoryMonitoring(
     }
 }
 
+export interface TopUsageItem {
+    id: string;
+    productId: string;
+    productCode: string;
+    productName: string;
+    category: string;
+    warehouseId: string;
+    warehouseName: string;
+    stockOut: number;
+    unit: string;
+}
+
+export async function getTopUsage(
+    period: string,
+    limit: number = 5,
+    warehouseId?: string
+): Promise<TopUsageItem[]> {
+    try {
+        const params: any = { period, limit };
+        if (warehouseId && warehouseId !== 'all') {
+            params.warehouseId = warehouseId;
+        }
+
+        const res = await serverApi.get<ApiResponse<TopUsageItem[]>>(
+            '/api/inventory/top-usage',
+            { params }
+        );
+
+        if (res.data && res.data.success) {
+            return res.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Server Action Error [getTopUsage]:", error);
+        return [];
+    }
+}
+
+export interface TopValueItem {
+    id: string;
+    productId: string;
+    productCode: string;
+    productName: string;
+    category: string;
+    warehouseId: string;
+    warehouseName: string;
+    inventoryValue: number;
+    stockAkhir: number;
+    unit: string;
+}
+
+export async function getTopValue(
+    period: string,
+    limit: number = 5,
+    warehouseId?: string
+): Promise<TopValueItem[]> {
+    try {
+        const params: any = { period, limit };
+        if (warehouseId && warehouseId !== 'all') {
+            params.warehouseId = warehouseId;
+        }
+
+        const res = await serverApi.get<ApiResponse<TopValueItem[]>>(
+            '/api/inventory/top-value',
+            { params }
+        );
+
+        if (res.data && res.data.success) {
+            return res.data.data || [];
+        }
+        return [];
+    } catch (error) {
+        console.error("Server Action Error [getTopValue]:", error);
+        return [];
+    }
+}
+
 export async function getAllWarehouses(): Promise<{ id: string; name: string; isMain: boolean; isWip: boolean }[]> {
     try {
         const res = await serverApi.get<any>(

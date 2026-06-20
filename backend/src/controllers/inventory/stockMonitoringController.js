@@ -727,5 +727,154 @@ export const stockMonitoringController = {
         message: error.message 
       });
     }
+  },
+
+  getTopUsage: async (req, res) => {
+    try {
+      const { period, limit = 5, warehouseId } = req.query;
+      const limitNum = parseInt(limit);
+      
+      const referenceDate = period 
+        ? parse(period, 'yyyy-MM', new Date()) 
+        : new Date();
+
+      const startDate = startOfMonth(referenceDate);
+      const endDate = endOfMonth(referenceDate);
+
+      const where = {
+        period: {
+          gte: startDate,
+          lte: endDate
+        },
+        stockOut: { gt: 0 } // Hanya yang ada pemakaian (keluar)
+      };
+
+      if (warehouseId && warehouseId !== 'all') {
+        where.warehouseId = warehouseId;
+      }
+
+      // Fetch all to deduplicate in memory, since we want unique products
+      const allUsage = await prisma.stockBalance.findMany({
+        where,
+        orderBy: { stockOut: 'desc' },
+        include: {
+          product: {
+            select: { id: true, code: true, name: true, storageUnit: true, category: { select: { name: true } } }
+          },
+          warehouse: { select: { name: true } }
+        }
+      });
+
+      // Deduplicate by productId: keep only the highest stockOut (which is the first one encountered)
+      const uniqueUsage = [];
+      const seenProductIds = new Set();
+      for (const item of allUsage) {
+        if (!seenProductIds.has(item.productId)) {
+          seenProductIds.add(item.productId);
+          uniqueUsage.push(item);
+        }
+      }
+
+      const topUsage = uniqueUsage.slice(0, limitNum);
+
+      const formatted = topUsage.map(item => ({
+        id: item.id,
+        productId: item.productId,
+        productCode: item.product.code,
+        productName: item.product.name,
+        category: item.product.category?.name || "-",
+        warehouseId: item.warehouseId,
+        warehouseName: item.warehouse?.name || "-",
+        stockOut: Number(item.stockOut),
+        unit: item.product.storageUnit,
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: formatted
+      });
+    } catch (error) {
+      console.error("Get Top Usage Error:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: "SERVER_ERROR",
+        message: error.message 
+      });
+    }
+  },
+
+  getTopValue: async (req, res) => {
+    try {
+      const { period, limit = 5, warehouseId } = req.query;
+      const limitNum = parseInt(limit);
+      
+      const referenceDate = period 
+        ? parse(period, 'yyyy-MM', new Date()) 
+        : new Date();
+
+      const startDate = startOfMonth(referenceDate);
+      const endDate = endOfMonth(referenceDate);
+
+      const where = {
+        period: {
+          gte: startDate,
+          lte: endDate
+        },
+        inventoryValue: { gt: 0 } // Hanya yang punya nilai
+      };
+
+      if (warehouseId && warehouseId !== 'all') {
+        where.warehouseId = warehouseId;
+      }
+
+      // Fetch all to deduplicate in memory
+      const allValue = await prisma.stockBalance.findMany({
+        where,
+        orderBy: { inventoryValue: 'desc' },
+        include: {
+          product: {
+            select: { id: true, code: true, name: true, storageUnit: true, category: { select: { name: true } } }
+          },
+          warehouse: { select: { name: true } }
+        }
+      });
+
+      // Deduplicate by productId: keep only the highest inventoryValue
+      const uniqueValue = [];
+      const seenProductIds = new Set();
+      for (const item of allValue) {
+        if (!seenProductIds.has(item.productId)) {
+          seenProductIds.add(item.productId);
+          uniqueValue.push(item);
+        }
+      }
+
+      const topValue = uniqueValue.slice(0, limitNum);
+
+      const formatted = topValue.map(item => ({
+        id: item.id,
+        productId: item.productId,
+        productCode: item.product.code,
+        productName: item.product.name,
+        category: item.product.category?.name || "-",
+        warehouseId: item.warehouseId,
+        warehouseName: item.warehouse?.name || "-",
+        inventoryValue: Number(item.inventoryValue),
+        stockAkhir: Number(item.stockAkhir),
+        unit: item.product.storageUnit,
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: formatted
+      });
+    } catch (error) {
+      console.error("Get Top Value Error:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: "SERVER_ERROR",
+        message: error.message 
+      });
+    }
   }
 };

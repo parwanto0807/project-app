@@ -46,6 +46,8 @@ import {
 import dynamic from "next/dynamic";
 import StockBalancePdf from './StockBalancePdf';
 import { toast } from "sonner"; // Add toast
+import TopUsageWidget from './TopUsageWidget';
+import TopValueWidget from './TopValueWidget';
 
 // Remove BlobProvider dynamic import since we use imperative API
 
@@ -541,58 +543,81 @@ export default function TabelMonitoring({
             <div className="hidden lg:block"></div>
 
             {/* DETAILED STATS */}
-            <div className={cn(
-                "grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4",
-                canViewFinancials ? "lg:grid-cols-6" : "lg:grid-cols-5"
-            )}>
-                {[
-                    ...(canViewFinancials ? [{
-                        label: "Total Value",
-                        value: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(displayTotalValue),
-                        icon: DollarSign,
-                        color: "text-blue-600 dark:text-blue-400",
-                        bgColor: "bg-blue-500/10",
-                        accent: "from-blue-600/20 to-transparent"
-                    }] : []),
-                    { label: "Total Items", value: stats.total, icon: Package, color: "text-indigo-600 dark:text-indigo-400", bgColor: "bg-indigo-500/10", accent: "from-indigo-500/20 to-transparent" },
-                    { label: "Safe", value: stats.safe, icon: CheckCircle, color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-500/10", accent: "from-emerald-500/20 to-transparent" },
-                    { label: "Low", value: stats.warning, icon: AlertCircle, color: "text-amber-600 dark:text-amber-400", bgColor: "bg-amber-500/10", accent: "from-amber-500/20 to-transparent" },
-                    { label: "Critical", value: stats.critical, icon: AlertTriangle, color: "text-rose-600 dark:text-rose-400", bgColor: "bg-rose-500/10", accent: "from-rose-500/20 to-transparent" },
-                    { label: "Inactive", value: stats.inactive, icon: XCircle, color: "text-slate-600 dark:text-slate-400", bgColor: "bg-slate-500/10", accent: "from-slate-500/20 to-transparent" },
-                ].map((stat, i) => (
-                    <div
-                        key={i}
-                        className="group relative overflow-hidden bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-2xl md:rounded-[24px] p-3 md:p-5 border border-white dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none transition-all duration-300"
-                    >
-                        {/* Soft Gradient Accent Background */}
-                        <div className={cn("absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br opacity-40 blur-2xl transition-opacity group-hover:opacity-60", stat.accent)} />
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 md:gap-4">
+                {/* Stats Section (Spans 3 columns) */}
+                <div className="lg:col-span-3">
+                    <div className={cn(
+                        "grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 h-full",
+                        canViewFinancials ? "lg:grid-cols-3" : "lg:grid-cols-3"
+                    )}>
+                        {[
+                            ...(canViewFinancials ? [{
+                                label: "Total Value",
+                                value: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(displayTotalValue),
+                                icon: DollarSign,
+                                color: "text-blue-600 dark:text-blue-400",
+                                bgColor: "bg-blue-500/10",
+                                accent: "from-blue-600/20 to-transparent"
+                            }] : []),
+                            { label: "Total Items", value: stats.total, icon: Package, color: "text-indigo-600 dark:text-indigo-400", bgColor: "bg-indigo-500/10", accent: "from-indigo-500/20 to-transparent" },
+                            { label: "Safe", value: stats.safe, icon: CheckCircle, color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-500/10", accent: "from-emerald-500/20 to-transparent" },
+                            { label: "Low", value: stats.warning, icon: AlertCircle, color: "text-amber-600 dark:text-amber-400", bgColor: "bg-amber-500/10", accent: "from-amber-500/20 to-transparent" },
+                            { label: "Critical", value: stats.critical, icon: AlertTriangle, color: "text-rose-600 dark:text-rose-400", bgColor: "bg-rose-500/10", accent: "from-rose-500/20 to-transparent" },
+                            { label: "Inactive", value: stats.inactive, icon: XCircle, color: "text-slate-600 dark:text-slate-400", bgColor: "bg-slate-500/10", accent: "from-slate-500/20 to-transparent" },
+                        ].map((stat, i) => (
+                            <div
+                                key={i}
+                                className="group relative overflow-hidden bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-2xl md:rounded-[24px] p-3 md:p-5 border border-white dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none transition-all duration-300"
+                            >
+                                {/* Soft Gradient Accent Background */}
+                                <div className={cn("absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br opacity-40 blur-2xl transition-opacity group-hover:opacity-60", stat.accent)} />
 
-                        <div className="relative flex items-center justify-between z-10">
-                            <div className="space-y-1">
-                                <p className="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">
-                                    {stat.label}
-                                </p>
-                                <p className={cn(
-                                    "font-black text-slate-900 dark:text-slate-100 tracking-tight",
-                                    stat.label === "Total Value" ? "text-sm md:text-xl" : "text-lg md:text-2xl"
-                                )}>
-                                    {stat.value}
-                                </p>
+                                <div className="relative flex items-center justify-between z-10 h-full">
+                                    <div className="space-y-1">
+                                        <p className="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">
+                                            {stat.label}
+                                        </p>
+                                        <p className={cn(
+                                            "font-black text-slate-900 dark:text-slate-100 tracking-tight",
+                                            stat.label === "Total Value" ? "text-sm md:text-xl" : "text-lg md:text-2xl"
+                                        )}>
+                                            {stat.value}
+                                        </p>
+                                    </div>
+
+                                    <div className={cn(
+                                        "p-2 md:p-3 rounded-xl md:rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3",
+                                        stat.bgColor,
+                                        stat.color
+                                    )}>
+                                        <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
+                                    </div>
+                                </div>
+
+                                {/* Bottom Accent Line */}
+                                <div className={cn("absolute bottom-0 left-0 h-1 w-0 group-hover:w-full transition-all duration-500 opacity-50 bg-current", stat.color)} />
                             </div>
-
-                            <div className={cn(
-                                "p-2 md:p-3 rounded-xl md:rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3",
-                                stat.bgColor,
-                                stat.color
-                            )}>
-                                <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
-                            </div>
-                        </div>
-
-                        {/* Bottom Accent Line */}
-                        <div className={cn("absolute bottom-0 left-0 h-1 w-0 group-hover:w-full transition-all duration-500 opacity-50 bg-current", stat.color)} />
+                        ))}
                     </div>
-                ))}
+                </div>
+
+                {/* Top Usage Widget Section (Spans 1 column) */}
+                <div className="lg:col-span-1">
+                    <TopUsageWidget 
+                        period={period || format(new Date(), 'yyyy-MM')} 
+                        warehouseId={warehouseFilter} 
+                        warehouseName={warehouseFilter ? warehouses.find(w => w.id === warehouseFilter)?.name : 'All Warehouses'} 
+                    />
+                </div>
+
+                {/* Top Value Widget Section (Spans 1 column) */}
+                <div className="lg:col-span-1">
+                    <TopValueWidget 
+                        period={period || format(new Date(), 'yyyy-MM')} 
+                        warehouseId={warehouseFilter} 
+                        warehouseName={warehouseFilter ? warehouses.find(w => w.id === warehouseFilter)?.name : 'All Warehouses'} 
+                    />
+                </div>
             </div>
 
             {/* FILTER BAR - Moved to Separate Component */}

@@ -10,6 +10,12 @@ router.use(authenticateToken);
 // Route untuk data monitoring
 router.get('/monitoring', stockMonitoringController.getMonitoringData);
 
+// Route untuk top usage
+router.get('/top-usage', stockMonitoringController.getTopUsage);
+
+// Route untuk top value
+router.get('/top-value', stockMonitoringController.getTopValue);
+
 // Route untuk history transaksi detail
 router.get('/history', stockMonitoringController.getStockHistory);
 
