@@ -159,12 +159,23 @@ export const getAllAbsensi = async (req, res) => {
 export const createAbsensi = async (req, res) => {
   try {
     const { karyawanId, tanggal, jamMasuk, jamKeluar, jamLembur, status, keterangan } = req.body;
+    
+    let finalJamMasuk = jamMasuk ? new Date(jamMasuk) : null;
+    let finalJamKeluar = jamKeluar ? new Date(jamKeluar) : null;
+
+    if (status === 'CUTI' || status === 'IZIN') {
+      finalJamMasuk = null;
+      finalJamKeluar = null;
+    } else if (finalJamMasuk && finalJamKeluar && finalJamKeluar < finalJamMasuk) {
+      finalJamKeluar.setDate(finalJamKeluar.getDate() + 1);
+    }
+
     const absensi = await prisma.absensi.create({
       data: {
         karyawanId,
         tanggal: new Date(tanggal),
-        jamMasuk: jamMasuk ? new Date(jamMasuk) : null,
-        jamKeluar: jamKeluar ? new Date(jamKeluar) : null,
+        jamMasuk: finalJamMasuk,
+        jamKeluar: finalJamKeluar,
         jamLembur: jamLembur ? parseFloat(jamLembur) : 0,
         status,
         keterangan,
@@ -180,15 +191,31 @@ export const updateAbsensi = async (req, res) => {
   try {
     const { id } = req.params;
     const { tanggal, jamMasuk, jamKeluar, jamLembur, status, keterangan } = req.body;
+
+    const existing = await prisma.absensi.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ message: "Data absensi tidak ditemukan" });
+
+    let finalStatus = status !== undefined ? status : existing.status;
+    let finalJamMasuk = jamMasuk !== undefined ? (jamMasuk === null ? null : new Date(jamMasuk)) : existing.jamMasuk;
+    let finalJamKeluar = jamKeluar !== undefined ? (jamKeluar === null ? null : new Date(jamKeluar)) : existing.jamKeluar;
+
+    if (finalStatus === 'CUTI' || finalStatus === 'IZIN') {
+      finalJamMasuk = null;
+      finalJamKeluar = null;
+    } else if (finalJamMasuk && finalJamKeluar && finalJamKeluar < finalJamMasuk) {
+      // Jika jam keluar tercatat lebih dulu dari jam masuk, asumsikan itu untuk besoknya
+      finalJamKeluar.setDate(finalJamKeluar.getDate() + 1);
+    }
+
     const absensi = await prisma.absensi.update({
       where: { id },
       data: {
         tanggal: tanggal ? new Date(tanggal) : undefined,
-        jamMasuk: jamMasuk === undefined ? undefined : (jamMasuk === null ? null : new Date(jamMasuk)),
-        jamKeluar: jamKeluar === undefined ? undefined : (jamKeluar === null ? null : new Date(jamKeluar)),
+        jamMasuk: finalJamMasuk,
+        jamKeluar: finalJamKeluar,
         jamLembur: jamLembur !== undefined ? parseFloat(jamLembur) : undefined,
-        status,
-        keterangan,
+        status: status !== undefined ? status : undefined,
+        keterangan: keterangan !== undefined ? keterangan : undefined,
       },
     });
     res.json(absensi);

@@ -71,9 +71,9 @@ export const cdataPost = async (req, res) => {
             continue;
           }
 
-          // 1. Cari sesi aktif dari shift sebelumnya (maksimal 36 jam ke belakang) yang belum clock out
-          // Diperpanjang dari 24 jam ke 36 jam untuk handle overtime panjang
-          const cutoff = new Date(checkTime.getTime() - 36 * 60 * 60 * 1000);
+          // 1. Cari sesi aktif dari shift sebelumnya (maksimal 24 jam ke belakang)
+          // Kita ambil data maksimal 24 jam, lalu filter dengan logika cerdas di bawah
+          const cutoff = new Date(checkTime.getTime() - 24 * 60 * 60 * 1000);
           
           let activeSession = await prisma.absensi.findFirst({
             where: {
@@ -86,9 +86,32 @@ export const cdataPost = async (req, res) => {
 
           console.log(`[ADMS DEBUG] checkTime=${checkTime}, cutoff=${cutoff}, activeSession=${activeSession?.id || 'none'}`);
           if (activeSession) {
-            console.log(`[ADMS DEBUG] activeSession.jamMasuk=${activeSession.jamMasuk}, hoursDiff=${getHoursDiff(checkTime, activeSession.jamMasuk)}`);
+            const hoursDiff = getHoursDiff(checkTime, activeSession.jamMasuk);
+            console.log(`[ADMS DEBUG] activeSession.jamMasuk=${activeSession.jamMasuk}, hoursDiff=${hoursDiff}`);
             
-            // AUTO-CLOSE: Jika ada sesi aktif, tutup dengan waktu saat ini
+            let isClockOut = true;
+
+            if (hoursDiff > 20) {
+              // Lebih dari 20 jam pasti absen masuk untuk shift baru keesokan harinya
+              isClockOut = false;
+            } else if (hoursDiff > 12) {
+              // Jika jaraknya 12-20 jam, ada kebingungan apakah ini pulang kerja (long shift) atau masuk kerja hari baru.
+              // Karena pola perusahaan: IN jam 10:00-18:00, OUT jam 23:00-05:00.
+              // Jika jam scan saat ini antara jam 08:00 pagi - 18:00 sore, ini PASTI absen masuk hari baru.
+              const currentHour = checkTime.getHours();
+              if (currentHour >= 8 && currentHour <= 18) {
+                isClockOut = false;
+              }
+            }
+
+            if (!isClockOut) {
+              console.log(`[ADMS] Batal menutup sesi karena diidentifikasi sebagai Absen Masuk baru (hoursDiff: ${hoursDiff}, hour: ${checkTime.getHours()})`);
+              activeSession = null; // Biarkan jatuh ke logika pembuatan Absen Masuk baru di bawah
+            }
+          }
+
+          if (activeSession) {
+            // AUTO-CLOSE: Jika terkonfirmasi sebagai sesi pulang, tutup dengan waktu saat ini
             await prisma.absensi.update({
               where: { id: activeSession.id },
               data: {
@@ -117,48 +140,9 @@ export const cdataPost = async (req, res) => {
             continue; // Session closed, skip to next log
           }
 
-          // 2. Jika tidak ada sesi aktif dalam 36 jam, cek apakah ada unclosed attendance dari hari sebelumnya
-          // (Fallback untuk case yang lebih lama dari 36 jam)
+          // 2. Jika tidak ada sesi aktif dalam 16 jam, anggap sebagai hari baru.
+          // Sesi lama yang tidak di-clock out akan dibiarkan (ditangani sebagai Lupa Absen Keluar).
           {
-            // First, try to find ANY unclosed attendance (wider search)
-            const anyUnclosed = await prisma.absensi.findFirst({
-              where: {
-                karyawanId: karyawan.id,
-                jamMasuk: { not: null },
-                jamKeluar: null
-              },
-              orderBy: { jamMasuk: 'desc' }
-            });
-
-            if (anyUnclosed && getHoursDiff(checkTime, anyUnclosed.jamMasuk) > (1 / 60)) {
-              // Found unclosed attendance from any day, close it
-              console.log(`[ADMS] Found unclosed attendance from ${anyUnclosed.jamMasuk}, closing it at ${checkTime}`);
-              await prisma.absensi.update({
-                where: { id: anyUnclosed.id },
-                data: {
-                  jamKeluar: checkTime,
-                  deviceKeluar: `Fingerprint (${SN || "Unknown Device"})`
-                }
-              });
-              successCount++;
-
-              // Send notification for Clock Out
-              try {
-                await NotificationService.broadcastToAdmins({
-                  title: "👋 Absen Keluar (Clock Out) via Fingerprint",
-                  body: `${karyawan.namaLengkap} telah melakukan Absen Keluar pada pukul ${checkTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
-                  type: "attendance_clock_out",
-                  data: {
-                    karyawanId: karyawan.id,
-                    karyawanName: karyawan.namaLengkap,
-                    time: checkTime.toISOString(),
-                    click_action: "FLUTTER_NOTIFICATION_CLICK",
-                  },
-                });
-              } catch (err) {}
-              
-              continue; // Skip the rest of the logic
-            }
 
             const startOfDay = new Date(checkTime);
             startOfDay.setHours(0, 0, 0, 0);
