@@ -55,8 +55,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
     manualPinjaman: "",
     manualKasbon: "",
     hitungLembur: true,
-    hitungUangMakan: true,
-    hitungUangMakanLembur: true,
+    hitungUangMakan: false,
+    hitungUangMakanLembur: false,
   });
 
   useEffect(() => {
@@ -71,8 +71,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
           manualPinjaman: gajiToEdit.potonganPinjaman?.toString() || "",
           manualKasbon: gajiToEdit.potonganKasbon?.toString() || "",
           hitungLembur: true,
-          hitungUangMakan: true,
-          hitungUangMakanLembur: true,
+          hitungUangMakan: false,
+          hitungUangMakanLembur: false,
         });
       } else {
         setForm({
@@ -84,8 +84,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
           manualPinjaman: "",
           manualKasbon: "",
           hitungLembur: true,
-          hitungUangMakan: true,
-          hitungUangMakanLembur: true,
+          hitungUangMakan: false,
+          hitungUangMakanLembur: false,
         });
       }
       fetchAllEmployees().then(setEmployees);
@@ -299,7 +299,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                   Hitung Uang Makan
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  Jika dinonaktifkan, tunjangan makan harian tidak akan dihitung (karyawan HARIAN).
+                  Jika dinonaktifkan, tunjangan makan harian tidak akan dihitung.
                 </p>
               </div>
             </div>

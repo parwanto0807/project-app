@@ -113,35 +113,29 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     const normalJam = Math.max(0, jamKerja - jamLembur);
     const useUangMakan = overrides.hitungUangMakan !== false;
 
-    if (useUangMakan && (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") && (a.status === "HADIR" || a.status === "TERLAMBAT")) {
+    // Kalkulasi Gaji Harian (Khusus HARIAN & HARIAN_BULANAN)
+    if ((tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") && (a.status === "HADIR" || a.status === "TERLAMBAT")) {
       const dailyRate = karyawan.gajiPokok > 0 ? karyawan.gajiPokok : (config?.gajiPerHari || 0);
       const hourlyRateCustom = dailyRate / 7;
-      const nominalUangMakan = baseTunjanganMakan || 0;
       
       if (normalJam > 0 && normalJam <= 3) {
-        // <= 3 jam: minimum 3 jam (Gaji Pokok / 7 * 3)
+        // <= 3 jam: minimum 3 jam
         gajiKerjaHariIni = hourlyRateCustom * 3;
       } else if (normalJam > 3 && normalJam <= 4) {
-        // 4 jam: 4 jam (Gaji Pokok / 7 * 4) + Uang Makan
+        // 4 jam: 4 jam
         gajiKerjaHariIni = hourlyRateCustom * 4;
-        uangMakanHariIni = nominalUangMakan;
       } else if (normalJam > 4) {
-        // > 5 jam s/d 8 jam: (Gaji Pokok / 7) * (jamKerja - 1) + Uang Makan
-        // Math.max digunakan untuk mencegah dip gaji jika jamKerja antara 4 dan 5 (masa istirahat)
+        // > 5 jam s/d 8 jam
         gajiKerjaHariIni = Math.min(dailyRate, hourlyRateCustom * Math.max(4, normalJam - 1));
-        uangMakanHariIni = nominalUangMakan;
       }
-    } else if (!useUangMakan && (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") && (a.status === "HADIR" || a.status === "TERLAMBAT")) {
-      // Uang makan disabled — tetap hitung gaji kerja harian tanpa uang makan
-      const dailyRate = karyawan.gajiPokok > 0 ? karyawan.gajiPokok : (config?.gajiPerHari || 0);
-      const hourlyRateCustom = dailyRate / 7;
-      
-      if (normalJam > 0 && normalJam <= 3) {
-        gajiKerjaHariIni = hourlyRateCustom * 3;
-      } else if (normalJam > 3 && normalJam <= 4) {
-        gajiKerjaHariIni = hourlyRateCustom * 4;
-      } else if (normalJam > 4) {
-        gajiKerjaHariIni = Math.min(dailyRate, hourlyRateCustom * Math.max(4, normalJam - 1));
+    }
+
+    // Kalkulasi Uang Makan (Berlaku untuk SEMUA tipe penggajian jika dicentang)
+    if (useUangMakan && (a.status === "HADIR" || a.status === "TERLAMBAT")) {
+      const nominalUangMakan = baseTunjanganMakan || 0;
+      // Syarat mendapat uang makan harian: Kerja lebih dari 3 jam normal
+      if (normalJam > 3) {
+        uangMakanHariIni = nominalUangMakan;
       }
     }
 
