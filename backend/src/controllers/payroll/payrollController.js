@@ -128,7 +128,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
       } else if (normalJam > 4) {
         // > 5 jam s/d 8 jam: (Gaji Pokok / 7) * (jamKerja - 1) + Uang Makan
         // Math.max digunakan untuk mencegah dip gaji jika jamKerja antara 4 dan 5 (masa istirahat)
-        gajiKerjaHariIni = hourlyRateCustom * Math.max(4, normalJam - 1);
+        gajiKerjaHariIni = Math.min(dailyRate, hourlyRateCustom * Math.max(4, normalJam - 1));
         uangMakanHariIni = nominalUangMakan;
       }
     } else if (!useUangMakan && (tipePenggajian === "HARIAN_BULANAN" || tipePenggajian === "HARIAN") && (a.status === "HADIR" || a.status === "TERLAMBAT")) {
@@ -141,7 +141,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
       } else if (normalJam > 3 && normalJam <= 4) {
         gajiKerjaHariIni = hourlyRateCustom * 4;
       } else if (normalJam > 4) {
-        gajiKerjaHariIni = hourlyRateCustom * Math.max(4, normalJam - 1);
+        gajiKerjaHariIni = Math.min(dailyRate, hourlyRateCustom * Math.max(4, normalJam - 1));
       }
     }
 
@@ -322,7 +322,17 @@ async function fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, g
         },
       },
       include: {
-        pinjaman: { select: { id: true, jumlahPinjaman: true, sisaPinjaman: true, karyawanId: true } },
+        pinjaman: { 
+          select: { 
+            id: true, 
+            jumlahPinjaman: true, 
+            sisaPinjaman: true, 
+            karyawanId: true,
+            details: {
+              orderBy: { bulanKe: "asc" }
+            }
+          } 
+        },
       },
     }),
     prisma.kasbonSementara.findMany({

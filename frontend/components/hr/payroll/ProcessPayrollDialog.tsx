@@ -43,6 +43,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
   const [employees, setEmployees] = useState<any[]>([]);
   const [preview, setPreview] = useState<any | null>(null);
   const [showDetailHarian, setShowDetailHarian] = useState(false);
+  const [showLoanDetails, setShowLoanDetails] = useState(false);
+  const [showKasbonDetails, setShowKasbonDetails] = useState(false);
 
   const [form, setForm] = useState({
     karyawanId: "",
@@ -90,6 +92,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
       setStep("form");
       setPreview(null);
       setShowDetailHarian(false);
+      setShowLoanDetails(false);
+      setShowKasbonDetails(false);
     }
   }, [open, gajiToEdit, defaultPeriode]);
 
@@ -560,14 +564,22 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                 </div>
               )}
               {k.potonganPinjaman > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 flex items-center gap-1"><CreditCard className="h-3 w-3" />Cicilan Pinjaman ({preview.pinjaman.details.length} angsuran)</span>
+                <div className="flex justify-between text-sm items-center">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <CreditCard className="h-3 w-3" />
+                    Cicilan Pinjaman ({preview.pinjaman.details.length} angsuran)
+                    <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 py-0 ml-1" onClick={() => setShowLoanDetails(true)}>View Detail</Button>
+                  </span>
                   <span className="font-semibold text-red-600">-{fmt(k.potonganPinjaman)}</span>
                 </div>
               )}
               {k.potonganKasbon > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 flex items-center gap-1"><Banknote className="h-3 w-3" />Pelunasan Kasbon ({preview.kasbon.list.length} kasbon)</span>
+                <div className="flex justify-between text-sm items-center">
+                  <span className="text-gray-600 flex items-center gap-2">
+                    <Banknote className="h-3 w-3" />
+                    Pelunasan Kasbon ({preview.kasbon.list.length} kasbon)
+                    <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 py-0 ml-1" onClick={() => setShowKasbonDetails(true)}>View Detail</Button>
+                  </span>
                   <span className="font-semibold text-red-600">-{fmt(k.potonganKasbon)}</span>
                 </div>
               )}
@@ -631,6 +643,134 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
           </div>
         )}
       </DialogContent>
+
+      {/* Dialog Detail Pinjaman */}
+      {preview?.pinjaman?.details && (
+        <Dialog open={showLoanDetails} onOpenChange={setShowLoanDetails}>
+          <DialogContent className="sm:max-w-[700px] rounded-3xl bg-gray-50/50 max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center text-xl font-bold">
+                <CreditCard className="mr-2 h-5 w-5 text-blue-600" />
+                Potongan Pinjaman: {preview.karyawan.namaLengkap}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-2 space-y-6">
+              {preview.pinjaman.details.map((activeDetail: any, i: number) => {
+                const fullSchedule = activeDetail.pinjaman?.details || [activeDetail];
+                return (
+                  <div key={i} className="space-y-4">
+                    {/* Info Header */}
+                    <div className="bg-white border rounded-2xl p-4 flex justify-between items-center shadow-sm">
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Pinjaman #{activeDetail.pinjamanId.substring(0,8)}</p>
+                        <p className="text-lg font-black text-blue-600">{fmt(activeDetail.pinjaman?.jumlahPinjaman || 0)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Sisa Saldo (Sblm Potong)</p>
+                        <p className="text-lg font-black text-amber-600">{fmt(activeDetail.pinjaman?.sisaPinjaman || 0)}</p>
+                      </div>
+                    </div>
+
+                    <div className="border rounded-2xl bg-white overflow-hidden shadow-sm">
+                      <div className="bg-blue-50/50 px-4 py-3 border-b flex items-center justify-between">
+                        <p className="text-sm font-bold text-blue-800 flex items-center">
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Detail Angsuran ({fullSchedule.length} Bulan)
+                        </p>
+                        <Badge variant="outline" className="text-[10px] text-blue-600 border-blue-200 bg-blue-50">
+                          Jadwal Lengkap
+                        </Badge>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <table className="w-full text-sm relative">
+                          <thead className="bg-gray-50 border-b text-gray-500 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                              <th className="py-2 px-4 text-left font-semibold text-xs">Bulan</th>
+                              <th className="py-2 px-4 text-left font-semibold text-xs">Jatuh Tempo</th>
+                              <th className="py-2 px-4 text-right font-semibold text-xs">Jumlah</th>
+                              <th className="py-2 px-4 text-center font-semibold text-xs">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {fullSchedule.map((d: any, idx: number) => {
+                              const isCurrentDeduction = d.id === activeDetail.id;
+                              return (
+                                <tr key={idx} className={`hover:bg-gray-50 ${isCurrentDeduction ? 'bg-amber-50/50' : ''}`}>
+                                  <td className="py-2.5 px-4 font-semibold text-gray-700">#{d.bulanKe || '-'}</td>
+                                  <td className="py-2.5 px-4 text-gray-600">{format(new Date(d.tanggalJatuhTempo), "MMMM yyyy", { locale: id })}</td>
+                                  <td className="py-2.5 px-4 text-right font-medium">{fmt(d.jumlahBayar)}</td>
+                                  <td className="py-2.5 px-4 text-center">
+                                    {isCurrentDeduction ? (
+                                      <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">Dipotong di Slip</Badge>
+                                    ) : d.status === "PAID" ? (
+                                      <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50">Lunas</Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-[10px] text-gray-500 border-gray-200 bg-gray-50">Menunggu</Badge>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="flex justify-between font-black text-gray-800 border-t-2 border-gray-200 pt-3 mt-4 text-lg px-2">
+                <span>Total Potongan Pinjaman (Slip Ini)</span>
+                <span className="text-red-600">-{fmt(k?.potonganPinjaman || 0)}</span>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Dialog Detail Kasbon */}
+      {preview?.kasbon?.list && (
+        <Dialog open={showKasbonDetails} onOpenChange={setShowKasbonDetails}>
+          <DialogContent className="sm:max-w-[600px] rounded-3xl bg-gray-50/50">
+            <DialogHeader>
+              <DialogTitle className="flex items-center text-xl font-bold">
+                <Banknote className="mr-2 h-5 w-5 text-blue-600" />
+                Pelunasan Kasbon: {preview.karyawan.namaLengkap}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-2 space-y-3">
+              {preview.kasbon.list.map((kItem: any, idx: number) => (
+                <div key={idx} className="flex border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                  <div className="w-12 bg-blue-50 flex items-center justify-center border-r border-blue-100">
+                    <CheckCircle2 className="text-blue-400 h-5 w-5" />
+                  </div>
+                  <div className="p-4 flex-1 flex justify-between items-center">
+                    <div>
+                      <p className="font-black text-lg text-gray-800">{fmt(kItem.jumlah)}</p>
+                      <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                        <span>{format(new Date(kItem.tanggal || kItem.createdAt), "dd MMM yyyy", { locale: id })}</span>
+                        <span className="text-gray-300">•</span> 
+                        <span>Pelunasan: <span className="font-semibold">{kItem.bulanPotong ? format(new Date(kItem.bulanPotong), "MMM yyyy", { locale: id }) : '-'}</span></span>
+                      </p>
+                      <p className="text-xs text-gray-600 mt-2 bg-gray-50 inline-block px-2 py-1 rounded-md border border-gray-100">
+                        {kItem.keterangan || "Tanpa Keterangan"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                       <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50">Dipotong di Slip</Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              <div className="flex justify-between font-black text-gray-800 border-t-2 border-gray-200 pt-3 mt-4 text-lg px-2">
+                <span>Total Potongan Kasbon</span>
+                <span className="text-red-600">-{fmt(k?.potonganKasbon || 0)}</span>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 };
