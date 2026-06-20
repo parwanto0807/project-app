@@ -799,8 +799,8 @@ export const postGaji = async (req, res) => {
       // A. Update status detail pinjaman (sesuai potonganPinjaman di record Gaji)
       let remainingPinjamanToDeduct = Number(gaji.potonganPinjaman || 0);
       for (const detail of loanDetails) {
-        // Ambil porsi yang sesuai untuk installment ini (jika manual lebih kecil, kurangi saldo seadanya)
-        // Jika manual lebih besar, sisanya akan dikurangi dari loan pertama
+        if (remainingPinjamanToDeduct <= 0) break;
+
         const toDeduct = Math.min(remainingPinjamanToDeduct, Number(detail.jumlahBayar));
         
         await tx.pinjamanDetail.update({ where: { id: detail.id }, data: { status: "PAID", tanggalBayar: new Date() } });
@@ -817,11 +817,11 @@ export const postGaji = async (req, res) => {
       // B. Settle kasbon
       let remainingKasbonToDeduct = Number(gaji.potonganKasbon || 0);
       for (const kasbon of kasbonList) {
-        // Mirip pinjaman, jika ada keringanan maka saldo Piutang Karyawan hanya berkurang sesuai yang dibayar
+        if (remainingKasbonToDeduct <= 0) break;
+
         const toDeduct = Math.min(remainingKasbonToDeduct, Number(kasbon.jumlah));
         
         await tx.kasbonSementara.update({ where: { id: kasbon.id }, data: { status: "SETTLED", tanggalPenyelesaian: new Date() } });
-        // Catatan: Kasbon biasanya satu-satu, tapi kita handle loop untuk jaga-jaga
         remainingKasbonToDeduct -= toDeduct;
       }
 
@@ -919,9 +919,13 @@ export const postBulkPayroll = async (req, res) => {
 
         await prisma.$transaction(async (tx) => {
           // A. Loans
+          let remainingPinjamanToDeduct = Number(gaji.potonganPinjaman || 0);
           for (const detail of loanDetails) {
+            if (remainingPinjamanToDeduct <= 0) break;
+            const toDeduct = Math.min(remainingPinjamanToDeduct, Number(detail.jumlahBayar));
             await tx.pinjamanDetail.update({ where: { id: detail.id }, data: { status: "PAID", tanggalBayar: new Date() } });
-            await tx.pinjaman.update({ where: { id: detail.pinjamanId }, data: { sisaPinjaman: { decrement: detail.jumlahBayar } } });
+            await tx.pinjaman.update({ where: { id: detail.pinjamanId }, data: { sisaPinjaman: { decrement: toDeduct } } });
+            remainingPinjamanToDeduct -= toDeduct;
             const updatedLoan = await tx.pinjaman.findUnique({ where: { id: detail.pinjamanId } });
             if (updatedLoan && Number(updatedLoan.sisaPinjaman) <= 0) {
               await tx.pinjaman.update({ where: { id: detail.pinjamanId }, data: { status: "COMPLETED" } });
@@ -929,8 +933,12 @@ export const postBulkPayroll = async (req, res) => {
           }
 
           // B. Kasbon
+          let remainingKasbonToDeduct = Number(gaji.potonganKasbon || 0);
           for (const kasbon of kasbonList) {
+            if (remainingKasbonToDeduct <= 0) break;
+            const toDeduct = Math.min(remainingKasbonToDeduct, Number(kasbon.jumlah));
             await tx.kasbonSementara.update({ where: { id: kasbon.id }, data: { status: "SETTLED", tanggalPenyelesaian: new Date() } });
+            remainingKasbonToDeduct -= toDeduct;
           }
 
           // C. Journal
