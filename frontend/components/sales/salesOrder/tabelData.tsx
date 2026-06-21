@@ -762,6 +762,69 @@ function SalesOrderDetail({ order, role }: {
     )
 }
 
+function PRItemsDialog({ prItemsWithInfo }: { prItemsWithInfo: any[] }) {
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    if (prItemsWithInfo.length === 0) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger 
+                className="hover:underline cursor-pointer text-xs text-muted-foreground focus:outline-none mt-1 inline-block"
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsOpen(true);
+                }}
+            >
+                {prItemsWithInfo.length} item{prItemsWithInfo.length !== 1 ? "s" : ""}
+            </DialogTrigger>
+            <DialogContent 
+                className="max-w-xl max-h-[80vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <DialogHeader>
+                    <DialogTitle>Detail Item PR</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 overflow-y-auto pr-2" style={{ maxHeight: 'calc(80vh - 100px)' }}>
+                    <div className="space-y-2">
+                        {prItemsWithInfo.map((item, idx) => (
+                            <div key={idx} className="flex flex-col text-sm bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border gap-1">
+                                <div className="flex justify-between items-start">
+                                    <span className="font-medium">{item.name}</span>
+                                    <span className="font-semibold shrink-0 ml-4 text-green-600">
+                                        Rp {new Intl.NumberFormat("id-ID").format(item.total.toNumber())}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                    <span>
+                                        {item.qty} {item.uom} &times; Rp {new Intl.NumberFormat("id-ID").format(item.unitPrice.toNumber())}
+                                    </span>
+                                    <span className="font-mono bg-muted px-2 py-1 rounded">
+                                        {item.nomorPr}
+                                    </span>
+                                </div>
+                                {item.status && (
+                                    <div className="flex justify-end mt-1">
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                                            item.status === 'DRAFT' ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' :
+                                            item.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                            item.status === 'APPROVED' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                            item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                            'bg-slate-100 text-slate-600'
+                                        }`}>
+                                            {item.status.charAt(0).toUpperCase() + item.status.slice(1).toLowerCase()}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export function SalesOrderTable({
     salesOrders: initialSalesOrders,
@@ -1230,14 +1293,21 @@ export function SalesOrderTable({
                     const order = row.original as SalesOrder;
 
                     // Ambil semua details dari semua purchaseRequest di semua SPK
-                    const allDetails = order.spk?.flatMap(spk =>
-                        spk.purchaseRequest?.flatMap(pr => pr.details ?? []) ?? []
+                    const prItemsWithInfo = order.spk?.flatMap(spk =>
+                        spk.purchaseRequest?.flatMap(pr =>
+                            (pr.details ?? []).map((detail: any) => ({
+                                nomorPr: pr.nomorPr,
+                                status: pr.status,
+                                name: detail.product?.name || detail.catatanItem || detail.keterangan || "Item",
+                                qty: new Decimal(detail.jumlah ?? 0).toNumber(),
+                                uom: detail.satuan ?? "",
+                                unitPrice: new Decimal(detail.estimasiHargaSatuan ?? 0),
+                                total: new Decimal(detail.estimasiTotalHarga ?? 0)
+                            }))
+                        ) ?? []
                     ) ?? [];
 
-                    const totalPR = allDetails.reduce((sum, detail) => {
-                        const detailJumlah = new Decimal(detail.estimasiTotalHarga ?? 0);
-                        return sum.plus(detailJumlah);
-                    }, new Decimal(0));
+                    const totalPR = prItemsWithInfo.reduce((sum, item) => sum.plus(item.total), new Decimal(0));
 
                     // Total sales dari items
                     const totalSales = order.items.reduce((sum, item) => {
@@ -1282,11 +1352,9 @@ export function SalesOrderTable({
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
-                            {allDetails.length > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                    {allDetails.length} item{allDetails.length !== 1 ? "s" : ""}
-                                </p>
-                            )}
+                            <div className="flex justify-end w-full">
+                                <PRItemsDialog prItemsWithInfo={prItemsWithInfo} />
+                            </div>
                         </div>
                     );
                 },

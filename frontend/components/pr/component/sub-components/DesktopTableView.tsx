@@ -281,7 +281,7 @@ export function DesktopTableView({
             onPrClick={handlePrNumberClick}
             onSettleBudget={onSettleBudget}
             highlightId={highlightId}
-            hideLpp={activeTab === "project"}
+            hideLpp={false}
           />
         ))}
       </AnimatePresence>
@@ -346,9 +346,7 @@ export function DesktopTableView({
               <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Acc Finance (%)</TableHead>
               <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Sisa Budget</TableHead>
               <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Status (PR & FNC)</TableHead>
-              {activeTab !== "project" && (
-                <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Rincian LPP</TableHead>
-              )}
+              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Rincian LPP</TableHead>
               <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -529,9 +527,7 @@ export function DesktopTableView({
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 text-right py-4">Acc Finance (%)</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 text-right py-4">Sisa Budget</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Status (PR & FNC)</TableHead>
-                {activeTab !== "project" && (
-                  <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Rincian LPP</TableHead>
-                )}
+                <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Rincian LPP</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 text-right py-4">Actions</TableHead>
               </TableRow>
             </TableHeader>

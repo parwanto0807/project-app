@@ -73,7 +73,8 @@ export const getAll = async (req, res) => {
               select: {
                 id: true,
                 nomorPr: true,
-                details: { select: { id: true, estimasiTotalHarga: true } },
+                status: true,
+                details: { include: { product: true } },
                 uangMuka: {
                   select: {
                     id: true,
@@ -127,7 +128,8 @@ export const getAllSPK = async (req, res) => {
               select: {
                 id: true,
                 nomorPr: true,
-                details: { select: { id: true, estimasiTotalHarga: true } },
+                status: true,
+                details: { include: { product: true } },
                 uangMuka: {
                   select: {
                     id: true,

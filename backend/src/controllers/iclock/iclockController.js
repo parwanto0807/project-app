@@ -89,6 +89,12 @@ export const cdataPost = async (req, res) => {
             const hoursDiff = getHoursDiff(checkTime, activeSession.jamMasuk);
             console.log(`[ADMS DEBUG] activeSession.jamMasuk=${activeSession.jamMasuk}, hoursDiff=${hoursDiff}`);
             
+            // CEGAH DOUBLE TAP DALAM WAKTU SINGKAT (misal 5 menit)
+            if (hoursDiff < (5 / 60)) {
+               console.log(`[ADMS] Mengabaikan tap OUT karena jarak dengan tap IN terlalu dekat (${Math.round(hoursDiff * 60)} menit) - dianggap double tap.`);
+               continue;
+            }
+            
             let isClockOut = true;
 
             if (hoursDiff > 20) {

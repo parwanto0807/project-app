@@ -1050,7 +1050,8 @@ export class PurchaseRequestController {
             }
           });
 
-          const period = startOfMonth(new Date());
+          const now = new Date();
+          const period = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
 
           for (const detail of prDetails) {
             // Parse warehouse allocations from JSON field
@@ -1481,7 +1482,8 @@ export class PurchaseRequestController {
               const warehouseId = reqAlloc.warehouseId;
 
               // Get Current Stock Balance (Start of Month)
-              const period = startOfMonth(new Date());
+              const now = new Date();
+              const period = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
               
               const stockBalance = await tx.stockBalance.findUnique({
                 where: {

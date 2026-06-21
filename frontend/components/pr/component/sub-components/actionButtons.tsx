@@ -53,7 +53,7 @@ export function ActionButtons({
           Preview Pdf
         </Button>
 
-        {!hideLpp && pr.spkId && (
+        {!hideLpp && (
           <Button
             onClick={onCreateLpp}
             disabled={pr.status !== "COMPLETED"}

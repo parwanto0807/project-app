@@ -146,17 +146,18 @@ export const createTransfer = async (req, res) => {
 
         // Update sender warehouse stock balance
         // Increase bookedStock, Decrease availableStock (in storage unit)
-        const updateResult = await tx.stockBalance.updateMany({
-          where: {
-            productId: item.productId,
-            warehouseId: fromWarehouseId,
-            period: periodDate
-          },
-          data: {
-            bookedStock: { increment: quantityInStorageUnit },
-            availableStock: { decrement: quantityInStorageUnit }
-          }
+        const latestBalance = await tx.stockBalance.findFirst({
+          where: { productId: item.productId, warehouseId: fromWarehouseId },
+          orderBy: { updatedAt: 'desc' }
         });
+        let updateResult = { count: 0 };
+        if (latestBalance) {
+          await tx.stockBalance.update({
+            where: { id: latestBalance.id },
+            data: { bookedStock: { increment: quantityInStorageUnit }, availableStock: { decrement: quantityInStorageUnit } }
+          });
+          updateResult.count = 1;
+        }
 
         ;(() => {})(`📦 Updated Stock for Product ${item.productId}: Booked +${quantityInStorageUnit}, Available -${quantityInStorageUnit}`, updateResult);
 
@@ -559,17 +560,16 @@ export const updateTransfer = async (req, res) => {
 
       // 2. Rollback previous stock booking
       for (const oldItem of existingTransfer.items) {
-        await tx.stockBalance.updateMany({
-          where: {
-            productId: oldItem.productId,
-            warehouseId: existingTransfer.fromWarehouseId,
-            period: periodDate
-          },
-          data: {
-            bookedStock: { decrement: parseFloat(oldItem.quantity) },
-            availableStock: { increment: parseFloat(oldItem.quantity) }
+        const latestBalance = await tx.stockBalance.findFirst({
+            where: { productId: oldItem.productId, warehouseId: existingTransfer.fromWarehouseId },
+            orderBy: { updatedAt: 'desc' }
+          });
+          if (latestBalance) {
+            await tx.stockBalance.update({
+              where: { id: latestBalance.id },
+              data: { bookedStock: { decrement: parseFloat(oldItem.quantity) }, availableStock: { increment: parseFloat(oldItem.quantity) } }
+            });
           }
-        });
       }
 
       // 3. Delete old items
@@ -603,17 +603,18 @@ export const updateTransfer = async (req, res) => {
 
       // 5. Apply new stock booking
       for (const item of items) {
-        const updateResult = await tx.stockBalance.updateMany({
-          where: {
-            productId: item.productId,
-            warehouseId: fromWarehouseId,
-            period: periodDate
-          },
-          data: {
-            bookedStock: { increment: parseFloat(item.quantity) },
-            availableStock: { decrement: parseFloat(item.quantity) }
-          }
+        const latestBalance = await tx.stockBalance.findFirst({
+          where: { productId: item.productId, warehouseId: fromWarehouseId },
+          orderBy: { updatedAt: 'desc' }
         });
+        let updateResult = { count: 0 };
+        if (latestBalance) {
+          await tx.stockBalance.update({
+            where: { id: latestBalance.id },
+            data: { bookedStock: { increment: parseFloat(item.quantity) }, availableStock: { decrement: parseFloat(item.quantity) } }
+          });
+          updateResult.count = 1;
+        }
         if (updateResult.count === 0) {
           console.warn(`⚠️ No StockBalance found for Product ${item.productId} in Warehouse ${fromWarehouseId} for period ${periodDate}`);
         }
@@ -786,9 +787,9 @@ export const updateTransferStatus = async (req, res) => {
           const stockBalance = await tx.stockBalance.findFirst({
             where: {
               productId: item.productId,
-              warehouseId: transfer.fromWarehouseId,
-              period: currentPeriod
-            }
+              warehouseId: transfer.fromWarehouseId
+            },
+            orderBy: { updatedAt: 'desc' }
           });
 
           if (stockBalance) {
@@ -845,9 +846,9 @@ export const updateTransferStatus = async (req, res) => {
           const stockBalance = await tx.stockBalance.findFirst({
             where: {
               productId: item.productId,
-              warehouseId: transfer.toWarehouseId,
-              period: currentPeriod
-            }
+              warehouseId: transfer.toWarehouseId
+            },
+            orderBy: { updatedAt: 'desc' }
           });
 
           if (stockBalance) {
@@ -989,17 +990,16 @@ export const cancelTransfer = async (req, res) => {
           }
 
           // Release booked stock back to available (in storage unit)
-          await tx.stockBalance.updateMany({
-            where: {
-              productId: item.productId,
-              warehouseId: transfer.fromWarehouseId,
-              period: periodDate
-            },
-            data: {
-              bookedStock: { decrement: quantityInStorageUnit },
-              availableStock: { increment: quantityInStorageUnit }
-            }
+          const latestBalance = await tx.stockBalance.findFirst({
+            where: { productId: item.productId, warehouseId: transfer.fromWarehouseId },
+            orderBy: { updatedAt: 'desc' }
           });
+          if (latestBalance) {
+            await tx.stockBalance.update({
+              where: { id: latestBalance.id },
+              data: { bookedStock: { decrement: quantityInStorageUnit }, availableStock: { increment: quantityInStorageUnit } }
+            });
+          }
 
           ;(() => {})(`📦 Released Stock for Product ${item.productId}: Booked -${quantityInStorageUnit}, Available +${quantityInStorageUnit}`);
         }
@@ -1097,17 +1097,16 @@ export const deletePermanentTransfer = async (req, res) => {
         }
 
         // Release booked stock back to available (in storage unit)
-        await tx.stockBalance.updateMany({
-          where: {
-            productId: item.productId,
-            warehouseId: transfer.fromWarehouseId,
-            period: periodDate
-          },
-          data: {
-            bookedStock: { decrement: quantityInStorageUnit },
-            availableStock: { increment: quantityInStorageUnit }
+        const latestBalance = await tx.stockBalance.findFirst({
+            where: { productId: item.productId, warehouseId: transfer.fromWarehouseId },
+            orderBy: { updatedAt: 'desc' }
+          });
+          if (latestBalance) {
+            await tx.stockBalance.update({
+              where: { id: latestBalance.id },
+              data: { bookedStock: { decrement: quantityInStorageUnit }, availableStock: { increment: quantityInStorageUnit } }
+            });
           }
-        });
 
         ;(() => {})(`📦 Released Stock for Product ${item.productId}: Booked -${quantityInStorageUnit}, Available +${quantityInStorageUnit}`);
       }
@@ -1396,9 +1395,9 @@ export const createDirectTransfer = async (req, res) => {
         const sourceBalance = await tx.stockBalance.findFirst({
           where: {
             productId: item.productId,
-            warehouseId: fromWarehouseId,
-            period: periodDate
-          }
+            warehouseId: fromWarehouseId
+          },
+          orderBy: { updatedAt: 'desc' }
         });
 
         if (!sourceBalance) {
@@ -1441,9 +1440,9 @@ export const createDirectTransfer = async (req, res) => {
         let destBalance = await tx.stockBalance.findFirst({
           where: {
             productId: item.productId,
-            warehouseId: toWarehouseId,
-            period: periodDate
-          }
+            warehouseId: toWarehouseId
+          },
+          orderBy: { updatedAt: 'desc' }
         });
 
         if (!destBalance) {

@@ -1078,6 +1078,14 @@ export function PurchaseRequestTable({
                                                     <PdfIcon className="w-3 h-3" />
                                                     PDF
                                                 </Button>
+                                                <Button
+                                                    onClick={() => handleCreateLpp(pr.id)}
+                                                    disabled={!(pr.status === "COMPLETED")}
+                                                    className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 rounded text-xs h-7"
+                                                >
+                                                    <DockIcon className="w-3 h-3" />
+                                                    Create LPP
+                                                </Button>
                                                 {role === "admin" && (
                                                     <Button
                                                         variant="outline"
