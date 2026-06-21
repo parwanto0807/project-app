@@ -56,16 +56,18 @@ export default function AttendanceMonitoringPage() {
         const now = new Date().getTime();
         data.forEach((a: any) => {
           let invalid = false;
+          const effectiveKeluar = a.jamKeluarDisetujui || a.jamKeluar;
+          
           // 1. Cuti/Izin tapi ada jam masuk/keluar
-          if ((a.status === 'CUTI' || a.status === 'IZIN') && (a.jamMasuk || a.jamKeluar)) {
+          if ((a.status === 'CUTI' || a.status === 'IZIN') && (a.jamMasuk || effectiveKeluar)) {
             invalid = true;
           }
           // 2. Jam keluar lebih awal dari jam masuk
-          if (a.jamMasuk && a.jamKeluar && new Date(a.jamKeluar) < new Date(a.jamMasuk)) {
+          if (a.jamMasuk && effectiveKeluar && new Date(effectiveKeluar) < new Date(a.jamMasuk)) {
             invalid = true;
           }
           // 3. Menggantung (tidak ada jam keluar) dan sudah lewat 24 jam
-          if (a.jamMasuk && !a.jamKeluar) {
+          if (a.jamMasuk && !effectiveKeluar) {
             const hoursDiff = (now - new Date(a.jamMasuk).getTime()) / (1000 * 60 * 60);
             if (hoursDiff > 24) invalid = true;
           }
@@ -164,9 +166,10 @@ export default function AttendanceMonitoringPage() {
             <AttendanceTable 
               data={showInvalidOnly ? absensiData.filter((a: any) => {
                 const now = new Date().getTime();
-                if ((a.status === 'CUTI' || a.status === 'IZIN') && (a.jamMasuk || a.jamKeluar)) return true;
-                if (a.jamMasuk && a.jamKeluar && new Date(a.jamKeluar) < new Date(a.jamMasuk)) return true;
-                if (a.jamMasuk && !a.jamKeluar && ((now - new Date(a.jamMasuk).getTime()) / (1000 * 60 * 60)) > 24) return true;
+                const effectiveKeluar = a.jamKeluarDisetujui || a.jamKeluar;
+                if ((a.status === 'CUTI' || a.status === 'IZIN') && (a.jamMasuk || effectiveKeluar)) return true;
+                if (a.jamMasuk && effectiveKeluar && new Date(effectiveKeluar) < new Date(a.jamMasuk)) return true;
+                if (a.jamMasuk && !effectiveKeluar && ((now - new Date(a.jamMasuk).getTime()) / (1000 * 60 * 60)) > 24) return true;
                 return false;
               }) : absensiData} 
               isLoading={isLoading} 
