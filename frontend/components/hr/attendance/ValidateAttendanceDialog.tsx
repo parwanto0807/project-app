@@ -147,20 +147,24 @@ const ValidateAttendanceDialog: React.FC<ValidateAttendanceDialogProps> = ({
   };
 
   const handleCorrect = async () => {
-    if (!jamKeluarKoreksi || !tanggalKeluarKoreksi) { 
-      toast.error("Tanggal dan jam keluar koreksi wajib diisi"); 
-      return; 
+    let jamKeluarFull: string | null = null;
+    if (tanggalKeluarKoreksi || jamKeluarKoreksi) {
+      if (!tanggalKeluarKoreksi || !jamKeluarKoreksi) {
+        toast.error("Tanggal dan jam keluar harus diisi keduanya, atau dikosongkan keduanya untuk set null");
+        return;
+      }
+      jamKeluarFull = `${tanggalKeluarKoreksi}T${jamKeluarKoreksi}:00+07:00`;
     }
+
     setLoading(true);
     try {
-      const jamKeluarFull = `${tanggalKeluarKoreksi}T${jamKeluarKoreksi}:00+07:00`;
       const res = await validateAbsensi(record.id, {
-        jamKeluarDisetujui: jamKeluarFull,
-        catatanValidasi: catatan || `Dikoreksi ke ${tanggalKeluarKoreksi} ${jamKeluarKoreksi}`,
+        jamKeluarDisetujui: jamKeluarFull as any,
+        catatanValidasi: catatan || (jamKeluarFull ? `Dikoreksi ke ${tanggalKeluarKoreksi} ${jamKeluarKoreksi}` : "Jam keluar dikosongkan"),
         jamLembur: parseFloat(jamLembur || "0"),
       });
       if (res.success) {
-        toast.success(`Jam keluar dikoreksi ke ${jamKeluarKoreksi}`);
+        toast.success(jamKeluarFull ? `Jam keluar dikoreksi ke ${jamKeluarKoreksi}` : "Jam keluar berhasil dikosongkan");
         onSuccess();
         onClose();
       } else {
@@ -308,7 +312,7 @@ const ValidateAttendanceDialog: React.FC<ValidateAttendanceDialogProps> = ({
             <div className="space-y-3 bg-orange-50 border border-orange-100 rounded-2xl p-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-gray-600 font-semibold">Tanggal Keluar *</Label>
+                  <Label className="text-xs text-gray-600 font-semibold">Tanggal Keluar</Label>
                   <Input
                     type="date"
                     className="rounded-xl border-orange-200 bg-white"
@@ -317,7 +321,7 @@ const ValidateAttendanceDialog: React.FC<ValidateAttendanceDialogProps> = ({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-gray-600 font-semibold">Jam Keluar *</Label>
+                  <Label className="text-xs text-gray-600 font-semibold">Jam Keluar</Label>
                   <Input
                     type="time"
                     className="rounded-xl border-orange-200 bg-white"
@@ -326,6 +330,7 @@ const ValidateAttendanceDialog: React.FC<ValidateAttendanceDialogProps> = ({
                   />
                 </div>
               </div>
+              <p className="text-[10px] text-gray-500 mt-1">* Kosongkan kedua kolom di atas untuk menghapus (set null) jam keluar.</p>
 
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div className="space-y-1.5">
