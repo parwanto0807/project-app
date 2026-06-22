@@ -334,31 +334,37 @@ const ValidateAttendanceDialog: React.FC<ValidateAttendanceDialogProps> = ({
 
               <div className="grid grid-cols-2 gap-3 mt-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-gray-600 font-semibold">Jam Lembur (jam)</Label>
+                  <Label className="text-xs text-gray-600 font-semibold">Lembur Aktual (Auto)</Label>
+                  <Input
+                    type="text"
+                    readOnly
+                    className="rounded-xl border-gray-200 bg-gray-50 text-gray-500 font-bold"
+                    value={(() => {
+                      if (!record.jamMasuk || !tanggalKeluarKoreksi || !jamKeluarKoreksi) return "0";
+                      const diffMs = new Date(`${tanggalKeluarKoreksi}T${jamKeluarKoreksi}:00`).getTime() - new Date(record.jamMasuk).getTime();
+                      const durasiJam = diffMs / 3600000;
+                      if (durasiJam > threshold) {
+                        return (Math.round((durasiJam - threshold) * 100) / 100).toString();
+                      }
+                      return "0";
+                    })()}
+                  />
+                  <p className="text-[10px] text-gray-500">Threshold: {threshold} jam</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-orange-600 font-bold">Lembur Disetujui</Label>
                   <Input
                     type="number"
                     min="0"
                     step="0.5"
                     placeholder="0"
-                    className="rounded-xl border-orange-200 bg-white"
+                    className="rounded-xl border-orange-300 bg-white font-bold text-orange-700 focus-visible:ring-orange-500"
                     value={jamLembur}
                     onChange={(e) => setJamLembur(e.target.value)}
                   />
-                  <p className="text-[10px] text-gray-500">Threshold: {threshold} jam</p>
-                </div>
-                <div className="flex flex-col justify-center">
                   <p className="text-[10px] text-orange-600 font-bold">
                     Durasi: {hitungDurasi(record.jamMasuk, `${tanggalKeluarKoreksi}T${jamKeluarKoreksi}:00`)}
                   </p>
-                  {record.jamMasuk && tanggalKeluarKoreksi && jamKeluarKoreksi && (() => {
-                    const diffMs = new Date(`${tanggalKeluarKoreksi}T${jamKeluarKoreksi}:00`).getTime() - new Date(record.jamMasuk).getTime();
-                    const durasiJam = diffMs / 3600000;
-                    if (durasiJam > threshold) {
-                      const autoLembur = Math.round((durasiJam - threshold) * 100) / 100;
-                      return <p className="text-[10px] text-emerald-600 font-bold">Lembur: {autoLembur} jam (Auto)</p>;
-                    }
-                    return <p className="text-[10px] text-gray-400">Tanpa Lembur</p>;
-                  })()}
                 </div>
               </div>
             </div>

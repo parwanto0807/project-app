@@ -26,7 +26,7 @@ import { toast } from "sonner";
 interface ProcessPayrollDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (id?: string) => void;
   defaultPeriode?: string;
   gajiToEdit?: any;
 }
@@ -152,7 +152,7 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
       if (res.success) {
         toast.success(gajiToEdit ? "Data gaji berhasil diperbarui" : "Slip gaji berhasil dibuat", { duration: 5000 });
         onOpenChange(false);
-        onSuccess?.();
+        onSuccess?.(gajiToEdit ? gajiToEdit.id : (res as any).data?.id);
         setStep("form");
         setPreview(null);
       } else {
@@ -415,7 +415,8 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Masuk</th>
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Keluar</th>
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Jam Kerja</th>
-                        <th className="text-center px-2 py-2 text-cyan-700 font-bold">Lembur</th>
+                        <th className="text-center px-2 py-2 text-cyan-700 font-bold">Lembur Aktual</th>
+                        <th className="text-center px-2 py-2 text-cyan-700 font-bold">Fix Lembur</th>
                         <th className="text-center px-2 py-2 text-cyan-700 font-bold">Terlambat</th>
                         <th className="text-right px-2 py-2 text-cyan-700 font-bold">Gaji Harian</th>
                         <th className="text-right px-2 py-2 text-cyan-700 font-bold">Uang Makan</th>
@@ -445,7 +446,10 @@ const ProcessPayrollDialog: React.FC<ProcessPayrollDialogProps> = ({
                           <td className="px-2 py-1.5 text-center font-semibold text-blue-600">
                             {d.jamKerja > 0 ? `${d.jamKerja}j` : "—"}
                           </td>
-                          <td className="px-2 py-1.5 text-center text-amber-600">
+                          <td className="px-2 py-1.5 text-center text-gray-500">
+                            {d.jamLemburRaw > 0 ? `${d.jamLemburRaw}j` : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-center text-amber-600 font-bold">
                             {d.jamLembur > 0 ? `${d.jamLembur}j` : "—"}
                           </td>
                           <td className="px-2 py-1.5 text-center text-orange-500">

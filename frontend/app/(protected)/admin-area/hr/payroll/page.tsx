@@ -52,7 +52,14 @@ export default function PayrollPage() {
         fetchAllGaji({ periode: periode + "-01" }),
         fetchPayrollSummary(periode + "-01"),
       ]);
-      if (gajiRes.gaji) setGaji(gajiRes.gaji);
+      if (gajiRes.gaji) {
+        const sortedGaji = gajiRes.gaji.sort((a: any, b: any) => {
+          const nikA = a.karyawan?.nik || "";
+          const nikB = b.karyawan?.nik || "";
+          return nikA.localeCompare(nikB);
+        });
+        setGaji(sortedGaji);
+      }
       if (summaryRes.data) setSummary(summaryRes.data);
     } catch {
       // silent

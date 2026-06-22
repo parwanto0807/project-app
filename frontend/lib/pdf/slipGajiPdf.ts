@@ -149,6 +149,7 @@ export const generateSlipGajiPdf = (previewData: any, fmt: (v: number) => string
       d.jamMasuk ? format(new Date(d.jamMasuk), "HH:mm") : "-",
       d.jamKeluar ? format(new Date(d.jamKeluar), "HH:mm") : "-",
       d.jamKerja > 0 ? `${d.jamKerja}j` : "-",
+      d.jamLemburRaw > 0 ? `${d.jamLemburRaw}j` : "-",
       d.jamLembur > 0 ? `${d.jamLembur}j` : "-",
       d.gajiKerjaHariIni > 0 ? fmt(d.gajiKerjaHariIni) : "-",
       d.uangMakanHariIni > 0 ? fmt(d.uangMakanHariIni) : "-",
@@ -158,16 +159,16 @@ export const generateSlipGajiPdf = (previewData: any, fmt: (v: number) => string
 
     autoTable(doc, {
       startY: sisaInfoY + 25,
-      head: [["Tanggal", "Status", "Masuk", "Keluar", "Kerja", "Lembur", "Gaji Harian", "Uang Makan", "UM Lembur", "Upah Lembur"]],
+      head: [["Tanggal", "Status", "Masuk", "Keluar", "Kerja", "Lbr.Akt", "Lbr.Setuju", "Gaji Harian", "Uang Makan", "UM Lembur", "Upah Lembur"]],
       body: tableData,
       theme: "striped",
       headStyles: { fillColor: [8, 145, 178] }, // cyan-600
-      styles: { fontSize: 8, cellPadding: 3 },
+      styles: { fontSize: 7, cellPadding: 2 },
       columnStyles: {
-        6: { halign: 'right' },
         7: { halign: 'right' },
         8: { halign: 'right' },
-        9: { halign: 'right' }
+        9: { halign: 'right' },
+        10: { halign: 'right' }
       }
     });
   }

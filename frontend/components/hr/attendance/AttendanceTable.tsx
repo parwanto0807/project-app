@@ -140,27 +140,28 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
   return (
     <>
       <div className="bg-white/40 backdrop-blur-md rounded-2xl border border-white/20 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-gray-50/50">
-            <TableRow>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Karyawan</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Lokasi Absen</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Tanggal</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Masuk</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Keluar</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Deteksi Kantor</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Durasi</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Lembur</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Status</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Keterangan</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Validasi</TableHead>
-              <TableHead className="text-right font-bold uppercase text-[10px] tracking-[0.1em]">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <Table wrapperClassName="max-h-[calc(100vh-250px)] overflow-auto">
+          <TableHeader className="bg-gray-50 sticky top-0 z-20 shadow-sm border-b-2 border-gray-200">
+              <TableRow>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Karyawan</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Lokasi Absen</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Tanggal</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Masuk</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Keluar</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Deteksi Kantor</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Durasi</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Lembur Aktual</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Lembur Disetujui</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Status</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Keterangan</TableHead>
+                <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Validasi</TableHead>
+                <TableHead className="text-right font-bold uppercase text-[10px] tracking-[0.1em]">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="h-32 text-center text-muted-foreground font-medium">
+                <TableCell colSpan={13} className="h-32 text-center text-muted-foreground font-medium">
                   Tidak ada data absensi.
                 </TableCell>
               </TableRow>
@@ -290,9 +291,30 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
                         </div>
                       </TableCell>
 
-                      {/* Lembur */}
+                      {/* Lembur Aktual */}
                       <TableCell>
-                        {row.jamLembur > 0 ? (
+                        {(() => {
+                          const jm = row.jamMasuk;
+                          const jk = (validated && row.jamKeluarDisetujui) ? row.jamKeluarDisetujui : row.jamKeluar;
+                          if (!jm || !jk) return <span className="text-gray-300 text-xs">—</span>;
+                          const diffMs = new Date(jk).getTime() - new Date(jm).getTime();
+                          const durasiJam = diffMs / 3600000;
+                          const threshold = 8; // Mengikuti threshold 8 jam
+                          if (durasiJam > threshold) {
+                            const lemburAktual = Math.round((durasiJam - threshold) * 100) / 100;
+                            return (
+                              <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200 px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap">
+                                {lemburAktual} JAM
+                              </Badge>
+                            );
+                          }
+                          return <span className="text-gray-300 text-xs">—</span>;
+                        })()}
+                      </TableCell>
+
+                      {/* Lembur Disetujui */}
+                      <TableCell>
+                        {validated ? (
                           <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap">
                             {row.jamLembur} JAM
                           </Badge>
@@ -453,7 +475,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
                   return (
                     <Fragment key={dateKey}>
                       <TableRow className="bg-slate-200 hover:bg-slate-300 transition-colors shadow-sm">
-                        <TableCell colSpan={12} className="py-2 border-l-4 border-cyan-500">
+                        <TableCell colSpan={13} className="py-2 border-l-4 border-cyan-500">
                           <div className="flex items-center gap-2">
                             <div className="h-2.5 w-2.5 rounded-full bg-cyan-600 shadow-sm" />
                             <span className="font-black text-[12px] uppercase tracking-widest text-slate-800">
@@ -493,7 +515,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh, grou
                           return sortedTeams.map(teamName => (
                             <Fragment key={`${dateKey}-${teamName}`}>
                               <TableRow className="border-none hover:bg-transparent">
-                                <TableCell colSpan={12} className="py-1.5 pl-6 pr-2">
+                                <TableCell colSpan={13} className="py-1.5 pl-6 pr-2">
                                   <div className="flex items-center gap-2 py-2 px-4 bg-indigo-50/80 border-l-2 border-indigo-400 rounded-r-lg shadow-sm">
                                     <CornerDownRight className="h-3.5 w-3.5 text-indigo-500" />
                                     <span className="font-bold text-[10px] uppercase tracking-wider text-indigo-700">

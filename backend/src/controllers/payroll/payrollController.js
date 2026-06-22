@@ -73,12 +73,12 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     baseHourlyLembur = karyawan.gajiPokok / 173;
   }
 
-  const p1 = config?.pengaliLemburJam1 || 1.5;
-  const p2 = config?.pengaliLemburJam2 || 2.0;
-  const p3 = config?.pengaliLemburJam3 || 2.0;
-  const p4 = config?.pengaliLemburJam4 || 2.0;
-  const p5 = config?.pengaliLemburJam5 || 2.0;
-  const p6 = config?.pengaliLemburJam6 || 2.0;
+  const p1 = config?.pengaliLemburJam1 || 1.25;
+  const p2 = config?.pengaliLemburJam2 || 1.25;
+  const p3 = config?.pengaliLemburJam3 || 1.25;
+  const p4 = config?.pengaliLemburJam4 || 1.25;
+  const p5 = config?.pengaliLemburJam5 || 1.25;
+  const p6 = config?.pengaliLemburJam6 || 1.25;
 
   const minJamKerjaUangMakan = config?.minJamKerjaUangMakan || 4;
   const minJamLemburUangMakan = config?.minJamLemburUangMakan || 3;
@@ -99,13 +99,39 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     const threshold = config?.jamKerjaPerHari || 9;
     let jamLembur = a.jamLembur || 0;
     
-    // Auto calculate lembur jika jam kerja melebihi threshold (walaupun belum divalidasi)
-    if (jamKerja > threshold) {
-      let rawLembur = jamKerja - threshold;
-      let intPart = Math.floor(rawLembur);
-      let fracPart = rawLembur - intPart;
-      jamLembur = fracPart < 0.5 ? intPart : Math.round(rawLembur * 100) / 100;
+    // Auto calculate lembur jika jam kerja melebihi threshold
+    // Jika sudah divalidasi admin, kita PRIORITASKAN nilai a.jamLembur dari database (karena admin bisa input manual di dialog)
+    let rawLemburCalc = jamLembur;
+
+    if (!a.isValidated && jamKerja > threshold) {
+      rawLemburCalc = jamKerja - threshold;
+    } else if (a.isValidated && a.jamLembur) {
+      rawLemburCalc = a.jamLembur;
+    } else if (a.isValidated && !a.jamLembur && jamKerja > threshold) {
+      rawLemburCalc = jamKerja - threshold;
     }
+
+    // Terapkan aturan pembulatan koma ke semua kondisi (kurang dari 0.5 jam hangus)
+    let intPart = Math.floor(rawLemburCalc);
+    let fracPart = rawLemburCalc - intPart;
+    jamLembur = fracPart < 0.5 ? intPart : Math.round(rawLemburCalc * 100) / 100;
+
+    let jamLemburRaw = jamLembur; // Simpan nilai lembur sebelum dipotong aturan
+
+    // Aturan 1: Waktu istirahat (hilang di jam ke-4, yaitu 3.1 s/d 4 jam)
+    if (jamLembur > 3 && jamLembur <= 4) {
+      jamLembur = 3;
+    } else if (jamLembur > 4) {
+      jamLembur -= 1;
+    }
+
+    // Aturan 2: Maksimal lembur mutlak 8 jam per hari dihapus, karena sudah diatur admin di Dialog Validasi Jam Kerja
+    // if (jamLembur > 8) {
+    //   jamLembur = 8;
+    // }
+    
+    // Pastikan maksimal 2 desimal untuk mencegah floating point issue
+    jamLembur = Math.round(jamLembur * 100) / 100;
 
     // Uang Makan Harian (Custom Rule Proyek)
     let uangMakanHariIni = 0;
@@ -180,6 +206,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
       jamKeluar: a.jamKeluar,
       jamKeluarDisetujui: a.jamKeluarDisetujui,
       jamKerja: Math.round(jamKerja * 100) / 100,
+      jamLemburRaw: jamLemburRaw,
       jamLembur: jamLembur,
       menitTerlambat,
       isValidated: a.isValidated || false,

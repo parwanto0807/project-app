@@ -42,6 +42,7 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [voidingName, setVoidingName] = useState("");
+  const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
 
   const handlePost = async (id: string) => {
     setIsPosting(id);
@@ -163,7 +164,14 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
                 (g.potonganKasbon || 0) + 
                 (g.potonganDpGaji || 0);
               return (
-                <TableRow key={g.id} className="hover:bg-gray-50/50 transition-colors">
+                <TableRow 
+                  key={g.id} 
+                  className={`transition-all duration-1000 ${
+                    highlightedRowId === g.id 
+                      ? "bg-amber-100/80 border-l-4 border-amber-500 shadow-inner" 
+                      : "hover:bg-gray-50/50"
+                  }`}
+                >
                   <TableCell>
                     <p className="font-bold text-gray-800">{g.karyawan?.namaLengkap}</p>
                     <p className="text-xs text-gray-500">{g.karyawan?.nik} · {g.karyawan?.jabatan}</p>
@@ -392,7 +400,13 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         gajiToEdit={selectedGaji}
-        onSuccess={() => window.location.reload()}
+        onSuccess={(id) => {
+          if (id) {
+            setHighlightedRowId(id);
+            setTimeout(() => setHighlightedRowId(null), 10000);
+          }
+          onRefresh?.();
+        }}
       />
     </>
   );
