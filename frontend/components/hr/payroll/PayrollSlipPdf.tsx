@@ -312,10 +312,16 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                                 <Text>{formatCurrency(gaji.tunjanganShift)}</Text>
                             </View>
                         )}
-                        {gaji.tunjangan > ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0)) && (
+                        {gaji.uangMakanLembur > 0 && (
+                            <View style={styles.row}>
+                                <Text>Tunjangan Makan Lembur</Text>
+                                <Text>{formatCurrency(gaji.uangMakanLembur)}</Text>
+                            </View>
+                        )}
+                        {gaji.tunjangan > ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0) + (gaji.uangMakanLembur||0)) && (
                             <View style={styles.row}>
                                 <Text>Tunjangan Lainnya</Text>
-                                <Text>{formatCurrency(gaji.tunjangan - ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0)))}</Text>
+                                <Text>{formatCurrency(gaji.tunjangan - ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0) + (gaji.uangMakanLembur||0)))}</Text>
                             </View>
                         )}
                         {gaji.upahLembur > 0 && (

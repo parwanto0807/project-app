@@ -121,8 +121,9 @@ const PayrollSlipDialog: React.FC<PayrollSlipDialogProps> = ({ gaji, open, onClo
             {gaji.tunjanganTransport > 0 && <Row label="Tunjangan Transport" value={fmt(gaji.tunjanganTransport)} />}
             {gaji.tunjanganKehadiran > 0 && <Row label="Premi Hadir" value={fmt(gaji.tunjanganKehadiran)} />}
             {gaji.tunjanganShift > 0 && <Row label="Tunjangan Shift" value={fmt(gaji.tunjanganShift)} />}
-            {gaji.tunjangan > (gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0) && 
-              <Row label="Tunjangan Lainnya" value={fmt(gaji.tunjangan - ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0)))} />
+            {gaji.uangMakanLembur > 0 && <Row label="Tunjangan Makan Lembur" value={fmt(gaji.uangMakanLembur)} />}
+            {gaji.tunjangan > (gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0) + (gaji.uangMakanLembur||0) && 
+              <Row label="Tunjangan Lainnya" value={fmt(gaji.tunjangan - ((gaji.tunjanganJabatan||0) + (gaji.tunjanganKeluarga||0) + (gaji.tunjanganMakan||0) + (gaji.tunjanganTransport||0) + (gaji.tunjanganKehadiran||0) + (gaji.tunjanganShift||0) + (gaji.uangMakanLembur||0)))} />
             }
             {gaji.totalJamLembur > 0 && (
               <Row label={`Lembur (${gaji.totalJamLembur} jam)`} value={fmt(gaji.upahLembur || 0)} />

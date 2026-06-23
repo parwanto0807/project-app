@@ -74,6 +74,31 @@ export const generateSlipGajiPdf = (previewData: any, fmt: (v: number) => string
     doc.text(fmt(k.tunjanganMakan), 250, pendY, { align: "right" });
     pendY += 15;
   }
+  if (k.uangMakanLembur > 0) {
+    doc.text("Uang Makan Lembur", 40, pendY);
+    doc.text(fmt(k.uangMakanLembur), 250, pendY, { align: "right" });
+    pendY += 15;
+  }
+  if (k.tunjanganTransport > 0) {
+    doc.text("Tunjangan Transport", 40, pendY);
+    doc.text(fmt(k.tunjanganTransport), 250, pendY, { align: "right" });
+    pendY += 15;
+  }
+  if (k.tunjanganKehadiran > 0) {
+    doc.text(`Premi Hadir (${k.hariHadir} hari)`, 40, pendY);
+    doc.text(fmt(k.tunjanganKehadiran), 250, pendY, { align: "right" });
+    pendY += 15;
+  }
+  if (k.tunjanganShift > 0) {
+    doc.text("Tunjangan Shift", 40, pendY);
+    doc.text(fmt(k.tunjanganShift), 250, pendY, { align: "right" });
+    pendY += 15;
+  }
+  if (k.tunjangan > ((k.tunjanganJabatan||0) + (k.tunjanganKeluarga||0) + (k.tunjanganMakan||0) + (k.tunjanganTransport||0) + (k.tunjanganKehadiran||0) + (k.tunjanganShift||0) + (k.uangMakanLembur||0))) {
+    doc.text("Tunjangan Lainnya", 40, pendY);
+    doc.text(fmt(k.tunjangan - ((k.tunjanganJabatan||0) + (k.tunjanganKeluarga||0) + (k.tunjanganMakan||0) + (k.tunjanganTransport||0) + (k.tunjanganKehadiran||0) + (k.tunjanganShift||0) + (k.uangMakanLembur||0))), 250, pendY, { align: "right" });
+    pendY += 15;
+  }
   if (k.upahLembur > 0) {
     doc.text(`Upah Lembur (${k.totalJamLembur}j)`, 40, pendY);
     doc.text(fmt(k.upahLembur), 250, pendY, { align: "right" });
