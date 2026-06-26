@@ -37,6 +37,27 @@ export const getAllPinjaman = async (req, res) => {
 };
 
 /**
+ * Get loan details by ID
+ */
+export const getLoanDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const details = await prisma.pinjamanDetail.findMany({
+      where: { pinjamanId: id },
+      orderBy: { bulanKe: "asc" },
+    });
+    
+    // If we want to return full loan with details, we could do findUnique on Pinjaman.
+    // But since the request specifically asks for rincian angsuran, we return the details.
+    // We'll wrap it in an array or object. Let's just return the array of details.
+    res.json(details);
+  } catch (error) {
+    console.error("Error getting loan details:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
  * Create new loan with disbursement journal
  */
 export const createPinjaman = async (req, res) => {

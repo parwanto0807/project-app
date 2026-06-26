@@ -19,6 +19,7 @@ import {
   getMyKasbon,
   applyMyKasbon,
   applyLoan,
+  getLoanDetails,
 } from "../../controllers/finance/loanController.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 
@@ -26,6 +27,7 @@ const router = express.Router();
 
 // --- EMPLOYEE MOBILE / FLUTTER API ---
 router.get("/my-loans", authenticateToken, getMyLoans);
+router.get("/details/:id", authenticateToken, getLoanDetails);
 router.get("/my-kasbon", authenticateToken, getMyKasbon);
 router.post("/my-kasbon", authenticateToken, applyMyKasbon);
 router.post("/apply-loan", authenticateToken, applyLoan);
