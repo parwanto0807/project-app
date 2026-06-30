@@ -691,7 +691,12 @@ export const mrController = {
                 product: {
                   select: {
                     name: true,
-                    code: true
+                    code: true,
+                    usageUnit: true,
+                    purchaseUnit: true,
+                    storageUnit: true,
+                    conversionToUsage: true,
+                    conversionToStorage: true
                   }
                 },
                 purchaseRequestDetail: {
@@ -713,8 +718,14 @@ export const mrController = {
       // Manually fetch related data since schema doesn't have relations
       const projectIds = [...new Set(data.map(mr => mr.projectId).filter(Boolean))];
       const karyawanIds = [...new Set(data.map(mr => mr.requestedById).filter(Boolean))];
+      const warehouseIds = [...new Set(data.map(mr => mr.warehouseId).filter(Boolean))];
+      const productIds = [...new Set(data.flatMap(mr => mr.items?.map(i => i.productId) || []).filter(Boolean))];
 
-      const [projects, karyawans] = await Promise.all([
+      const now = new Date();
+      const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // shift to WIB
+      const period = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
+
+      const [projects, karyawans, stockBalances, stockDetails] = await Promise.all([
         prisma.project.findMany({
           where: { id: { in: projectIds } },
           select: { id: true, name: true }
@@ -722,20 +733,68 @@ export const mrController = {
         prisma.karyawan.findMany({
           where: { id: { in: karyawanIds } },
           select: { id: true, namaLengkap: true, departemen: true }
+        }),
+        prisma.stockBalance.findMany({
+          where: {
+            warehouseId: { in: warehouseIds },
+            productId: { in: productIds }
+          },
+          orderBy: { period: 'asc' }
+        }),
+        prisma.stockDetail.groupBy({
+          by: ['warehouseId', 'productId'],
+          where: {
+            warehouseId: { in: warehouseIds },
+            productId: { in: productIds },
+            residualQty: { gt: 0 },
+            isFullyConsumed: false,
+            type: { in: ['IN', 'ADJUSTMENT_IN'] }
+          },
+          _sum: {
+            residualQty: true
+          }
         })
       ]);
 
       // Create lookup maps
       const projectMap = new Map(projects.map(p => [p.id, p]));
       const karyawanMap = new Map(karyawans.map(k => [k.id, k]));
+      const stockMap = new Map(stockBalances.map(sb => [`${sb.warehouseId}_${sb.productId}`, sb]));
+      const detailMap = new Map(stockDetails.map(sd => [`${sd.warehouseId}_${sd.productId}`, Number(sd._sum?.residualQty || 0)]));
 
       // Attach related data to MR records
       const enrichedData = data.map(mr => {
         const project = projectMap.get(mr.projectId);
         const karyawan = karyawanMap.get(mr.requestedById);
 
+        const enrichedItems = (mr.items || []).map(item => {
+          let requestedQty = Number(item.qtyRequested || 0);
+          let conversionFromRequestedToBase = 1;
+          if (item.unit === item.product?.usageUnit && item.product?.usageUnit !== item.product?.storageUnit) {
+             conversionFromRequestedToBase = 1 / (Number(item.product?.conversionToUsage) || 1);
+          } else if (item.unit === item.product?.purchaseUnit && item.product?.purchaseUnit !== item.product?.storageUnit) {
+             conversionFromRequestedToBase = Number(item.product?.conversionToStorage) || 1;
+          }
+          const baseQtyRequired = requestedQty * conversionFromRequestedToBase;
+
+          const sb = stockMap.get(`${mr.warehouseId}_${item.productId}`);
+          const currentStock = sb ? Number(sb.stockAkhir || 0) : (detailMap.get(`${mr.warehouseId}_${item.productId}`) || 0);
+          const isStockSufficient = currentStock >= baseQtyRequired;
+
+          return {
+            ...item,
+            currentStock,
+            baseQtyRequired,
+            isStockSufficient
+          };
+        });
+
+        const isAllStockSufficient = mr.status === 'PENDING' && enrichedItems.length > 0 && enrichedItems.every(i => i.isStockSufficient);
+
         return {
           ...mr,
+          items: enrichedItems,
+          isAllStockSufficient,
           project: project ? { name: project.name } : null,
           requestedBy: karyawan ? {
             name: karyawan.namaLengkap,

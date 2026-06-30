@@ -74,11 +74,15 @@ interface MaterialRequisition {
         name: string
     }
     notes?: string | null
+    isAllStockSufficient?: boolean
 }
 
 interface MaterialRequisitionItem {
     id: string
     productId?: string
+    isStockSufficient?: boolean
+    currentStock?: number
+    baseQtyRequired?: number
     product: {
         name: string
         code: string
@@ -396,6 +400,12 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                                         <TableHead className="font-semibold text-slate-700 text-right py-4">Jumlah Diminta</TableHead>
                                         <TableHead className="font-semibold text-slate-700 text-right py-4">Jumlah Dikeluarkan</TableHead>
                                         <TableHead className="font-semibold text-slate-700 text-center py-4">Satuan</TableHead>
+                                        {mr.status === 'PENDING' && (
+                                            <TableHead className="font-semibold text-slate-700 text-center py-4">
+                                                Cek Stok
+                                                <span className="block text-[11px] font-normal text-slate-500">({mr.Warehouse?.name || 'Gudang MR'})</span>
+                                            </TableHead>
+                                        )}
                                         <TableHead className="font-semibold text-slate-700 text-right py-4">Status Pemenuhan</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -455,6 +465,18 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                                                         {item.unit}
                                                     </span>
                                                 </TableCell>
+                                                {mr.status === 'PENDING' && (
+                                                    <TableCell className="text-center py-4">
+                                                        {item.isStockSufficient !== undefined ? (
+                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${item.isStockSufficient ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                                <span className={`h-1.5 w-1.5 rounded-full ${item.isStockSufficient ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                                                {item.isStockSufficient ? 'Cukup' : 'Kurang'} (Stok: {item.currentStock?.toLocaleString() ?? 0})
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-400">-</span>
+                                                        )}
+                                                    </TableCell>
+                                                )}
                                                 <TableCell className="text-right py-4">
                                                     <Badge
                                                         variant={isComplete ? "default" : "outline"}

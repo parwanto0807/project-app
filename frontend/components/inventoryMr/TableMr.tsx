@@ -121,11 +121,15 @@ interface MaterialRequisition {
         poNumber: string
     }
     notes?: string | null
+    isAllStockSufficient?: boolean
 }
 
 interface MaterialRequisitionItem {
     id: string
     productId?: string
+    isStockSufficient?: boolean
+    currentStock?: number
+    baseQtyRequired?: number
     product: {
         name: string
         code: string
@@ -451,7 +455,15 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                     <StatusIcon className={`h-5 w-5 ${statusConfig.color}`} />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">{mr.mrNumber}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">{mr.mrNumber}</h3>
+                                        {mr.status === 'PENDING' && mr.isAllStockSufficient && (
+                                            <span className="flex h-2.5 w-2.5 relative shrink-0" title="Stok gudang mencukupi untuk semua item">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+                                            </span>
+                                        )}
+                                    </div>
                                     {mr.PurchaseOrder && (
                                         <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
                                             {mr.PurchaseOrder.poNumber}
@@ -1018,9 +1030,17 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                         <FileText className="h-6 w-6 text-blue-600" />
                                                                     </div>
                                                                     <div>
-                                                                        <p className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
-                                                                            {mr.mrNumber}
-                                                                        </p>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <p className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+                                                                                {mr.mrNumber}
+                                                                            </p>
+                                                                            {mr.status === 'PENDING' && mr.isAllStockSufficient && (
+                                                                                <span className="flex h-2.5 w-2.5 relative shrink-0" title="Stok gudang mencukupi untuk semua item">
+                                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
                                                                         {mr.PurchaseOrder && (
                                                                             <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
                                                                                 {mr.PurchaseOrder.poNumber}
@@ -1225,6 +1245,12 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                                     <TableHead className="font-semibold text-right text-slate-500">Qty Diminta</TableHead>
                                                                                     <TableHead className="font-semibold text-right text-slate-500">Qty Diberikan</TableHead>
                                                                                     <TableHead className="font-semibold text-slate-500">Satuan</TableHead>
+                                                                                    {mr.status === 'PENDING' && (
+                                                                                        <TableHead className="font-semibold text-center text-slate-500">
+                                                                                            Cek Stok
+                                                                                            <span className="block text-[10px] font-normal text-slate-400">({mr.Warehouse?.name || 'Gudang MR'})</span>
+                                                                                        </TableHead>
+                                                                                    )}
                                                                                 </TableRow>
                                                                             </TableHeader>
                                                                             <TableBody>
@@ -1240,6 +1266,18 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                                         <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400">{item.qtyRequested.toLocaleString()}</TableCell>
                                                                                         <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">{item.qtyIssued.toLocaleString()}</TableCell>
                                                                                         <TableCell className="text-slate-600 dark:text-slate-400">{item.unit}</TableCell>
+                                                                                        {mr.status === 'PENDING' && (
+                                                                                            <TableCell className="text-center">
+                                                                                                {item.isStockSufficient !== undefined ? (
+                                                                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${item.isStockSufficient ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}`}>
+                                                                                                        <span className={`h-1.5 w-1.5 rounded-full ${item.isStockSufficient ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                                                                                        {item.isStockSufficient ? 'Cukup' : 'Kurang'} (Stok: {item.currentStock?.toLocaleString() ?? 0})
+                                                                                                    </span>
+                                                                                                ) : (
+                                                                                                    <span className="text-xs text-slate-400">-</span>
+                                                                                                )}
+                                                                                            </TableCell>
+                                                                                        )}
                                                                                     </TableRow>
                                                                                 ))}
                                                                             </TableBody>
