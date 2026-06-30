@@ -78,6 +78,7 @@ interface MaterialRequisition {
 
 interface MaterialRequisitionItem {
     id: string
+    productId?: string
     product: {
         name: string
         code: string
@@ -181,14 +182,34 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                     onRefresh()
                 }
             } else {
+                let errorDesc = result.error || "Terjadi kesalahan saat memproses";
+                if (mr?.items) {
+                    mr.items.forEach(item => {
+                        if (item.productId && errorDesc.includes(item.productId)) {
+                            const name = item.product?.name || "Produk";
+                            const code = item.product?.code ? ` (${item.product.code})` : "";
+                            errorDesc = errorDesc.split(item.productId).join(`"${name}${code}"`);
+                        }
+                    });
+                }
                 toast.error("Gagal mengeluarkan material", {
-                    description: result.error || "Terjadi kesalahan saat memproses"
-                })
+                    description: errorDesc
+                });
             }
         } catch (error: any) {
             console.error("Issue MR Error:", error)
+            let errorDesc = error.message || "Koneksi ke server terputus";
+            if (mr?.items) {
+                mr.items.forEach(item => {
+                    if (item.productId && errorDesc.includes(item.productId)) {
+                        const name = item.product?.name || "Produk";
+                        const code = item.product?.code ? ` (${item.product.code})` : "";
+                        errorDesc = errorDesc.split(item.productId).join(`"${name}${code}"`);
+                    }
+                });
+            }
             toast.error("Terjadi kesalahan", {
-                description: "Koneksi ke server terputus"
+                description: errorDesc
             })
         } finally {
             setIsProcessing(false)

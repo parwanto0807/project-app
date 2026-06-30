@@ -1,4 +1,6 @@
 import * as React from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Pagination from "@/components/ui/paginationNew"
 import {
     Table,
     TableBody,
@@ -123,6 +125,7 @@ interface MaterialRequisition {
 
 interface MaterialRequisitionItem {
     id: string
+    productId?: string
     product: {
         name: string
         code: string
@@ -170,14 +173,23 @@ const TableButtonWithTooltip: React.FC<{
 );
 
 const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
-    const [search, setSearch] = React.useState("")
-    const [statusFilter, setStatusFilter] = React.useState<string>("all")
+    const router = useRouter()
+    const searchParams = useSearchParams()
+
+    const urlSearch = searchParams.get("search") || ""
+    const urlStatus = searchParams.get("status") || "all"
+    const urlPage = Number(searchParams.get("page")) || 1
+    const urlPageSize = Number(searchParams.get("pageSize")) || 10
+
+    const [search, setSearch] = React.useState(urlSearch)
+    const [statusFilter, setStatusFilter] = React.useState<string>(urlStatus)
     const [dateFilter, setDateFilter] = React.useState<string>("all")
     const [selectedMR, setSelectedMR] = React.useState<MaterialRequisition | null>(null)
     const [showQRScanner, setShowQRScanner] = React.useState(false)
     const [isProcessingQR, setIsProcessingQR] = React.useState(false)
     const [showDetailSheet, setShowDetailSheet] = React.useState(false)
-    const [currentPage, setCurrentPage] = React.useState(1)
+    const [currentPage, setCurrentPage] = React.useState(urlPage)
+    const [itemsPerPage, setItemsPerPage] = React.useState(urlPageSize)
     const [viewMode, setViewMode] = React.useState<"list" | "grid">("list")
     const [columnVisibility, setColumnVisibility] = React.useState({
         mrNumber: true,
@@ -215,44 +227,101 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         });
     };
 
-    const itemsPerPage = 10
+    React.useEffect(() => {
+        const p = Number(searchParams.get("page")) || 1
+        const ps = Number(searchParams.get("pageSize")) || 10
+        const st = searchParams.get("status") || "all"
+        const q = searchParams.get("search") || ""
 
+        setCurrentPage(p)
+        setItemsPerPage(ps)
+        setStatusFilter(st)
+        setSearch(q)
+    }, [searchParams])
+
+    const handleStatusChange = (value: string) => {
+        setStatusFilter(value)
+        setCurrentPage(1)
+        const params = new URLSearchParams(searchParams.toString())
+        if (value !== "all") params.set("status", value)
+        else params.delete("status")
+        params.set("page", "1")
+        router.push(`?${params.toString()}`)
+    }
+
+    const handleSearchChange = (value: string) => {
+        setSearch(value)
+        setCurrentPage(1)
+        const params = new URLSearchParams(searchParams.toString())
+        if (value) params.set("search", value)
+        else params.delete("search")
+        params.set("page", "1")
+        router.replace(`?${params.toString()}`)
+    }
+
+    const handleDateFilterChange = (value: string) => {
+        setDateFilter(value)
+        setCurrentPage(1)
+    }
+
+    const handleItemsPerPageChange = (value: number) => {
+        setItemsPerPage(value)
+        setCurrentPage(1)
+        const params = new URLSearchParams(searchParams.toString())
+        params.set("pageSize", value.toString())
+        params.set("page", "1")
+        router.push(`?${params.toString()}`)
+    }
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
+        const params = new URLSearchParams(searchParams.toString())
+        params.set("page", page.toString())
+        router.push(`?${params.toString()}`)
+    }
 
     // Filter data
-    const filteredData = data.filter((mr) => {
-        const searchLower = search.toLowerCase()
-        const matchesSearch =
-            mr.mrNumber.toLowerCase().includes(searchLower) ||
-            mr.requestedBy?.name?.toLowerCase().includes(searchLower) ||
-            mr.Warehouse?.name?.toLowerCase().includes(searchLower) ||
-            mr.project?.name?.toLowerCase().includes(searchLower) ||
-            mr.items?.some(item => 
-                item.product?.name?.toLowerCase().includes(searchLower) ||
-                item.product?.code?.toLowerCase().includes(searchLower)
-            )
+    const filteredData = React.useMemo(() => {
+        return data.filter((mr) => {
+            const searchLower = search.toLowerCase()
+            const matchesSearch =
+                !searchLower ||
+                mr.mrNumber.toLowerCase().includes(searchLower) ||
+                mr.requestedBy?.name?.toLowerCase().includes(searchLower) ||
+                mr.Warehouse?.name?.toLowerCase().includes(searchLower) ||
+                mr.project?.name?.toLowerCase().includes(searchLower) ||
+                mr.items?.some(item => 
+                    item.product?.name?.toLowerCase().includes(searchLower) ||
+                    item.product?.code?.toLowerCase().includes(searchLower)
+                )
 
-        const matchesStatus = statusFilter === "all" || mr.status === statusFilter
-        let matchesDate = true
-        if (dateFilter !== "all") {
-            const date = new Date(mr.issuedDate)
-            if (dateFilter === "today") {
-                matchesDate = isToday(date)
-            } else if (dateFilter === "week") {
-                matchesDate = isThisWeek(date, { weekStartsOn: 1 })
-            } else if (dateFilter === "month") {
-                matchesDate = isThisMonth(date)
+            const matchesStatus = statusFilter === "all" || mr.status === statusFilter
+            let matchesDate = true
+            if (dateFilter !== "all") {
+                const date = new Date(mr.issuedDate)
+                if (dateFilter === "today") {
+                    matchesDate = isToday(date)
+                } else if (dateFilter === "week") {
+                    matchesDate = isThisWeek(date, { weekStartsOn: 1 })
+                } else if (dateFilter === "month") {
+                    matchesDate = isThisMonth(date)
+                }
             }
-        }
 
-        return matchesSearch && matchesStatus && matchesDate
-    })
+            return matchesSearch && matchesStatus && matchesDate
+        })
+    }, [data, search, statusFilter, dateFilter])
 
     // Pagination
     const totalPages = Math.ceil(filteredData.length / itemsPerPage)
-    const paginatedData = filteredData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    )
+    const validPage = (totalPages > 0 && currentPage > totalPages) ? 1 : currentPage
+
+    const paginatedData = React.useMemo(() => {
+        return filteredData.slice(
+            (validPage - 1) * itemsPerPage,
+            validPage * itemsPerPage
+        )
+    }, [filteredData, validPage, itemsPerPage])
 
     const getStatusConfig = (status: string) => {
         const configs = {
@@ -606,13 +675,13 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             <Input
                                 placeholder="Cari MR Number, Nama, Project, Gudang, atau Detail Item..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-12 h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/50 backdrop-blur-sm dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 shadow-sm"
                             />
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <Select value={statusFilter} onValueChange={handleStatusChange}>
                                 <SelectTrigger className="w-full md:w-[180px] h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/50 backdrop-blur-sm dark:text-white focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 shadow-sm">
                                     <div className="flex items-center gap-2">
                                         <Filter className="h-4 w-4 text-blue-500 dark:text-blue-400" />
@@ -629,7 +698,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                 </SelectContent>
                             </Select>
 
-                            <Select value={dateFilter} onValueChange={setDateFilter}>
+                            <Select value={dateFilter} onValueChange={handleDateFilterChange}>
                                 <SelectTrigger className="w-full md:w-[180px] h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/50 backdrop-blur-sm dark:text-white focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 shadow-sm">
                                     <div className="flex items-center gap-2">
                                         <Calendar className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
@@ -1191,6 +1260,38 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                 )}
             </div>
 
+            {/* Footer & Pagination */}
+            {filteredData.length > 0 && (
+                <div className="space-y-4 pt-2">
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm border-t pt-4 border-slate-200 dark:border-slate-800">
+                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                            <span>Items per page</span>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                                className="w-20 h-8 border rounded-md bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-2"
+                            >
+                                {[10, 20, 30, 50].map((n) => (
+                                    <option key={n} value={n}>{n}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="text-slate-500 dark:text-slate-400">
+                            Showing {Math.min((validPage - 1) * itemsPerPage + 1, filteredData.length)} - {Math.min(validPage * itemsPerPage, filteredData.length)} of {filteredData.length} items
+                        </div>
+                    </div>
+
+                    {totalPages > 1 && (
+                        <div className="flex justify-center">
+                            <Pagination
+                                totalPages={totalPages}
+                                currentPage={validPage}
+                                onPageChange={handlePageChange}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* QR Scanner Dialog */}
             <QRScannerDialog
@@ -1305,14 +1406,34 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             setPendingIssueData(null);
                             onRefresh();
                         } else {
+                            let errorDesc = result.error || "Terjadi kesalahan saat memproses";
+                            if (pendingIssueData?.mr?.items) {
+                                pendingIssueData.mr.items.forEach(item => {
+                                    if (item.productId && errorDesc.includes(item.productId)) {
+                                        const name = item.product?.name || "Produk";
+                                        const code = item.product?.code ? ` (${item.product.code})` : "";
+                                        errorDesc = errorDesc.split(item.productId).join(`"${name}${code}"`);
+                                    }
+                                });
+                            }
                             toast.error("Gagal mengeluarkan material", {
-                                description: result.error || "Terjadi kesalahan saat memproses"
+                                description: errorDesc
                             });
                         }
                     } catch (error: any) {
                         console.error("Issue MR Error:", error);
+                        let errorDesc = error.message || "Koneksi ke server terputus";
+                        if (pendingIssueData?.mr?.items) {
+                            pendingIssueData.mr.items.forEach(item => {
+                                if (item.productId && errorDesc.includes(item.productId)) {
+                                    const name = item.product?.name || "Produk";
+                                    const code = item.product?.code ? ` (${item.product.code})` : "";
+                                    errorDesc = errorDesc.split(item.productId).join(`"${name}${code}"`);
+                                }
+                            });
+                        }
                         toast.error("Terjadi kesalahan", {
-                            description: error.message || "Koneksi ke server terputus"
+                            description: errorDesc
                         });
                     } finally {
                         setIsProcessingQR(false);

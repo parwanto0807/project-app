@@ -113,6 +113,10 @@ export const mrController = {
           let remainingToTake = baseQtyDeduction;
           let totalCost = 0;
 
+          const productName = item.product?.name || item.productId;
+          const productCode = item.product?.code ? ` (${item.product.code})` : '';
+          const productLabel = `${productName}${productCode}`;
+
           // PRE-VALIDATION: Check if bookedStock is sufficient
           // This ensures the stock was properly reserved when MR was approved
           let stockBalance = await tx.stockBalance.findUnique({
@@ -127,7 +131,7 @@ export const mrController = {
 
           // If no stock balance exists or bookedStock is less than requested
           if (!stockBalance) {
-            throw new Error(`Stok untuk produk ${item.productId} tidak ditemukan di gudang ini`);
+            throw new Error(`Stok untuk produk "${productLabel}" tidak ditemukan di gudang ini`);
           }
 
           let bookedToTake = Math.min(Number(stockBalance.bookedStock), remainingToTake);
@@ -135,7 +139,7 @@ export const mrController = {
 
           if (Number(stockBalance.availableStock) < unbookedToTake) {
               throw new Error(
-                `Stok tidak mencukupi untuk produk ${item.productId}. ` +
+                `Stok tidak mencukupi untuk produk "${productLabel}". ` +
                 `Dibutuhkan tambahan: ${unbookedToTake}. Stok tersedia: ${stockBalance.availableStock}`
               );
           }
@@ -181,7 +185,7 @@ export const mrController = {
           }
 
           if (remainingToTake > 0) {
-            throw new Error(`Stok fisik (FIFO batches) untuk produk ${item.productId} tidak mencukupi.`);
+            throw new Error(`Stok fisik (FIFO batches) untuk produk "${productLabel}" tidak mencukupi.`);
           }
 
           // C. Update StockBalance for current month
