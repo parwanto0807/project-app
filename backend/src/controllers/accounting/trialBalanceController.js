@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db.js";
+import { recalculateTrialBalance } from "../../services/accounting/financialSummaryService.js";
 
 class TrialBalanceController {
   /**
@@ -148,13 +149,12 @@ class TrialBalanceController {
         return res.status(400).json({ success: false, message: "Period ID is required" });
       }
 
-      // This logic would involve scanning all LedgerLines for the period
-      // and rebuilding the TrialBalance table. 
-      // For now, return a placeholder or implement if needed.
-      
+      const result = await recalculateTrialBalance(periodId);
+
       return res.status(200).json({
         success: true,
-        message: "Recalculation started (Placeholder)",
+        message: "Trial Balance successfully recalculated from posted ledger lines.",
+        data: result,
       });
     } catch (error) {
       console.error("Recalculate Trial Balance Error:", error);

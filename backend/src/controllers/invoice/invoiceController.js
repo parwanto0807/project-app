@@ -2182,7 +2182,17 @@ class InvoiceController {
         }
         
         // Update or create TrialBalance for each COA
+        // Fetch normalBalance for each affected COA once
+        const coaIds = [...affectedCOAs.keys()];
+        const coaList = await tx.chartOfAccounts.findMany({
+          where: { id: { in: coaIds } },
+          select: { id: true, normalBalance: true }
+        });
+        const coaNormalBalanceMap = new Map(coaList.map(c => [c.id, c.normalBalance]));
+
         for (const [coaId, amounts] of affectedCOAs) {
+          const normalBalance = coaNormalBalanceMap.get(coaId) || 'DEBIT';
+
           const existing = await tx.trialBalance.findUnique({
             where: {
               periodId_coaId: {
@@ -2193,33 +2203,60 @@ class InvoiceController {
           });
           
           if (existing) {
-            // Update existing
+            // Accumulate period totals correctly
+            const newPeriodDebit  = Number(existing.periodDebit)  + amounts.debit;
+            const newPeriodCredit = Number(existing.periodCredit) + amounts.credit;
+            const openingDebit    = Number(existing.openingDebit)  || 0;
+            const openingCredit   = Number(existing.openingCredit) || 0;
+
+            // Calculate ending balance based on normalBalance (no double-siding)
+            let newEndingDebit = 0, newEndingCredit = 0;
+            if (normalBalance === 'DEBIT') {
+              const net = (openingDebit - openingCredit) + (newPeriodDebit - newPeriodCredit);
+              newEndingDebit  = net >= 0 ? net : 0;
+              newEndingCredit = net <  0 ? Math.abs(net) : 0;
+            } else {
+              const net = (openingCredit - openingDebit) + (newPeriodCredit - newPeriodDebit);
+              newEndingCredit = net >= 0 ? net : 0;
+              newEndingDebit  = net <  0 ? Math.abs(net) : 0;
+            }
+
             await tx.trialBalance.update({
               where: { id: existing.id },
               data: {
-                periodDebit: existing.periodDebit + amounts.debit,
-                periodCredit: existing.periodCredit + amounts.credit,
-                endingDebit: existing.endingDebit + amounts.debit,
-                endingCredit: existing.endingCredit + amounts.credit,
-                ytdDebit: existing.ytdDebit + amounts.debit,
-                ytdCredit: existing.ytdCredit + amounts.credit,
+                periodDebit:  newPeriodDebit,
+                periodCredit: newPeriodCredit,
+                endingDebit:  newEndingDebit,
+                endingCredit: newEndingCredit,
+                ytdDebit:     newEndingDebit,
+                ytdCredit:    newEndingCredit,
                 calculatedAt: new Date()
               }
             });
           } else {
-            // Create new
+            // Create new — opening is 0 for brand new records
+            let endingDebit = 0, endingCredit = 0;
+            if (normalBalance === 'DEBIT') {
+              const net = amounts.debit - amounts.credit;
+              endingDebit  = net >= 0 ? net : 0;
+              endingCredit = net <  0 ? Math.abs(net) : 0;
+            } else {
+              const net = amounts.credit - amounts.debit;
+              endingCredit = net >= 0 ? net : 0;
+              endingDebit  = net <  0 ? Math.abs(net) : 0;
+            }
             await tx.trialBalance.create({
               data: {
-                periodId: period.id,
-                coaId: coaId,
-                openingDebit: 0,
+                periodId:     period.id,
+                coaId:        coaId,
+                openingDebit:  0,
                 openingCredit: 0,
-                periodDebit: amounts.debit,
+                periodDebit:  amounts.debit,
                 periodCredit: amounts.credit,
-                endingDebit: amounts.debit,
-                endingCredit: amounts.credit,
-                ytdDebit: amounts.debit,
-                ytdCredit: amounts.credit,
+                endingDebit,
+                endingCredit,
+                ytdDebit:     endingDebit,
+                ytdCredit:    endingCredit,
                 calculatedAt: new Date()
               }
             });
