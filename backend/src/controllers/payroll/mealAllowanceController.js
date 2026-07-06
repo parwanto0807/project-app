@@ -487,3 +487,203 @@ export const voidDisbursement = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+async function calculateDisbursementDetail(disbursement) {
+  const globalConfig = await prisma.payrollConfig.findFirst({ where: { isActive: true } });
+  const config = disbursement.karyawan.payrollConfig || globalConfig;
+
+  const minJamKerjaUangMakan = config?.minJamKerjaUangMakan || 4;
+  const minJamLemburUangMakan = config?.minJamLemburUangMakan || 3;
+  const baseTunjanganMakan = disbursement.karyawan.tunjanganMakan || config?.tunjanganMakan || 0;
+  const baseUangMakanLembur = disbursement.karyawan.uangMakanLembur || config?.uangMakanLembur || 0;
+
+  const absensiList = await prisma.absensi.findMany({
+    where: {
+      karyawanId: disbursement.karyawanId,
+      tanggal: { gte: disbursement.cutOffStart, lte: disbursement.cutOffEnd },
+    },
+    orderBy: { tanggal: "asc" }
+  });
+
+  const detailHarian = [];
+  for (const a of absensiList) {
+    let jamKerja = 0;
+    if (a.jamMasuk && (a.jamKeluar || a.jamKeluarDisetujui)) {
+      let diffMs = 0;
+      if (a.jamKeluarDisetujui) {
+        diffMs = new Date(a.jamKeluarDisetujui).getTime() - new Date(a.jamMasuk).getTime();
+      } else {
+        diffMs = new Date(a.jamKeluar).getTime() - new Date(a.jamMasuk).getTime();
+      }
+      jamKerja = diffMs > 0 ? diffMs / (1000 * 60 * 60) : 0;
+    }
+
+    let rawLembur = a.jamLembur || 0;
+    let jamLembur = 0;
+    if (rawLembur > 0) {
+      let intPart = Math.floor(rawLembur);
+      let fracPart = rawLembur - intPart;
+      jamLembur = fracPart < 0.5 ? intPart : Math.round(rawLembur * 100) / 100;
+    }
+
+    let umHariIni = 0;
+    if (a.status === "HADIR" || a.status === "TERLAMBAT") {
+      if (jamKerja > minJamKerjaUangMakan) {
+        umHariIni = baseTunjanganMakan;
+      }
+    }
+
+    let umlHariIni = 0;
+    if (jamLembur > minJamLemburUangMakan) {
+      umlHariIni = baseUangMakanLembur;
+    }
+
+    detailHarian.push({
+      id: a.id,
+      tanggal: a.tanggal,
+      status: a.status,
+      jamMasuk: a.jamMasuk,
+      jamKeluar: a.jamKeluar,
+      jamKerja: Math.round(jamKerja * 100) / 100,
+      jamLembur,
+      uangMakanHariIni: umHariIni,
+      uangMakanLemburHariIni: umlHariIni,
+      keterangan: a.keterangan || null
+    });
+  }
+
+  return {
+    ...disbursement,
+    kalkulasi: {
+      totalHariHadir: disbursement.totalHariHadir,
+      totalJamLembur: disbursement.totalJamLembur,
+      nominalUangMakan: disbursement.nominalUangMakan,
+      nominalUangMakanLembur: disbursement.nominalUangMakanLembur,
+      totalPencairan: disbursement.totalPencairan,
+      detailHarian
+    }
+  };
+}
+
+/**
+ * GET /payroll/meal-allowance/my-allowance
+ * Mobile: Mengambil daftar riwayat pencairan uang makan milik karyawan yang login
+ */
+export const getMyDisbursements = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const karyawan = await prisma.karyawan.findUnique({ where: { userId } });
+    if (!karyawan) return res.status(404).json({ success: false, message: "Data karyawan tidak ditemukan" });
+
+    const disbursements = await prisma.pencairanUangMakan.findMany({
+      where: {
+        karyawanId: karyawan.id,
+        status: { in: ["POSTED", "PUBLISHED"] },
+      },
+      include: {
+        karyawan: {
+          select: {
+            id: true,
+            namaLengkap: true,
+            nik: true,
+            jabatan: true,
+            departemen: true,
+            namaBank: true,
+            nomorRekening: true,
+          }
+        }
+      },
+      orderBy: [{ periodeBulan: "desc" }, { siklus: "desc" }],
+    });
+
+    res.json({ success: true, data: disbursements });
+  } catch (error) {
+    console.error("getMyDisbursements error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /payroll/meal-allowance/my-allowance/:id
+ * Mobile: Mengambil detail pencairan uang makan beserta rincian absensi harian (dengan cek ownership)
+ */
+export const getMyDisbursementDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const disbursement = await prisma.pencairanUangMakan.findUnique({
+      where: { id },
+      include: {
+        karyawan: {
+          select: {
+            id: true,
+            namaLengkap: true,
+            nik: true,
+            jabatan: true,
+            departemen: true,
+            tunjanganMakan: true,
+            uangMakanLembur: true,
+            payrollConfig: true,
+            namaBank: true,
+            nomorRekening: true,
+          }
+        }
+      }
+    });
+
+    if (!disbursement) return res.status(404).json({ success: false, message: "Data pencairan uang makan tidak ditemukan" });
+
+    const karyawan = await prisma.karyawan.findUnique({ where: { userId } });
+    if (disbursement.karyawanId !== karyawan?.id) {
+      return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke data ini" });
+    }
+
+    const result = await calculateDisbursementDetail(disbursement);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("getMyDisbursementDetail error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /payroll/meal-allowance/detail/:id
+ * Admin/HR: Mengambil detail pencairan uang makan beserta rincian absensi harian
+ */
+export const getDisbursementDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const disbursement = await prisma.pencairanUangMakan.findUnique({
+      where: { id },
+      include: {
+        karyawan: {
+          select: {
+            id: true,
+            namaLengkap: true,
+            nik: true,
+            jabatan: true,
+            departemen: true,
+            tunjanganMakan: true,
+            uangMakanLembur: true,
+            payrollConfig: true,
+            namaBank: true,
+            nomorRekening: true,
+          }
+        }
+      }
+    });
+
+    if (!disbursement) return res.status(404).json({ success: false, message: "Data pencairan uang makan tidak ditemukan" });
+
+    const result = await calculateDisbursementDetail(disbursement);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("getDisbursementDetail error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
