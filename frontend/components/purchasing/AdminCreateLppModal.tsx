@@ -473,7 +473,7 @@ export default function AdminCreateLppModal({
                                                 </div>
 
                                                 <div>
-                                                    <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1 flex items-center justify-between">
+                                                    <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-between">
                                                         <span>Metode Bayar</span>
                                                     </label>
                                                     <select
@@ -491,7 +491,7 @@ export default function AdminCreateLppModal({
                                             {/* Nominal Biaya & Notes */}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-gray-800/80 p-4 rounded-xl border border-gray-200/80 dark:border-gray-700">
                                                 <div>
-                                                    <label className="text-xs font-bold text-gray-800 dark:text-gray-200 block mb-1.5 flex items-center gap-1">
+                                                    <label className="text-xs font-bold text-gray-800 dark:text-gray-200 mb-1.5 flex items-center gap-1">
                                                         <DollarSign className="w-4 h-4 text-emerald-600" />
                                                         Nominal Aktual Nota (Total Biaya) <span className="text-red-500">*</span>
                                                     </label>
@@ -525,7 +525,7 @@ export default function AdminCreateLppModal({
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {/* Foto Nota */}
                                                 <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block flex items-center gap-1.5">
+                                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                                                         <Camera className="w-3.5 h-3.5 text-amber-600" />
                                                         Foto Nota / Kwitansi Fisik (Atau Screenshot WA)
                                                     </label>
@@ -557,7 +557,7 @@ export default function AdminCreateLppModal({
 
                                                 {/* Foto Barang / Material */}
                                                 <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block flex items-center gap-1.5">
+                                                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                                                         <Box className="w-3.5 h-3.5 text-blue-600" />
                                                         Foto Barang Datang / Bukti Fisik Lapangan
                                                     </label>
