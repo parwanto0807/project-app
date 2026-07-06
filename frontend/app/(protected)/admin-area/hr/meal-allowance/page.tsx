@@ -72,7 +72,7 @@ export default function MealAllowancePage() {
   }, [disbursements]);
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Pencairan Uang Makan" role="admin">
       <div className="p-6 w-full space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
