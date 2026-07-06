@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db.js";
+import { NotificationService } from "../../utils/firebase/notificationService.js";
 
 function getMealAllowanceDateRanges(periodeBulan, siklus) {
   const [year, month] = periodeBulan.split("-").map(Number);
@@ -495,13 +496,35 @@ export const voidDisbursement = async (req, res) => {
 export const publishDisbursement = async (req, res) => {
   try {
     const { id } = req.params;
-    const d = await prisma.pencairanUangMakan.findUnique({ where: { id } });
+    const d = await prisma.pencairanUangMakan.findUnique({
+      where: { id },
+      include: { karyawan: true }
+    });
     if (!d) return res.status(404).json({ success: false, message: "Data tidak ditemukan" });
 
     const updated = await prisma.pencairanUangMakan.update({
       where: { id },
       data: { status: "PUBLISHED" }
     });
+
+    // Send push notification to the Employee
+    try {
+      if (d.karyawan?.userId) {
+        await NotificationService.sendToUser(d.karyawan.userId, {
+          title: "🍽️ Slip Uang Makan Dirilis!",
+          body: `Halo ${d.karyawan.namaLengkap}, pencairan uang makan Anda untuk periode ${d.periodeBulan} (Siklus ${d.siklus}) telah dirilis oleh Admin. Silakan periksa di aplikasi.`,
+          type: "meal_allowance_published",
+          data: {
+            id: d.id,
+            periodeBulan: d.periodeBulan,
+            siklus: String(d.siklus),
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error("[Notification] Failed to send meal allowance publication notification:", notifError.message);
+    }
 
     res.json({ success: true, message: "Berhasil dipublikasikan ke mobile", data: updated });
   } catch (error) {
