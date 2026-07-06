@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PurchaseOrder, PurchaseExecution, PurchaseReceipt, ReceiptItem } from "@/types/poType";
+import AdminCreateLppModal from "./AdminCreateLppModal";
 import { getImageUrl } from "@/lib/getImageUrl";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -40,19 +41,35 @@ interface POReportHistoryProps {
 }
 
 const POReportHistory: React.FC<POReportHistoryProps> = ({ purchaseOrder, onUpdate }) => {
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const executions = purchaseOrder.PurchaseExecution || [];
     const poLines = purchaseOrder.lines || [];
 
     if (executions.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                    <Receipt className="w-8 h-8 text-gray-400" />
+            <div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in duration-300">
+                <div className="w-16 h-16 bg-amber-50 dark:bg-amber-950/30 rounded-full flex items-center justify-center mb-4 border border-amber-200/50 dark:border-amber-900/40 shadow-sm">
+                    <Receipt className="w-8 h-8 text-amber-600 dark:text-amber-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-200">Belum ada Laporan</h3>
-                <p className="text-sm text-gray-500 max-w-sm mt-1">
+                <p className="text-sm text-gray-500 max-w-sm mt-1 mb-6">
                     Belum ada laporan pembelian lapangan yang dibuat untuk Purchase Order ini.
                 </p>
+                {['APPROVED', 'SENT', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status) && (
+                    <Button
+                        onClick={() => setShowCreateModal(true)}
+                        className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 px-6 py-5 flex items-center gap-2.5 transition-all hover:scale-[1.02]"
+                    >
+                        <Camera className="w-5 h-5" />
+                        <span>+ Input Laporan Bon (Bantu Lapangan)</span>
+                    </Button>
+                )}
+                <AdminCreateLppModal
+                    isOpen={showCreateModal}
+                    onClose={() => setShowCreateModal(false)}
+                    purchaseOrder={purchaseOrder}
+                    onSuccess={() => onUpdate && onUpdate()}
+                />
             </div>
         );
     }
@@ -96,10 +113,22 @@ const POReportHistory: React.FC<POReportHistoryProps> = ({ purchaseOrder, onUpda
 
     return (
         <div className="space-y-8">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-blue-600" />
-                Riwayat Pembelian Lapangan
-            </h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-blue-600" />
+                    Riwayat Pembelian Lapangan
+                </h3>
+                {['APPROVED', 'SENT', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status) && (
+                    <Button
+                        onClick={() => setShowCreateModal(true)}
+                        size="sm"
+                        className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl shadow-md shadow-orange-500/20 flex items-center gap-1.5 text-xs px-3.5 py-2 h-9 transition-all"
+                    >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>+ Input Bon Lanjutan (Bantu Admin)</span>
+                    </Button>
+                )}
+            </div>
 
             <div className="relative border-l-2 border-gray-100 dark:border-gray-700 ml-3 space-y-10 pb-10">
                 {executions.map((execution, index) => {
@@ -293,6 +322,12 @@ const POReportHistory: React.FC<POReportHistoryProps> = ({ purchaseOrder, onUpda
                     );
                 })}
             </div>
+            <AdminCreateLppModal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                purchaseOrder={purchaseOrder}
+                onSuccess={() => onUpdate && onUpdate()}
+            />
         </div >
     );
 };

@@ -190,9 +190,11 @@ export interface Karyawan {
 export interface Product {
     id: string;
     sku?: string;
+    code?: string;
     name: string;
     storageUnit?: string;
     usageUnit?: string;
+    purchaseUnit?: string;
     // Add other product fields
 }
 

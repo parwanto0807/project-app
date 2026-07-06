@@ -62,6 +62,7 @@ import {
 import { pdf } from "@react-pdf/renderer";
 import PurchaseOrderPdfDocument from "./purchaseOrderPdf";
 import POReportHistory from "./POReportHistory";
+import AdminCreateLppModal from "./AdminCreateLppModal";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -264,6 +265,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
 
     // New Feature State
     const [isCreatingMR, setIsCreatingMR] = useState(false);
+    const [showCreateLppModal, setShowCreateLppModal] = useState(false);
 
     // Share Feature State
     const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -1341,6 +1343,22 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             </Button>
                                         )}
 
+                                    {/* Input Laporan Bon (Bantu Admin / LPB) */}
+                                    {['APPROVED', 'SENT', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status) && (
+                                        <Button
+                                            className="w-full justify-start h-11 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md shadow-orange-500/20 transition-all group mb-3"
+                                            onClick={() => setShowCreateLppModal(true)}
+                                        >
+                                            <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3 group-hover:bg-white/30 transition-colors">
+                                                <Receipt className="h-4 w-4 text-white" />
+                                            </div>
+                                            <div className="text-left">
+                                                <div className="font-medium">Input Laporan Bon (LPB)</div>
+                                                <div className="text-xs text-white/90">Bantu input nota lapangan</div>
+                                            </div>
+                                        </Button>
+                                    )}
+
                                     {/* Create MR Button (Requested Feature) */}
                                     {['APPROVED'].includes(purchaseOrder.status) && (
                                         purchaseOrder.relatedMRs && purchaseOrder.relatedMRs.length > 0 ? (
@@ -1890,6 +1908,13 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AdminCreateLppModal
+                isOpen={showCreateLppModal}
+                onClose={() => setShowCreateLppModal(false)}
+                purchaseOrder={purchaseOrder}
+                onSuccess={fetchPO}
+            />
 
             {/* Print View (unchanged) */}
             <div className="hidden print:block">

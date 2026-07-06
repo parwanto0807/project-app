@@ -1416,20 +1416,20 @@ export const submitPurchaseExecution = async (req, res) => {
     const receiptPhotos = req.files?.receiptPhotos || [];
     const materialPhotos = req.files?.materialPhotos || [];
 
-    // Get Karyawan ID from authenticated user
+    // Get Karyawan ID from authenticated user or from body (for admin assisted input)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { karyawan: true }
     });
 
-    if (!user?.karyawan) {
+    const executorId = req.body.executorId || user?.karyawan?.id;
+
+    if (!executorId) {
       return res.status(400).json({
         success: false,
-        error: 'User tidak terhubung dengan data karyawan'
+        error: 'User tidak terhubung dengan data karyawan dan Pelaksana Lapangan (executorId) tidak dipilih'
       });
     }
-
-    const executorId = user.karyawan.id;
 
     // Verify PO exists
     const po = await prisma.purchaseOrder.findUnique({
