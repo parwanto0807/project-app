@@ -81,22 +81,27 @@ const PayrollStats: React.FC<PayrollStatsProps> = ({ summary }) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 lg:gap-2 xl:gap-3">
       {stats.map((item, idx) => (
         <Card key={idx} className="border-none shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300">
-          <CardContent className="p-0">
-            <div className="flex flex-col p-4 gap-3">
-              <div className={`${item.bg} p-2.5 rounded-xl w-fit group-hover:scale-110 transition-transform duration-300`}>
-                <item.icon className={`h-5 w-5 ${item.color}`} />
+          <CardContent className="p-0 h-full flex flex-col justify-between">
+            <div className="flex flex-col p-3 lg:p-2 xl:p-2.5 gap-1.5 lg:gap-1 xl:gap-1.5 justify-between flex-1">
+              <div className="flex items-start justify-between gap-1">
+                <p className="text-[11px] lg:text-[10px] xl:text-[11px] font-semibold text-gray-500 leading-tight line-clamp-2 min-h-[26px] lg:min-h-[24px] xl:min-h-[26px]">
+                  {item.title}
+                </p>
+                <div className={`${item.bg} p-1.5 lg:p-1 xl:p-1.5 rounded-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                  <item.icon className={`h-4 w-4 lg:h-3.5 lg:w-3.5 xl:h-4 xl:w-4 ${item.color}`} />
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-medium text-gray-500 leading-tight">{item.title}</p>
-                <h3 className="text-lg font-bold text-gray-800 mt-0.5">
-                  {item.isCount
-                    ? `${item.value}${(item as any).suffix || ""}`
-                    : fmt(item.value as number)}
-                </h3>
-              </div>
+              <h3
+                className="text-base lg:text-xs xl:text-sm 2xl:text-base font-bold text-gray-800 mt-1 truncate"
+                title={item.isCount ? `${item.value}${(item as any).suffix || ""}` : fmt(item.value as number)}
+              >
+                {item.isCount
+                  ? `${item.value}${(item as any).suffix || ""}`
+                  : fmt(item.value as number)}
+              </h3>
             </div>
             <div className={`h-1 w-full ${item.bg}`} />
           </CardContent>

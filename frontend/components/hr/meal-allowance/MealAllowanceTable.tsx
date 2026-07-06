@@ -4,11 +4,21 @@ import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Send, Trash2, Ban, Eye } from "lucide-react";
+import { FileText, Send, Trash2, Ban, Eye, Loader2, AlertTriangle, RotateCcw, CheckCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { postDisbursement, voidDisbursement, deleteDisbursement, getPreviewMealAllowance } from "@/lib/action/hr/mealAllowance";
+import { postDisbursement, voidDisbursement, deleteDisbursement, getPreviewMealAllowance, publishDisbursement } from "@/lib/action/hr/mealAllowance";
 import { toast } from "sonner";
 import { pdf } from "@react-pdf/renderer";
 import MealAllowanceSlipPdf from "./MealAllowanceSlipPdf";
@@ -21,10 +31,15 @@ interface MealAllowanceTableProps {
 export default function MealAllowanceTable({ disbursements, onRefresh }: MealAllowanceTableProps) {
   const fmt = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [detailHarian, setDetailHarian] = useState<any[]>([]);
+  const [confirmPost, setConfirmPost] = useState<any>(null);
+  const [confirmDelete, setConfirmDelete] = useState<any>(null);
+  const [confirmPublish, setConfirmPublish] = useState<any>(null);
+  const [confirmVoid, setConfirmVoid] = useState<any>(null);
 
   const handleViewDetail = async (d: any) => {
     setSelectedDetail(d);
@@ -44,11 +59,13 @@ export default function MealAllowanceTable({ disbursements, onRefresh }: MealAll
     setLoadingDetail(false);
   };
 
-  const handlePost = async (id: string) => {
-    if (!confirm("Posting pencairan ini? Jurnal akuntansi akan dibuat.")) return;
+  const handlePost = async () => {
+    if (!confirmPost) return;
+    const id = confirmPost.id;
     setLoadingId(id);
     const res = await postDisbursement(id);
     setLoadingId(null);
+    setConfirmPost(null);
     if (res.success) {
       toast.success("Berhasil di-posting");
       onRefresh();
@@ -57,11 +74,13 @@ export default function MealAllowanceTable({ disbursements, onRefresh }: MealAll
     }
   };
 
-  const handleVoid = async (id: string) => {
-    if (!confirm("Batal (VOID) pencairan ini? Status akan kembali DRAFT.")) return;
+  const handleVoid = async () => {
+    if (!confirmVoid) return;
+    const id = confirmVoid.id;
     setLoadingId(id);
     const res = await voidDisbursement(id);
     setLoadingId(null);
+    setConfirmVoid(null);
     if (res.success) {
       toast.success("Berhasil di-VOID");
       onRefresh();
@@ -70,16 +89,33 @@ export default function MealAllowanceTable({ disbursements, onRefresh }: MealAll
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Hapus draft pencairan ini secara permanen?")) return;
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    const id = confirmDelete.id;
     setLoadingId(id);
     const res = await deleteDisbursement(id);
     setLoadingId(null);
+    setConfirmDelete(null);
     if (res.success) {
       toast.success("Berhasil dihapus");
       onRefresh();
     } else {
       toast.error(res.error);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!confirmPublish) return;
+    const id = confirmPublish.id;
+    setIsPublishing(id);
+    const res = await publishDisbursement(id);
+    setIsPublishing(null);
+    setConfirmPublish(null);
+    if (res.success) {
+      toast.success("Berhasil dipublikasikan ke mobile!");
+      onRefresh();
+    } else {
+      toast.error(res.error || "Gagal mempublikasikan");
     }
   };
 
@@ -149,26 +185,29 @@ export default function MealAllowanceTable({ disbursements, onRefresh }: MealAll
                 <TableCell>
                   {d.status === "DRAFT" && <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">DRAFT</Badge>}
                   {d.status === "POSTED" && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">POSTED</Badge>}
+                  {d.status === "PUBLISHED" && <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-bold">PUBLISHED</Badge>}
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end gap-1 flex-wrap">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleViewDetail(d)}
-                      className="h-8 w-8 p-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                      className="h-8 px-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 text-xs font-medium"
                       title="Lihat Detail"
                     >
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      Detail
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handlePrintSlip(d)}
-                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-xs font-medium"
                       title="Cetak Slip"
                     >
-                      <FileText className="w-4 h-4" />
+                      <FileText className="w-3.5 h-3.5 mr-1" />
+                      Slip
                     </Button>
                     
                     {d.status === "DRAFT" && (
@@ -176,36 +215,69 @@ export default function MealAllowanceTable({ disbursements, onRefresh }: MealAll
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handlePost(d.id)}
-                          disabled={loadingId === d.id}
-                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={() => setConfirmPost(d)}
+                          disabled={loadingId === d.id || isPublishing === d.id}
+                          className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 text-xs font-medium"
                           title="Posting Jurnal"
                         >
-                          <Send className="w-4 h-4" />
+                          {loadingId === d.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                          ) : (
+                            <Send className="w-3.5 h-3.5 mr-1" />
+                          )}
+                          Posting
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(d.id)}
-                          disabled={loadingId === d.id}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => setConfirmDelete(d)}
+                          disabled={loadingId === d.id || isPublishing === d.id}
+                          className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium"
                           title="Hapus"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {loadingId === d.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                          )}
+                          Hapus
                         </Button>
                       </>
                     )}
 
-                    {d.status === "POSTED" && (
+                    {(d.status === "DRAFT" || d.status === "POSTED") && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleVoid(d.id)}
-                        disabled={loadingId === d.id}
-                        className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                        onClick={() => setConfirmPublish(d)}
+                        disabled={isPublishing === d.id || loadingId === d.id}
+                        className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 text-xs font-medium"
+                        title="Publikasikan ke Mobile Flutter"
+                      >
+                        {isPublishing === d.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        Publish
+                      </Button>
+                    )}
+
+                    {(d.status === "POSTED" || d.status === "PUBLISHED") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmVoid(d)}
+                        disabled={loadingId === d.id || isPublishing === d.id}
+                        className="h-8 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 text-xs font-medium"
                         title="Void / Batal"
                       >
-                        <Ban className="w-4 h-4" />
+                        {loadingId === d.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                        ) : (
+                          <Ban className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        Void
                       </Button>
                     )}
                   </div>
@@ -297,6 +369,114 @@ export default function MealAllowanceTable({ disbursements, onRefresh }: MealAll
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Posting Confirmation */}
+      <AlertDialog open={!!confirmPost} onOpenChange={(open) => !open && setConfirmPost(null)}>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <AlertDialogTitle className="text-xl font-black text-gray-900">Posting Pencairan Ini?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-600">
+              Pencairan uang makan atas nama <strong>{confirmPost?.karyawan?.namaLengkap || "Karyawan"}</strong> akan di-posting ke jurnal akuntansi. Status akan berubah menjadi <strong>POSTED</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl border-gray-200">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePost}
+              disabled={loadingId === confirmPost?.id}
+              className="rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold"
+            >
+              {loadingId === confirmPost?.id ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memproses...</> : "Ya, Posting"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <AlertDialogTitle className="text-xl font-black text-gray-900">Hapus Draft Pencairan?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-600">
+              Draft pencairan atas nama <strong>{confirmDelete?.karyawan?.namaLengkap || "Karyawan"}</strong> akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl border-gray-200">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={loadingId === confirmDelete?.id}
+              className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
+              {loadingId === confirmDelete?.id ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Menghapus...</> : "Ya, Hapus"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Publish Confirmation */}
+      <AlertDialog open={!!confirmPublish} onOpenChange={(open) => !open && setConfirmPublish(null)}>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+                <Send className="h-6 w-6 text-blue-600" />
+              </div>
+              <AlertDialogTitle className="text-xl font-black text-gray-900">Publikasikan ke Mobile?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-600">
+              Data rincian uang makan atas nama <strong>{confirmPublish?.karyawan?.namaLengkap || "Karyawan"}</strong> akan dipublikasikan dan dapat dilihat langsung oleh karyawan di aplikasi mobile Flutter.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl border-gray-200">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePublish}
+              disabled={isPublishing === confirmPublish?.id}
+              className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            >
+              {isPublishing === confirmPublish?.id ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mempublikasi...</> : "Ya, Publish ke Mobile"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Void Confirmation */}
+      <AlertDialog open={!!confirmVoid} onOpenChange={(open) => !open && setConfirmVoid(null)}>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
+                <RotateCcw className="h-6 w-6 text-amber-600" />
+              </div>
+              <AlertDialogTitle className="text-xl font-black text-gray-900">Batalkan (VOID) Pencairan?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-600">
+              Status pencairan atas nama <strong>{confirmVoid?.karyawan?.namaLengkap || "Karyawan"}</strong> akan dibatalkan dan kembali menjadi <strong>DRAFT</strong>. Jika sudah dipublikasi, data akan ditarik dari mobile karyawan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl border-gray-200">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleVoid}
+              disabled={loadingId === confirmVoid?.id}
+              className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+            >
+              {loadingId === confirmVoid?.id ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memproses...</> : "Ya, Batalkan (VOID)"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

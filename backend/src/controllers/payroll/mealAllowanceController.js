@@ -474,7 +474,7 @@ export const voidDisbursement = async (req, res) => {
     const { id } = req.params;
     const d = await prisma.pencairanUangMakan.findUnique({ where: { id } });
     if (!d) return res.status(404).json({ success: false, message: "Data tidak ditemukan" });
-    if (d.status !== "POSTED") return res.status(400).json({ success: false, message: "Hanya data POSTED yang bisa di-VOID" });
+    if (d.status !== "POSTED" && d.status !== "PUBLISHED") return res.status(400).json({ success: false, message: "Hanya data POSTED atau PUBLISHED yang bisa di-VOID" });
 
     await prisma.$transaction(async (tx) => {
       await tx.pencairanUangMakan.update({ where: { id }, data: { status: "DRAFT" } });
@@ -484,6 +484,28 @@ export const voidDisbursement = async (req, res) => {
 
     res.json({ success: true, message: "Berhasil dibatalkan" });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST/PATCH /payroll/meal-allowance/:id/publish
+ * Admin/HR: Mempublikasikan data pencairan uang makan agar bisa dilihat di mobile flutter
+ */
+export const publishDisbursement = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const d = await prisma.pencairanUangMakan.findUnique({ where: { id } });
+    if (!d) return res.status(404).json({ success: false, message: "Data tidak ditemukan" });
+
+    const updated = await prisma.pencairanUangMakan.update({
+      where: { id },
+      data: { status: "PUBLISHED" }
+    });
+
+    res.json({ success: true, message: "Berhasil dipublikasikan ke mobile", data: updated });
+  } catch (error) {
+    console.error("publishDisbursement error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -580,7 +602,7 @@ export const getMyDisbursements = async (req, res) => {
     const disbursements = await prisma.pencairanUangMakan.findMany({
       where: {
         karyawanId: karyawan.id,
-        status: { in: ["POSTED", "PUBLISHED"] },
+        status: "PUBLISHED",
       },
       include: {
         karyawan: {
@@ -640,6 +662,9 @@ export const getMyDisbursementDetail = async (req, res) => {
     const karyawan = await prisma.karyawan.findUnique({ where: { userId } });
     if (disbursement.karyawanId !== karyawan?.id) {
       return res.status(403).json({ success: false, message: "Anda tidak memiliki akses ke data ini" });
+    }
+    if (disbursement.status !== "PUBLISHED") {
+      return res.status(403).json({ success: false, message: "Data pencairan uang makan belum dipublikasikan" });
     }
 
     const result = await calculateDisbursementDetail(disbursement);

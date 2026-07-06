@@ -9,7 +9,8 @@ import {
   voidDisbursement,
   getMyDisbursements,
   getMyDisbursementDetail,
-  getDisbursementDetail
+  getDisbursementDetail,
+  publishDisbursement
 } from "../../controllers/payroll/mealAllowanceController.js";
 
 const router = express.Router();
@@ -26,6 +27,8 @@ router.get("/preview/:karyawanId", getPreview);
 router.get("/detail/:id", getDisbursementDetail);
 router.post("/", createDisbursement);
 router.post("/:id/post", postDisbursement);
+router.post("/:id/publish", publishDisbursement);
+router.patch("/:id/publish", publishDisbursement);
 router.post("/:id/void", voidDisbursement);
 router.delete("/:id", deleteDisbursement);
 

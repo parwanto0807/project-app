@@ -10,7 +10,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Eye, Trash2, Loader2, AlertTriangle, Calendar, Send, RotateCcw, Printer, Edit } from "lucide-react";
+import { Eye, Trash2, Loader2, AlertTriangle, Calendar, Send, RotateCcw, Printer, Edit, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { deleteGaji, postGaji, voidGaji, publishGaji } from "@/lib/action/hr/payroll";
@@ -42,12 +42,17 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [voidingName, setVoidingName] = useState("");
+  const [postingId, setPostingId] = useState<string | null>(null);
+  const [postingName, setPostingName] = useState("");
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [publishingName, setPublishingName] = useState("");
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
 
-  const handlePost = async (id: string) => {
-    setIsPosting(id);
+  const handlePost = async () => {
+    if (!postingId) return;
+    setIsPosting(postingId);
     try {
-      const res = await postGaji(id);
+      const res = await postGaji(postingId);
       if (res.success) {
         toast.success("Gaji berhasil di-posting");
         onRefresh?.();
@@ -58,6 +63,8 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
       toast.error("Terjadi kesalahan sistem");
     } finally {
       setIsPosting(null);
+      setPostingId(null);
+      setPostingName("");
     }
   };
 
@@ -94,10 +101,11 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
     }
   };
 
-  const handlePublish = async (id: string) => {
-    setIsPublishing(id);
+  const handlePublish = async () => {
+    if (!publishingId) return;
+    setIsPublishing(publishingId);
     try {
-      const res = await publishGaji(id);
+      const res = await publishGaji(publishingId);
       if (res.success) {
         toast.success("Gaji berhasil dipublikasikan ke mobile");
         onRefresh?.();
@@ -108,6 +116,8 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
       toast.error("Terjadi kesalahan sistem");
     } finally {
       setIsPublishing(null);
+      setPublishingId(null);
+      setPublishingName("");
     }
   };
 
@@ -253,7 +263,7 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
                         <Button
                           variant="ghost" size="sm"
                           className="text-emerald-600 hover:bg-emerald-50 rounded-lg text-xs"
-                          onClick={() => handlePost(g.id)}
+                          onClick={() => { setPostingId(g.id); setPostingName(g.karyawan?.namaLengkap || ""); }}
                           disabled={isPosting === g.id}
                         >
                           {isPosting === g.id ? (
@@ -267,12 +277,12 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
                         <Button
                           variant="ghost" size="sm"
                           className="text-blue-600 hover:bg-blue-50 rounded-lg text-xs"
-                          onClick={() => handlePublish(g.id)}
+                          onClick={() => { setPublishingId(g.id); setPublishingName(g.karyawan?.namaLengkap || ""); }}
                           disabled={isPublishing === g.id}
                           title="Publikasikan ke Mobile"
                         >
                           {isPublishing === g.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <Loader2 className="w-3 h-3 animate-spin" />
                           ) : (
                             <><Send className="h-3 w-3 mr-1" />Publish</>
                           )}
@@ -391,6 +401,60 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
               className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white"
             >
               {isVoiding ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memproses...</> : "Ya, Batalkan Posting"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Posting Confirmation */}
+      <AlertDialog open={!!postingId} onOpenChange={(open) => !open && setPostingId(null)}>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <AlertDialogTitle className="text-xl font-black text-gray-900">Posting Gaji Ini?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-600">
+              Slip gaji atas nama <strong>{postingName}</strong> akan di-posting ke jurnal akuntansi. Status akan berubah menjadi <strong>POSTED</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl border-gray-200">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePost}
+              disabled={!!isPosting}
+              className="rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold"
+            >
+              {isPosting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memproses...</> : "Ya, Posting"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Publish Confirmation */}
+      <AlertDialog open={!!publishingId} onOpenChange={(open) => !open && setPublishingId(null)}>
+        <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+                <Send className="h-6 w-6 text-blue-600" />
+              </div>
+              <AlertDialogTitle className="text-xl font-black text-gray-900">Publikasikan ke Mobile?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-gray-600">
+              Slip gaji atas nama <strong>{publishingName}</strong> akan dipublikasikan dan dapat dilihat langsung oleh karyawan melalui aplikasi mobile Flutter.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl border-gray-200">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePublish}
+              disabled={!!isPublishing}
+              className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            >
+              {isPublishing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mempublikasi...</> : "Ya, Publish ke Mobile"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

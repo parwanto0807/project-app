@@ -53,6 +53,9 @@ export default function MealAllowancePage() {
         if (curr.status === "POSTED" || curr.status === "PUBLISHED") {
           acc.totalPosted += 1;
         }
+        if (curr.status === "PUBLISHED") {
+          acc.totalPublished += 1;
+        }
         return acc;
       },
       {
@@ -63,6 +66,7 @@ export default function MealAllowancePage() {
         totalUmLembur: 0,
         totalPencairan: 0,
         totalPosted: 0,
+        totalPublished: 0,
       }
     );
   }, [disbursements]);

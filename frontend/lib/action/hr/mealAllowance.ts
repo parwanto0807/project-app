@@ -90,3 +90,13 @@ export async function deleteDisbursement(id: string) {
     return { success: false, error: error.message };
   }
 }
+
+export async function publishDisbursement(id: string) {
+  try {
+    const res = await fetchAPI(`/payroll/meal-allowance/${id}/publish`, { method: "POST" });
+    revalidatePath("/admin-area/hr/meal-allowance");
+    return { success: true, data: res.data, message: res.message };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
