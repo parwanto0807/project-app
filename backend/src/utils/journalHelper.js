@@ -183,19 +183,14 @@ async function updateGeneralLedgerSummary(coaId, periodId, date, debit, credit, 
 async function updateTrialBalance(coaId, periodId, debit, credit, tx) {
   const prismaClient = tx || prisma;
 
-  // Get or create trial balance record
-  let trialBalance = await prismaClient.trialBalance.findUnique({
-    where: {
-      periodId_coaId: {
-        periodId,
-        coaId
-      }
-    }
+  // Gunakan upsert — atomic, tidak perlu findUnique dulu baru update
+  // Cegah "Transaction not found" karena operasi dalam satu query
+  const existing = await prismaClient.trialBalance.findUnique({
+    where: { periodId_coaId: { periodId, coaId } }
   });
 
-  if (!trialBalance) {
-    // Create new trial balance
-    trialBalance = await prismaClient.trialBalance.create({
+  if (!existing) {
+    await prismaClient.trialBalance.create({
       data: {
         periodId,
         coaId,
@@ -212,19 +207,13 @@ async function updateTrialBalance(coaId, periodId, debit, credit, tx) {
       }
     });
   } else {
-    // Update existing trial balance
-    const newPeriodDebit = Number(trialBalance.periodDebit) + debit;
-    const newPeriodCredit = Number(trialBalance.periodCredit) + credit;
-    const newEndingDebit = Number(trialBalance.openingDebit) + newPeriodDebit;
-    const newEndingCredit = Number(trialBalance.openingCredit) + newPeriodCredit;
+    const newPeriodDebit = Number(existing.periodDebit) + debit;
+    const newPeriodCredit = Number(existing.periodCredit) + credit;
+    const newEndingDebit = Number(existing.openingDebit) + newPeriodDebit;
+    const newEndingCredit = Number(existing.openingCredit) + newPeriodCredit;
 
     await prismaClient.trialBalance.update({
-      where: {
-        periodId_coaId: {
-          periodId,
-          coaId
-        }
-      },
+      where: { id: existing.id },
       data: {
         periodDebit: newPeriodDebit,
         periodCredit: newPeriodCredit,

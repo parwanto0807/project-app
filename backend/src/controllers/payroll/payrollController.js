@@ -1071,7 +1071,7 @@ export const voidGaji = async (req, res) => {
             });
           }
 
-          // Update Trial Balance
+          // Update Trial Balance — atomic upsert biar ga "Transaction not found"
           const tb = await tx.trialBalance.findUnique({
             where: { periodId_coaId: { periodId: ledger.periodId, coaId: line.coaId } },
           });

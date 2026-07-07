@@ -1,5 +1,6 @@
 import { prisma } from "../../config/db.js";
 import { NotificationService } from "../../utils/firebase/notificationService.js";
+import { createLedgerEntry } from "../../utils/journalHelper.js";
 
 function getMealAllowanceDateRanges(periodeBulan, siklus) {
   const [year, month] = periodeBulan.split("-").map(Number);
@@ -355,96 +356,47 @@ export const postDisbursement = async (req, res) => {
     });
 
     if (!d) return res.status(404).json({ success: false, message: "Data tidak ditemukan" });
-    if (d.status !== "DRAFT") return res.status(400).json({ success: false, message: "Hanya DRAFT yang bisa di-post" });
+    if (d.status !== "DRAFT" && d.status !== "PUBLISHED") return res.status(400).json({ success: false, message: "Hanya DRAFT atau PUBLISHED yang bisa di-post" });
 
-    const config = await prisma.payrollConfig.findFirst({ where: { isActive: true } });
-
-    if (!config || !config.coaGajiPokok || !config.coaKasBankDefault) {
-      return res.status(400).json({ success: false, message: "Konfigurasi akun (CoA) belum lengkap" });
-    }
-
+    const referenceNumber = `UM-${d.periodeBulan}-${d.siklus}-${d.karyawan.nik}`;
     const journalDescription = `Pencairan Uang Makan Siklus ${d.siklus} - ${d.periodeBulan} - ${d.karyawan.namaLengkap}`;
     const today = new Date();
 
     const result = await prisma.$transaction(async (tx) => {
+      // Update status ke POSTED dan tandai isPosted = true
       const updated = await tx.pencairanUangMakan.update({
         where: { id },
-        data: { status: "POSTED" }
+        data: { status: "POSTED", isPosted: true, postedAt: new Date() }
       });
 
-      const debitAccountId = config.coaGajiPokok;
-      const creditAccountId = config.coaKasBankDefault;
-
-      const activePeriod = await tx.accountingPeriod.findFirst({ where: { status: "OPEN" } });
-      
-      const ledger = await tx.generalLedger.create({
-        data: {
-          transactionDate: today,
-          reference: `UM-${d.periodeBulan}-${d.siklus}-${d.karyawan.nik}`,
-          description: journalDescription,
-          sourceModule: "PAYROLL",
-          periodId: activePeriod?.id,
-          createdBy: userId,
-          lines: {
-            create: [
-              {
-                coaId: debitAccountId,
-                debitAmount: d.totalPencairan,
-                creditAmount: 0,
-                description: `Biaya Uang Makan ${d.karyawan.namaLengkap}`
-              },
-              {
-                coaId: creditAccountId,
-                debitAmount: 0,
-                creditAmount: d.totalPencairan,
-                description: `Pembayaran Uang Makan ${d.karyawan.namaLengkap}`
-              }
-            ]
+      // Buat jurnal menggunakan SystemAccount pattern (konsisten dengan modul payroll lain)
+      // Dr. EXPENSE_MEAL_ALLOWANCE (6-10101 atau akun Beban Uang Makan)
+      // Cr. CASH_BANK              (1-10001 Kas Peti Cash / akun kas default)
+      await createLedgerEntry({
+        referenceType: "JOURNAL",
+        referenceId: id,
+        referenceNumber,
+        tanggal: today,
+        keterangan: journalDescription,
+        createdById: userId,
+        tx,
+        entries: [
+          {
+            systemAccountKey: "EXPENSE_MEAL_ALLOWANCE",
+            debit: d.totalPencairan,
+            credit: 0,
+            karyawanId: d.karyawanId,
+            keterangan: `Biaya Uang Makan ${d.karyawan.namaLengkap} - ${d.periodeBulan} Siklus ${d.siklus}`
+          },
+          {
+            systemAccountKey: "CASH_BANK",
+            debit: 0,
+            credit: d.totalPencairan,
+            karyawanId: d.karyawanId,
+            keterangan: `Pembayaran Uang Makan ${d.karyawan.namaLengkap} - ${d.periodeBulan} Siklus ${d.siklus}`
           }
-        },
-        include: { lines: true }
+        ]
       });
-
-      if (activePeriod) {
-        const normalizedDate = new Date(today);
-        normalizedDate.setHours(0, 0, 0, 0);
-
-        for (const line of ledger.lines) {
-          await tx.generalLedgerSummary.upsert({
-            where: {
-              coaId_periodId_date: {
-                coaId: line.coaId,
-                periodId: activePeriod.id,
-                date: normalizedDate,
-              }
-            },
-            update: {
-              totalDebit: { increment: line.debitAmount },
-              totalCredit: { increment: line.creditAmount }
-            },
-            create: {
-              coaId: line.coaId,
-              periodId: activePeriod.id,
-              date: normalizedDate,
-              totalDebit: line.debitAmount,
-              totalCredit: line.creditAmount
-            }
-          });
-
-          const tb = await tx.trialBalance.findUnique({
-            where: { periodId_coaId: { periodId: activePeriod.id, coaId: line.coaId } },
-          });
-          if (tb) {
-            await tx.trialBalance.update({
-              where: { id: tb.id },
-              data: {
-                periodDebit: { increment: line.debitAmount },
-                periodCredit: { increment: line.creditAmount }
-              }
-            });
-          }
-        }
-      }
 
       return updated;
     });
@@ -478,10 +430,9 @@ export const voidDisbursement = async (req, res) => {
     if (d.status !== "POSTED" && d.status !== "PUBLISHED") return res.status(400).json({ success: false, message: "Hanya data POSTED atau PUBLISHED yang bisa di-VOID" });
 
     await prisma.$transaction(async (tx) => {
+      // VOID: kembalikan ke DRAFT, tapi jangan reset isPosted (tracking sudah pernah di-post)
       await tx.pencairanUangMakan.update({ where: { id }, data: { status: "DRAFT" } });
     });
-
-    await prisma.pencairanUangMakan.update({ where: { id }, data: { status: "DRAFT" } });
 
     res.json({ success: true, message: "Berhasil dibatalkan" });
   } catch (error) {
