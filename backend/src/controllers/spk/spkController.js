@@ -946,14 +946,14 @@ export const updateSPKProgress = async (req, res) => {
       const latestReport = spk.spkFieldReport?.find(
         (report) => report.soDetailId === item.id
       );
-      
+
       const itemProgress = latestReport?.progress || 0;
       totalProgress += itemProgress;
     });
 
     // Calculate weighted average
-    const avgProgress = items.length > 0 
-      ? Math.round(totalProgress / items.length) 
+    const avgProgress = items.length > 0
+      ? Math.round(totalProgress / items.length)
       : 0;
 
     // ✅ Check if progress is 100%
@@ -981,8 +981,8 @@ export const updateSPKProgress = async (req, res) => {
 
     res.json({
       success: true,
-      message: isCompleted 
-        ? "SPK completed! Progress 100%, SPK closed, and Sales Order marked as FULFILLED" 
+      message: isCompleted
+        ? "SPK completed! Progress 100%, SPK closed, and Sales Order marked as FULFILLED"
         : "SPK progress updated successfully",
       data: {
         spkId: id,
@@ -995,9 +995,9 @@ export const updateSPKProgress = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updateSPKProgress:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to update SPK progress",
-      details: error.message 
+      details: error.message
     });
   }
 };
@@ -1023,7 +1023,7 @@ export const updateSPKProgressComment = async (req, res) => {
 
       // 2. Create History Log (like social media comment)
       const targetUserId = userId || req.user?.id;
-      
+
       if (!targetUserId) {
         throw new Error("User ID tidak ditemukan. Pastikan Anda sudah login.");
       }
@@ -1061,6 +1061,94 @@ export const updateSPKProgressComment = async (req, res) => {
       success: false,
       message: "Failed to update monitoring progress",
       error: error.message,
+    });
+  }
+};
+
+// ✅ NEW: Update SPK Status based on admin input
+export const updateSPKStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { spkStatus, spkStatusClose } = req.body;
+
+    // Validate input - at least one field must be provided
+    if (spkStatus === undefined && spkStatusClose === undefined) {
+      return res.status(400).json({
+        error: "At least one field must be updated: spkStatus or spkStatusClose"
+      });
+    }
+
+    // ✅ Auth and authorization check (admin only)
+    // Assuming req.user is set by authenticateToken middleware
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({
+        error: "Access denied. Only admin can update SPK status."
+      });
+    }
+
+    // Check if SPK exists
+    const spk = await prisma.sPK.findUnique({
+      where: { id },
+      select: { id: true }
+    });
+
+    if (!spk) {
+      return res.status(404).json({ error: "SPK not found" });
+    }
+
+    // Update SPK status based on admin input
+    const updateData = {};
+
+    if (spkStatus !== undefined) {
+      updateData.spkStatus = spkStatus;
+    }
+
+    if (spkStatusClose !== undefined) {
+      updateData.spkStatusClose = spkStatusClose;
+    }
+
+    const updatedSPK = await prisma.sPK.update({
+      where: { id },
+      data: {
+        ...updateData,
+        updatedAt: new Date(),
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            namaLengkap: true,
+          },
+        },
+        salesOrder: {
+          select: {
+            soNumber: true,
+            customer: {
+              select: {
+                name: true,
+                branch: true,
+              },
+            },
+          },
+        },
+        team: {
+          select: {
+            namaTeam: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "SPK status updated successfully",
+      data: updatedSPK,
+    });
+  } catch (error) {
+    console.error("Error updateSPKStatus:", error);
+    res.status(500).json({
+      error: "Failed to update SPK status",
+      details: error.message,
     });
   }
 };

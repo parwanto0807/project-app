@@ -35,6 +35,7 @@ import {
     ChevronsUp,
     BookCheckIcon,
     Layers,
+    RefreshCw,
 } from "lucide-react";
 import React, { useState, Fragment } from "react";
 import Link from "next/link";
@@ -95,6 +96,8 @@ type SPK = {
             taxRate: number;
             lineTotal: number;
         }[];
+        // Add status field
+        status?: string;
     };
 
     team?: {
@@ -157,6 +160,7 @@ type TabelDataSpkProps = {
     onRefresh?: () => void;
     userId?: string;
     isDeleting: boolean;
+    onChangeStatus?: (spk: SPK) => void;
 };
 
 function getBasePath(role?: string) {
@@ -214,6 +218,20 @@ function getTimeAgo(dateInput: Date | string): string {
         });
     }
 }
+
+// Helper function to check if SO status is in critical states (red)
+const isSoStatusCritical = (status?: string): boolean => {
+    const criticalStatuses = ['INVOICED', 'BAP', 'PAID', 'CANCELLED', 'CANCEL'];
+    return criticalStatuses.includes(status?.toUpperCase() || '');
+};
+
+// Helper function to get SO badge class based on status
+const getSoBadgeClass = (status?: string) => {
+    if (isSoStatusCritical(status)) {
+        return "font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors cursor-pointer";
+    }
+    return "font-semibold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors cursor-pointer";
+};
 
 function usePdfActions() {
     const [pdfDialogOpen, setPdfDialogOpen] = React.useState(false);
@@ -320,6 +338,7 @@ export default function TabelDataSpk({
     onRefresh,
     userId,
     isDeleting = false,
+    onChangeStatus,
 }: TabelDataSpkProps) {
     const rowRefs = React.useRef<{ [key: string]: HTMLTableRowElement | null }>({});
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -636,7 +655,7 @@ const searchParams = useSearchParams();
                                                     <Link href={`${getSalesOrderPath(role)}?search=${encodeURIComponent(spk.salesOrder.soNumber)}`}>
                                                         <Badge
                                                             variant="outline"
-                                                            className="text-[10px] bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 py-0 h-5 cursor-pointer hover:bg-green-100 transition-colors"
+                                                            className={`text-[10px] ${getSoBadgeClass(spk.salesOrder.status)} py-0 h-5 cursor-pointer`}
                                                         >
                                                             {spk.salesOrder.soNumber}
                                                         </Badge>
@@ -1044,7 +1063,7 @@ const searchParams = useSearchParams();
                                                     <Link href={`${getSalesOrderPath(role)}?search=${encodeURIComponent(spk.salesOrder.soNumber)}`}>
                                                         <Badge
                                                             variant="outline"
-                                                            className="font-semibold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors cursor-pointer"
+                                                            className={`font-semibold ${getSoBadgeClass(spk.salesOrder.status)} hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors cursor-pointer`}
                                                         >
                                                             {spk.salesOrder.soNumber}
                                                         </Badge>
@@ -1456,6 +1475,27 @@ const searchParams = useSearchParams();
                                                         </TooltipProvider>
                                                     )}
 
+                                                    {/* Change Status Button - Standalone for Admin */}
+                                                    {role === "admin" && (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="h-8 w-8 rounded-full border-purple-300 dark:border-purple-600 bg-white hover:bg-purple-50 dark:bg-gray-800 dark:hover:bg-purple-900/30 transition-all duration-300"
+                                                                        onClick={() => onChangeStatus?.(spk)}
+                                                                    >
+                                                                        <RefreshCw className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Ubah Status SPK</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    )}
+
                                                     {/* Dropdown Menu */}
                                                     <DropdownMenu>
                                                         <TooltipProvider>
@@ -1494,6 +1534,7 @@ const searchParams = useSearchParams();
                                                                         <span>Edit SPK</span>
                                                                     </DropdownMenuItem>
 
+                                                                    
                                                                     <DropdownMenuItem
                                                                         className="flex items-center space-x-2 p-3 cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                                                                         onClick={(e) => {
@@ -1571,9 +1612,9 @@ const searchParams = useSearchParams();
                                                                 <FileText className="h-4 w-4 text-green-600 flex-shrink-0" />
                                                                 <div className="min-w-0">
                                                                     <p className="text-xs text-gray-500 dark:text-gray-400">Sales Order</p>
-                                                                    <p className="text-sm font-medium text-green-700 dark:text-green-300 truncate">
+                                                                    <Badge variant="outline" className={getSoBadgeClass(spk.salesOrder?.status)}>
                                                                         {spk.salesOrder?.soNumber || "-"}
-                                                                    </p>
+                                                                    </Badge>
                                                                 </div>
                                                             </div>
 
