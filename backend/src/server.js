@@ -1,8 +1,7 @@
 // server.js - PRODUCTION READY VERSION for rylif-app.com
-import { connectDB } from "./config/db.js";
+import { connectDB, prisma } from "./config/db.js";
 import app from "./app.js";
 import http from "http";
-import { prisma } from "../src/config/db.js";
 import { PORT as ENV_PORT, allowedOrigins } from "./config/env.js";
 // import sessionCleanupJob from './config/sessionCleanUp.js';
 
@@ -69,6 +68,12 @@ const gracefulShutdown = async () => {
 // Handle shutdown signals
 process.on("SIGTERM", gracefulShutdown);
 process.on("SIGINT", gracefulShutdown);
+process.once("SIGUSR2", async () => {
+  try {
+    await prisma.$disconnect();
+  } catch (err) {}
+  process.kill(process.pid, "SIGUSR2");
+});
 
 // 7️⃣ Jalankan server
 connectDB()

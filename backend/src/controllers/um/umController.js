@@ -682,7 +682,7 @@ export const uangMukaController = {
         }
 
         return uangMuka;
-      });
+      }, { timeout: 15000 });
 
       res.status(201).json({
         success: true,
@@ -1270,7 +1270,7 @@ export const uangMukaController = {
         }
 
         return uangMuka;
-      });
+      }, { timeout: 15000 });
 
       res.json({
         success: true,

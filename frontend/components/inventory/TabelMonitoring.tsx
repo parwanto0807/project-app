@@ -42,9 +42,11 @@ import {
     Sparkles,
     Printer,
     Loader2,
+    FileCheck,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import StockBalancePdf from './StockBalancePdf';
+import StockOpnamePdf from './StockOpnamePdf';
 import { toast } from "sonner"; // Add toast
 import TopUsageWidget from './TopUsageWidget';
 import TopValueWidget from './TopValueWidget';
@@ -104,7 +106,8 @@ interface TabelMonitoringProps {
     setPeriod?: (value: string) => void;
     role: string;
     totalInventoryValue?: number;
-    onFetchAllData: () => Promise<StockMonitoringItem[]>; // Add this prop
+    onFetchAllData: () => Promise<StockMonitoringItem[]>;
+    onFetchStockOpnameData?: () => Promise<any[]>;
 }
 
 export default function TabelMonitoring({
@@ -132,11 +135,13 @@ export default function TabelMonitoring({
     setPeriod,
     role,
     totalInventoryValue,
-    onFetchAllData
+    onFetchAllData,
+    onFetchStockOpnameData
 }: TabelMonitoringProps) {
     const [selectedItem, setSelectedItem] = useState<StockMonitoringItem | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [isGeneratingSoPdf, setIsGeneratingSoPdf] = useState(false);
 
     // Filter Helper Config
     const canViewFinancials = role === 'admin' || role === 'super_admin';
@@ -219,6 +224,49 @@ export default function TabelMonitoring({
             console.error("PDF Generation Error:", error);
             toast.error("Gagal membuat laporan PDF");
             setIsGeneratingPdf(false);
+        }
+    };
+
+    const handlePrintStockOpname = async () => {
+        if (!onFetchStockOpnameData) return;
+        if (isGeneratingSoPdf) return;
+        setIsGeneratingSoPdf(true);
+        try {
+            toast.info("Mengambil data stock opname...", { duration: 2000 });
+            const soData = await onFetchStockOpnameData();
+
+            if (!soData || soData.length === 0) {
+                toast.error("Tidak ada data stock opname untuk dicetak");
+                setIsGeneratingSoPdf(false);
+                return;
+            }
+
+            toast.info("Membuat PDF Stock Opname...", { duration: 2000 });
+
+            import('@react-pdf/renderer').then(async (mod) => {
+                const { pdf } = mod;
+                const blob = await pdf(
+                    <StockOpnamePdf
+                        data={soData}
+                        period={period || format(new Date(), 'MMMM yyyy', { locale: idLocale })}
+                        warehouses={warehouses}
+                    />
+                ).toBlob();
+
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+                setIsGeneratingSoPdf(false);
+                toast.success("Laporan Stock Opname berhasil dibuat");
+            }).catch(err => {
+                console.error("Stock Opname PDF Module Error:", err);
+                toast.error("Gagal memuat modul PDF");
+                setIsGeneratingSoPdf(false);
+            });
+
+        } catch (error) {
+            console.error("Stock Opname PDF Error:", error);
+            toast.error("Gagal membuat laporan stock opname");
+            setIsGeneratingSoPdf(false);
         }
     };
 
@@ -748,6 +796,24 @@ export default function TabelMonitoring({
                                     )}
                                     {isGeneratingPdf ? "Creating PDF..." : "Print Report"}
                                 </Button>
+
+                                {/* Print Stock Opname PDF Button - Admin Only */}
+                                {(role === 'admin' || role === 'super_admin') && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={isGeneratingSoPdf || !onFetchStockOpnameData}
+                                    className="rounded-xl gap-2 bg-emerald-50/50 hover:bg-emerald-100/70 border-emerald-200 text-emerald-700 hover:text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400"
+                                    onClick={handlePrintStockOpname}
+                                >
+                                    {isGeneratingSoPdf ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <FileCheck className="w-3.5 h-3.5" />
+                                    )}
+                                    {isGeneratingSoPdf ? "Creating PDF..." : "Print Stock Opname"}
+                                </Button>
+                                )}
                             </div>
                         </div>
                     </div>
