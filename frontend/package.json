@@ -44,6 +44,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "decimal.js": "^10.6.0",
+    "encoding": "^0.1.13",
     "face-api.js": "^0.22.2",
     "firebase": "^12.6.0",
     "framer-motion": "^12.23.26",
