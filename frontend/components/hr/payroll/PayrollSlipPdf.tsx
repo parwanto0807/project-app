@@ -259,7 +259,7 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                         </View>
                         <View style={styles.infoRow}>
                             <Text style={styles.infoLabel}>Hari Kerja</Text>
-                            <Text style={styles.infoValue}>: {countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari</Text>
+                            <Text style={styles.infoValue}>: {gaji.hariKerja ? gaji.hariKerja : countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari</Text>
                         </View>
                     </View>
                 </View>
@@ -270,7 +270,7 @@ const PayrollSlipPdf: React.FC<PayrollSlipPdfProps> = ({ gaji }) => {
                     <View style={styles.contentColumn}>
                         <Text style={styles.sectionTitle}>PENDAPATAN</Text>
                         <View style={styles.row}>
-                            <Text>Gaji Pokok / Kerja ({countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari)</Text>
+                            <Text>Gaji Pokok / Kerja ({gaji.hariKerja ? gaji.hariKerja : countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari)</Text>
                             <Text>{formatCurrency(gaji.gajiPokok)}</Text>
                         </View>
                         {gaji.tunjanganJabatan > 0 && (

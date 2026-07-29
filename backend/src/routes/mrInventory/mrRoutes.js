@@ -18,6 +18,9 @@ router.post('/post-journal', mrController.postMRJournal);
 // Create MR from PO (Direct Issue Flow)
 router.post('/from-po/:poId', mrController.createMRFromPO);
 
+// Bulk Issue all PENDING MRs
+router.post('/bulk-issue', mrController.bulkIssue);
+
 // Validate MR for Approval (Check GR completion)
 router.get('/validate-approval/:mrId', mrController.validateMRForApproval);
 

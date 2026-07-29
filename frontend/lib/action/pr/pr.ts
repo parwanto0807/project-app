@@ -92,11 +92,11 @@ export async function getAllPurchaseRequests(
     if (filters?.status) queryParams.append("status", filters.status);
     if (filters?.dateFrom)
       queryParams.append(
-        "dateFrom",
+        "startDate",
         filters.dateFrom.toISOString().split("T")[0]
       );
     if (filters?.dateTo)
-      queryParams.append("dateTo", filters.dateTo.toISOString().split("T")[0]);
+      queryParams.append("endDate", filters.dateTo.toISOString().split("T")[0]);
     if (filters?.karyawanId)
       queryParams.append("karyawanId", filters.karyawanId);
     if (filters?.spkId) queryParams.append("spkId", filters.spkId);

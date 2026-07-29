@@ -36,9 +36,12 @@ export const QRScannerDialog: React.FC<QRScannerDialogProps> = ({
     const streamRef = React.useRef<MediaStream | null>(null)
     const cleanupTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
     const scanningRef = React.useRef<number | null>(null)
+    const isScanningRef = React.useRef(false)
 
     const stopCamera = React.useCallback(() => {
         ;;((...args: any[]) => {})("Stopping camera...")
+
+        isScanningRef.current = false
 
         // Stop scanning loop
         if (scanningRef.current) {
@@ -114,7 +117,7 @@ export const QRScannerDialog: React.FC<QRScannerDialogProps> = ({
         }
     }
 
-    const handleScanResult = (data: string) => {
+    const handleScanResult = React.useCallback((data: string) => {
         setScannedData(data)
 
         if (expectedToken) {
@@ -146,18 +149,20 @@ export const QRScannerDialog: React.FC<QRScannerDialogProps> = ({
                 // handleClose()
             }, 1000)
         }
-    }
+    }, [expectedToken, onScanSuccess, stopCamera])
 
     const scanQRCode = React.useCallback(() => {
-        if (!videoRef.current || !canvasRef.current) {
+        if (!isScanningRef.current) {
+            scanningRef.current = null
             return
         }
 
         const video = videoRef.current
         const canvas = canvasRef.current
-        const context = canvas.getContext("2d")
+        const context = canvas?.getContext("2d")
 
-        if (!context) {
+        if (!video || !canvas || !context) {
+            scanningRef.current = requestAnimationFrame(scanQRCode)
             return
         }
 
@@ -185,8 +190,12 @@ export const QRScannerDialog: React.FC<QRScannerDialogProps> = ({
             }
         }
 
-        // Continue scanning
-        scanningRef.current = requestAnimationFrame(scanQRCode)
+        // Continue scanning only if still active
+        if (isScanningRef.current) {
+            scanningRef.current = requestAnimationFrame(scanQRCode)
+        } else {
+            scanningRef.current = null
+        }
     }, [handleScanResult])
 
     const handleClose = React.useCallback(() => {
@@ -209,6 +218,7 @@ export const QRScannerDialog: React.FC<QRScannerDialogProps> = ({
     React.useEffect(() => {
         if (cameraActive && !success) {
             ;;((...args: any[]) => {})("Starting QR code scanning...")
+            isScanningRef.current = true
             scanQRCode()
         }
     }, [cameraActive, success, scanQRCode])

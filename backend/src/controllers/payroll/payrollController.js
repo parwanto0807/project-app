@@ -581,6 +581,7 @@ export const createGaji = async (req, res) => {
           potonganKasbon: k.potonganKasbon,
           potonganDpGaji: k.potonganDpGaji,
           total: k.total,
+          hariKerja: k.hariHadir,
           status: "DRAFT", // Selalu simpan sebagai DRAFT dulu
         },
       });
@@ -665,6 +666,7 @@ export const updateGaji = async (req, res) => {
         potonganKasbon: k.potonganKasbon,
         potonganDpGaji: k.potonganDpGaji,
         total: k.total,
+        hariKerja: k.hariHadir,
       },
     });
 
@@ -778,6 +780,7 @@ export const processBulkPayroll = async (req, res) => {
               potonganKasbon: k.potonganKasbon,
               potonganDpGaji: k.potonganDpGaji,
               total: k.total,
+              hariKerja: k.hariHadir,
               status: "DRAFT",
             },
           });

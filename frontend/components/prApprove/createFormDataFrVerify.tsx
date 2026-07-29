@@ -117,6 +117,9 @@ export function PrCreateFormFrVerify({
     const [backendErrors, setBackendErrors] = useState<Record<string, string>>({});
     const [systemAccounts, setSystemAccounts] = useState<SystemAccount[]>([]);
     const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+    const [karyawanList, setKaryawanList] = useState<{ id: string; namaLengkap: string }[]>([]);
+    const [searchKaryawan, setSearchKaryawan] = useState("");
+    const [showKaryawanDropdown, setShowKaryawanDropdown] = useState(false);
     const router = useRouter();
 
     const form = useForm<CreateUangMukaInput>({
@@ -159,7 +162,17 @@ export function PrCreateFormFrVerify({
             }
         };
         fetchAccounts();
+        fetchKaryawan();
     }, []);
+
+    async function fetchKaryawan() {
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/getAllKaryawan`, { credentials: "include" });
+            const json = await res.json();
+            const list = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+            setKaryawanList(list.map((k: any) => ({ id: k.id, namaLengkap: k.namaLengkap || k.name || "" })));
+        } catch {}
+    }
 
     // 1️⃣ Set selectedPurchaseRequest saat mount atau ketika data PR sudah loaded
     useEffect(() => {
@@ -666,9 +679,62 @@ export function PrCreateFormFrVerify({
                                             </span>
                                         </div>
                                     )}
-                                </div>
+                        </div>
                             </div>
                         )}
+
+                        {/* Karyawan / Penerima */}
+                        <FormField
+                            control={form.control}
+                            name="karyawanId"
+                            render={({ field }) => {
+                                const selectedKaryawan = karyawanList.find(k => k.id === field.value)
+                                const filtered = karyawanList.filter(k =>
+                                    k.namaLengkap.toLowerCase().includes(searchKaryawan.toLowerCase())
+                                )
+                                return (
+                                    <FormItem>
+                                        <FormLabel className="text-sm font-medium flex items-center space-x-2">
+                                            <span>Penerima (Karyawan)</span>
+                                        </FormLabel>
+                                        <div className="relative">
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="Cari nama karyawan..."
+                                                    value={showKaryawanDropdown ? searchKaryawan : (selectedKaryawan?.namaLengkap || "")}
+                                                    onFocus={() => { setShowKaryawanDropdown(true); setSearchKaryawan("") }}
+                                                    onChange={(e) => { setSearchKaryawan(e.target.value); setShowKaryawanDropdown(true) }}
+                                                    onBlur={() => setTimeout(() => setShowKaryawanDropdown(false), 200)}
+                                                    className="h-12 text-base"
+                                                />
+                                            </FormControl>
+                                            {showKaryawanDropdown && (
+                                                <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                                    {filtered.length === 0 ? (
+                                                        <div className="p-2 text-sm text-muted-foreground">Tidak ditemukan</div>
+                                                    ) : (
+                                                        filtered.map((k) => (
+                                                            <div
+                                                                key={k.id}
+                                                                className={`p-2 text-sm cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 ${field.value === k.id ? "bg-blue-100 dark:bg-blue-900/30 font-semibold" : ""}`}
+                                                                onMouseDown={() => {
+                                                                    field.onChange(k.id)
+                                                                    setSearchKaryawan("")
+                                                                    setShowKaryawanDropdown(false)
+                                                                }}
+                                                            >
+                                                                {k.namaLengkap}
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <FormMessage className="text-xs" />
+                                    </FormItem>
+                                )
+                            }}
+                        />
 
                         {/* Jumlah Uang Muka */}
                         <div className="grid grid-cols-2 gap-4">

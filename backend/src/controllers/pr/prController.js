@@ -26,7 +26,11 @@ export class PurchaseRequestController {
 
       const where = {};
 
-      if (status) where.status = status;
+      if (status) {
+        where.status = status;
+      } else {
+        where.status = { not: "DRAFT" };
+      }
       if (projectId) where.projectId = projectId;
 
       // Filter berdasarkan type

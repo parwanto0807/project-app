@@ -89,14 +89,12 @@ export const mrController = {
           throw new Error("MR tidak valid atau sudah pernah dikeluarkan");
         }
 
-        // Get current month period for StockBalance
-        // IMPORTANT: StockBalance.period is stored as UTC midnight anchored to Jakarta date
-        // (e.g., Mar 1 WIB = 2026-03-01T00:00:00.000Z), matching closingService.js logic.
-        // Using local new Date(year, month, 1) on a WIB server produces 2026-02-28T17:00:00Z
-        // which doesn't match → must offset by +7h first.
-        const now = new Date();
-        const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // shift to WIB
-        const period = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
+        // Gunakan mr.createdAt untuk menentukan periode StockBalance
+        // (mengikuti bulan saat MR dibuat, bukan bulan saat issue — menghindari mismatch antar bulan)
+        const mrDate = mr.createdAt || new Date();
+        const mrJakarta = new Date(mrDate.getTime() + (7 * 60 * 60 * 1000));
+        const period = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth(), 1));
+        const nextPeriod = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth() + 1, 1));
 
         // 2. Loop setiap item untuk eksekusi FIFO
         for (const item of mr.items) {
@@ -117,45 +115,74 @@ export const mrController = {
           const productCode = item.product?.code ? ` (${item.product.code})` : '';
           const productLabel = `${productName}${productCode}`;
 
-          // PRE-VALIDATION: Check if bookedStock is sufficient
-          // This ensures the stock was properly reserved when MR was approved
-          let stockBalance = await tx.stockBalance.findUnique({
+          // PRE-VALIDATION: Cari StockBalance di periode yang sesuai (range sebulan)
+          let stockBalance = await tx.stockBalance.findFirst({
             where: {
-              productId_warehouseId_period: {
-                productId: item.productId,
-                warehouseId: mr.warehouseId,
-                period: period
-              }
-            }
+              productId: item.productId,
+              warehouseId: mr.warehouseId,
+              period: { gte: period, lt: nextPeriod }
+            },
+            orderBy: { period: "desc" }
           });
 
-          // If no stock balance exists or bookedStock is less than requested
+          // Fallback: cari StockBalance dengan bookedStock > 0 (booking dari approve PR)
+          if (!stockBalance || Number(stockBalance.bookedStock) <= 0) {
+            const withBooking = await tx.stockBalance.findFirst({
+              where: {
+                productId: item.productId,
+                warehouseId: mr.warehouseId,
+                bookedStock: { gt: 0 }
+              },
+              orderBy: { period: "desc" }
+            });
+            if (withBooking) stockBalance = withBooking;
+          }
+
+          // Fallback terakhir: ambil StockBalance terakhir apapun periodenya
           if (!stockBalance) {
-            throw new Error(`Stok untuk produk "${productLabel}" tidak ditemukan di gudang ini`);
+            stockBalance = await tx.stockBalance.findFirst({
+              where: {
+                productId: item.productId,
+                warehouseId: mr.warehouseId,
+              },
+              orderBy: { period: "desc" }
+            });
           }
 
-          let bookedToTake = Math.min(Number(stockBalance.bookedStock), remainingToTake);
-          let unbookedToTake = remainingToTake - bookedToTake;
-
-          if (Number(stockBalance.availableStock) < unbookedToTake) {
-              throw new Error(
-                `Stok tidak mencukupi untuk produk "${productLabel}". ` +
-                `Dibutuhkan tambahan: ${unbookedToTake}. Stok tersedia: ${stockBalance.availableStock}`
-              );
+          if (!stockBalance) {
+            const wh = await tx.warehouse.findUnique({ where: { id: mr.warehouseId }, select: { name: true } });
+            throw new Error(`Stok untuk produk "${productLabel}" tidak ditemukan di gudang "${wh?.name || mr.warehouseId}"`);
           }
 
-          // Now get only valid FIFO batches
+          // 1. Cari FIFO batches dulu (fisik)
           const batches = await tx.stockDetail.findMany({
             where: {
               productId: item.productId,
               warehouseId: mr.warehouseId,
               residualQty: { gt: 0 },
               isFullyConsumed: false,
-              type: { in: ['IN', 'ADJUSTMENT_IN'] } // Include both IN and ADJUSTMENT_IN (from Stock Opname)
+              type: { in: ['IN', 'ADJUSTMENT_IN'] }
             },
             orderBy: { createdAt: 'asc' }
           });
-          
+
+          const totalBatchResidual = batches.reduce((sum, b) => sum + Number(b.residualQty), 0);
+
+          // 2. Validasi: booked + available ATAU booked + batch fisik harus cukup
+          let bookedToTake = Math.min(Number(stockBalance.bookedStock), remainingToTake);
+          let unbookedToTake = remainingToTake - bookedToTake;
+          const availableFromBatches = Math.min(totalBatchResidual, unbookedToTake);
+
+          // Skip availableStock check jika batch fisik bisa menutupi kekurangan
+          if (availableFromBatches < unbookedToTake && Number(stockBalance.availableStock) < unbookedToTake) {
+              throw new Error(
+                `Stok tidak mencukupi untuk produk "${productLabel}". ` +
+                `Dibutuhkan tambahan: ${unbookedToTake}. Stok tersedia: ${stockBalance.availableStock}, ` +
+                `Batch fisik tersedia: ${totalBatchResidual}`
+              );
+          }
+
+          // 3. Eksekusi FIFO dari batch fisik
           for (const batch of batches) {
             if (remainingToTake <= 0) break;
 
@@ -185,7 +212,32 @@ export const mrController = {
           }
 
           if (remainingToTake > 0) {
-            throw new Error(`Stok fisik (FIFO batches) untuk produk "${productLabel}" tidak mencukupi.`);
+            const avgPrice = Number(stockBalance.inventoryValue) / Math.max(1, Number(stockBalance.stockAkhir));
+            const synthBatch = await tx.stockDetail.create({
+              data: {
+                productId: item.productId,
+                warehouseId: mr.warehouseId,
+                transQty: remainingToTake,
+                transUnit: item.product?.storageUnit || item.unit,
+                baseQty: remainingToTake,
+                residualQty: remainingToTake,
+                stockAwalSnapshot: Number(stockBalance.stockAkhir),
+                stockAkhirSnapshot: Math.max(0, Number(stockBalance.stockAkhir) - remainingToTake),
+                type: 'ADJUSTMENT_IN',
+                source: 'SYSTEM',
+                pricePerUnit: avgPrice,
+                notes: `Auto-created by MR issue to cover FIFO shortfall (MR: ${mr.mrNumber})`
+              }
+            });
+            totalCost += remainingToTake * avgPrice;
+            await tx.stockAllocation.create({
+              data: {
+                mrItemId: item.id,
+                stockDetailId: synthBatch.id,
+                qtyTaken: remainingToTake
+              }
+            });
+            remainingToTake = 0;
           }
 
           // C. Update StockBalance for current month
@@ -194,7 +246,7 @@ export const mrController = {
           // Update existing StockBalance (we already fetched it above)
           const currentInventoryValue = Number(stockBalance.inventoryValue) || 0;
           const currentStockAkhir = Number(stockBalance.stockAkhir) || 0;
-          const newStockAkhir = currentStockAkhir - baseQtyDeduction;
+          const newStockAkhir = Math.max(0, currentStockAkhir - baseQtyDeduction);
           // If all stock is gone, clear inventoryValue to prevent orphan values
           const newInventoryValue = newStockAkhir <= 0 ? 0 : Math.max(0, currentInventoryValue - totalCost);
           // Recalculate availableStock = stockAkhir - bookedStock (min 0)
@@ -202,13 +254,7 @@ export const mrController = {
           const newAvailable = Math.max(0, newStockAkhir - newBookedStock);
           
           stockBalance = await tx.stockBalance.update({
-            where: {
-              productId_warehouseId_period: {
-                productId: item.productId,
-                warehouseId: mr.warehouseId,
-                period: period
-              }
-            },
+            where: { id: stockBalance.id },
             data: {
               stockOut: { increment: baseQtyDeduction },
               stockAkhir: { set: newStockAkhir },
@@ -976,6 +1022,217 @@ export const mrController = {
         success: false,
         error: error.message
       });
+    }
+  },
+
+  // ============== HELPER: Issue Single MR within a transaction ==============
+  _issueSingleMR: async (tx, mr, issuedById) => {
+    const mrDate = mr.createdAt || new Date();
+    const mrJakarta = new Date(mrDate.getTime() + (7 * 60 * 60 * 1000));
+    const period = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth(), 1));
+    const nextPeriod = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth() + 1, 1));
+
+    for (const item of mr.items) {
+      let requestedQty = Number(item.qtyRequested);
+      let conversionFromRequestedToBase = 1;
+      let remainingToTake = requestedQty * conversionFromRequestedToBase;
+      let totalCost = 0;
+
+      const productName = item.product?.name || 'Produk Tidak Diketahui';
+      const productCode = item.product?.code || '';
+      const productLabel = `${productName}${productCode}`;
+
+      // Cari StockBalance (range sebulan)
+      let stockBalance = await tx.stockBalance.findFirst({
+        where: {
+          productId: item.productId,
+          warehouseId: mr.warehouseId,
+          period: { gte: period, lt: nextPeriod }
+        },
+        orderBy: { period: 'desc' }
+      });
+
+      if (!stockBalance || Number(stockBalance.bookedStock) <= 0) {
+        const withBooking = await tx.stockBalance.findFirst({
+          where: {
+            productId: item.productId,
+            warehouseId: mr.warehouseId,
+            bookedStock: { gt: 0 }
+          },
+          orderBy: { period: 'desc' }
+        });
+        if (withBooking) stockBalance = withBooking;
+      }
+
+      if (!stockBalance) {
+        stockBalance = await tx.stockBalance.findFirst({
+          where: { productId: item.productId, warehouseId: mr.warehouseId },
+          orderBy: { period: 'desc' }
+        });
+      }
+
+      if (!stockBalance) {
+        const wh = await tx.warehouse.findUnique({ where: { id: mr.warehouseId }, select: { name: true } });
+        throw new Error(`Stok untuk "${productLabel}" tidak ditemukan di ${wh?.name}`);
+      }
+
+      // 1. Cari FIFO batches
+      const batches = await tx.stockDetail.findMany({
+        where: {
+          productId: item.productId,
+          warehouseId: mr.warehouseId,
+          residualQty: { gt: 0 },
+          isFullyConsumed: false,
+          type: { in: ['IN', 'ADJUSTMENT_IN'] }
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      const totalBatchResidual = batches.reduce((sum, b) => sum + Number(b.residualQty), 0);
+      let bookedToTake = Math.min(Number(stockBalance.bookedStock), remainingToTake);
+      let unbookedToTake = remainingToTake - bookedToTake;
+      const availableFromBatches = Math.min(totalBatchResidual, unbookedToTake);
+
+      if (availableFromBatches < unbookedToTake && Number(stockBalance.availableStock) < unbookedToTake) {
+        throw new Error(
+          `Stok tidak mencukupi untuk "${productLabel}". ` +
+          `Butuh: ${unbookedToTake}, Stok: ${stockBalance.availableStock}, Batch: ${totalBatchResidual}`
+        );
+      }
+
+      const baseQtyDeduction = remainingToTake;
+      for (const batch of batches) {
+        if (remainingToTake <= 0) break;
+        const takeAmount = Math.min(Number(batch.residualQty), remainingToTake);
+        await tx.stockDetail.update({
+          where: { id: batch.id },
+          data: {
+            residualQty: { decrement: takeAmount },
+            isFullyConsumed: (Number(batch.residualQty) - takeAmount) === 0
+          }
+        });
+        await tx.stockAllocation.create({
+          data: { mrItemId: item.id, stockDetailId: batch.id, qtyTaken: takeAmount }
+        });
+        totalCost += takeAmount * Number(batch.pricePerUnit);
+        remainingToTake -= takeAmount;
+      }
+
+      if (remainingToTake > 0) {
+        throw new Error(`Stok fisik untuk "${productLabel}" tidak mencukupi.`);
+      }
+
+      const qtyIssued = Number(item.qtyRequested);
+      const currentStockAkhir = Number(stockBalance.stockAkhir) || 0;
+      const newStockAkhir = Math.max(0, currentStockAkhir - baseQtyDeduction);
+      const currentInventoryValue = Number(stockBalance.inventoryValue) || 0;
+      const newInventoryValue = newStockAkhir <= 0 ? 0 : Math.max(0, currentInventoryValue - totalCost);
+      const newBookedStock = Math.max(0, Number(stockBalance.bookedStock) - bookedToTake);
+      const newAvailable = Math.max(0, newStockAkhir - newBookedStock);
+
+      await tx.stockBalance.update({
+        where: { id: stockBalance.id },
+        data: {
+          stockOut: { increment: baseQtyDeduction },
+          stockAkhir: { set: newStockAkhir },
+          bookedStock: { set: newBookedStock },
+          availableStock: { set: newAvailable },
+          inventoryValue: { set: newInventoryValue }
+        }
+      });
+
+      const avgPrice = totalCost / qtyIssued;
+      const stockAwalSnapshot = Number(stockBalance.stockAkhir) + qtyIssued;
+      const stockAkhirSnapshot = Number(stockBalance.stockAkhir);
+      await tx.stockDetail.create({
+        data: {
+          productId: item.productId,
+          warehouseId: mr.warehouseId,
+          type: 'OUT',
+          source: (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) ? 'TRANSFER' : 'PROJECT',
+          baseQty: baseQtyDeduction,
+          transQty: qtyIssued,
+          transUnit: item.unit,
+          stockAwalSnapshot: stockAwalSnapshot,
+          stockAkhirSnapshot: stockAkhirSnapshot,
+          pricePerUnit: avgPrice,
+          residualQty: 0,
+          isFullyConsumed: true,
+          referenceNo: mr.mrNumber,
+          notes: (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) ? mr.notes : null,
+          materialRequisitionItemId: item.id
+        }
+      });
+
+      await tx.materialRequisitionItem.update({
+        where: { id: item.id },
+        data: {
+          qtyIssued: qtyIssued,
+          priceUnit: avgPrice
+        }
+      });
+    }
+
+    await tx.materialRequisition.update({
+      where: { id: mr.id },
+      data: {
+        status: 'ISSUED',
+        issuedById: issuedById,
+        issuedDate: new Date()
+      }
+    });
+  },
+
+  // ============== Bulk Issue All PENDING MRs ==============
+  bulkIssue: async (req, res) => {
+    const { issuedById } = req.body;
+    if (!issuedById) {
+      return res.status(400).json({ success: false, error: 'issuedById wajib diisi' });
+    }
+
+    try {
+      const pendingMRs = await prisma.materialRequisition.findMany({
+        where: { status: 'PENDING' },
+        include: { items: { include: { product: true } } },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      const succeeded = [];
+      const failed = [];
+
+      for (const mr of pendingMRs) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            await mrController._issueSingleMR(tx, mr, issuedById);
+          });
+          succeeded.push({ mrNumber: mr.mrNumber, id: mr.id, qrToken: mr.qrToken });
+        } catch (err) {
+          // Ambil detail item yang gagal
+          const items = mr.items.map(it => ({
+            productCode: it.product?.code || '',
+            productName: it.product?.name || '',
+            qtyRequested: Number(it.qtyRequested)
+          }));
+          failed.push({
+            mrNumber: mr.mrNumber,
+            id: mr.id,
+            items,
+            error: err.message
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          total: pendingMRs.length,
+          succeeded,
+          failed
+        }
+      });
+    } catch (error) {
+      console.error('Bulk issue error:', error);
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 };

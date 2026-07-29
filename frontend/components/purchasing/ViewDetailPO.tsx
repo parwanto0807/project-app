@@ -1323,7 +1323,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     {['APPROVED', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status) &&
                                         purchaseOrder.lines?.some((l) => (l.quantity || 0) > (l.receivedQuantity || 0)) && (
                                             <Button
-                                                className="w-full justify-start h-11 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-indigo-800 dark:bg-gray-800 dark:hover:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 mb-0 transition-all group shadow-sm mb-3"
+                                                className="w-full justify-start h-11 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-indigo-800 dark:bg-gray-800 dark:hover:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 transition-all group shadow-sm mb-3"
                                                 onClick={handleCreateGR}
                                                 disabled={isCreatingGR}
                                             >

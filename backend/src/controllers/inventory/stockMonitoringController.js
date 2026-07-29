@@ -205,6 +205,21 @@ export const stockMonitoringController = {
         })()
       ]);
 
+      // Dedup balances by (productId, warehouseId, YYYY-MM in Jakarta) as safety measure
+      const seenKeys = new Set();
+      const dedupedBalances = [];
+      for (const b of balances) {
+        const d = new Date(b.period);
+        const jakarta = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+        const key = `${b.productId}|${b.warehouseId}|${jakarta.getUTCFullYear()}-${String(jakarta.getUTCMonth() + 1).padStart(2, '0')}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          dedupedBalances.push(b);
+        }
+      }
+      // Replace balances with deduped version
+      balances.splice(0, balances.length, ...dedupedBalances);
+
       // 4. Helper Formatting
       const toNumber = (val) => {
         if (!val) return 0;

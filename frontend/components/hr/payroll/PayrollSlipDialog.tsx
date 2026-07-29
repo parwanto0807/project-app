@@ -105,7 +105,7 @@ const PayrollSlipDialog: React.FC<PayrollSlipDialogProps> = ({ gaji, open, onClo
                   {format(new Date(gaji.periodeSelesai), "dd MMM yyyy", { locale: id })}
                 </p>
                 <p className="text-blue-100 text-xs mt-1 font-semibold">
-                  Hari Kerja: {countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari
+                  Hari Kerja: {gaji.hariKerja ? gaji.hariKerja : countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari
                 </p>
               </div>
             </div>
@@ -114,7 +114,7 @@ const PayrollSlipDialog: React.FC<PayrollSlipDialogProps> = ({ gaji, open, onClo
           {/* Pendapatan */}
           <div className="bg-gray-50 rounded-2xl p-4 space-y-1">
             <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Pendapatan</p>
-            <Row label={`Gaji Pokok (${countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari)`} value={fmt(gaji.gajiPokok)} />
+            <Row label={`Gaji Pokok (${gaji.hariKerja ? gaji.hariKerja : countWorkingDays(new Date(gaji.periodeMulai), new Date(gaji.periodeSelesai))} hari)`} value={fmt(gaji.gajiPokok)} />
             {gaji.tunjanganJabatan > 0 && <Row label="Tunjangan Jabatan" value={fmt(gaji.tunjanganJabatan)} />}
             {gaji.tunjanganKeluarga > 0 && <Row label="Tunjangan Keluarga" value={fmt(gaji.tunjanganKeluarga)} />}
             {gaji.tunjanganMakan > 0 && <Row label="Tunjangan Makan" value={fmt(gaji.tunjanganMakan)} />}

@@ -16,7 +16,8 @@ import {
     ChevronDown,
     Info,
     Check,
-    Trash2
+    Trash2,
+    Truck
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/http";
@@ -43,6 +44,7 @@ import toast, { Toaster } from 'react-hot-toast';
 // Import type dari @/types/pr
 import { PurchaseRequest, PurchaseRequestDetail } from "@/types/pr";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { SupplyChainDialog } from "./supplyChainDialog";
 
 enum SourceProductType {
     PEMBELIAN_BARANG = "PEMBELIAN_BARANG",
@@ -1726,7 +1728,16 @@ export function PurchaseRequestSheet({
 
                     {/* Action Buttons - Sticky di bagian bawah untuk mobile */}
                     {selectedPurchaseRequest && (
-                        <div className="border-t bg-white py-4 dark:py-4 sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 mb-4 sm:mb-4 rounded-lg mt-auto flex-shrink-0">
+                        <div className="border-t bg-white py-4 dark:py-4 sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 mb-4 sm:mb-4 rounded-lg mt-auto flex-shrink-0 space-y-3">
+                            <SupplyChainDialog purchaseRequest={selectedPurchaseRequest}>
+                                <Button
+                                    variant="outline"
+                                    className="w-full flex items-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950"
+                                >
+                                    <Truck className="h-4 w-4" />
+                                    Cek Status Pengadaan &amp; Stok
+                                </Button>
+                            </SupplyChainDialog>
                             <StatusActions
                                 currentStatus={selectedPurchaseRequest.status}
                                 onStatusUpdate={handleStatusUpdateFromActions}

@@ -231,6 +231,8 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         });
     };
 
+    const searchParamsStr = searchParams.toString()
+
     React.useEffect(() => {
         const p = Number(searchParams.get("page")) || 1
         const ps = Number(searchParams.get("pageSize")) || 10
@@ -241,7 +243,19 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         setItemsPerPage(ps)
         setStatusFilter(st)
         setSearch(q)
-    }, [searchParams])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParamsStr])
+
+    // Safety effect: ensure document body is never left with pointer-events: none after closing dialogs
+    React.useEffect(() => {
+        if (!showConfirmDialog && !showQRScanner && !showWarningDialog && !showDetailSheet) {
+            const timer = setTimeout(() => {
+                document.body.style.pointerEvents = "";
+                document.body.style.overflow = "";
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [showConfirmDialog, showQRScanner, showWarningDialog, showDetailSheet]);
 
     const handleStatusChange = (value: string) => {
         setStatusFilter(value)
@@ -326,6 +340,16 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
             validPage * itemsPerPage
         )
     }, [filteredData, validPage, itemsPerPage])
+
+    // Auto-correct page parameter in state & URL if current page exceeds total pages (e.g. when last item on page 2 is issued)
+    React.useEffect(() => {
+        if (totalPages > 0 && currentPage > totalPages) {
+            setCurrentPage(1);
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("page", "1");
+            router.replace(`?${params.toString()}`);
+        }
+    }, [totalPages, currentPage, searchParams, router]);
 
     const getStatusConfig = (status: string) => {
         const configs = {
@@ -1404,49 +1428,48 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                 }, 0) || 0}
                 isLoading={isProcessingQR}
                 onConfirm={async () => {
-                    if (!pendingIssueData) return;
+                    const data = pendingIssueData
+                    if (!data) return;
+
+                    setIsProcessingQR(true);
 
                     try {
-                        setIsProcessingQR(true);
-
-                        // Call backend API to issue MR
                         const result = await issueMR({
-                            qrToken: pendingIssueData.scannedToken,
-                            issuedById: "temp-user-id" // TODO: Get from auth session
+                            qrToken: data.scannedToken,
+                            issuedById: "temp-user-id"
                         });
 
+                        setIsProcessingQR(false)
+                        setShowConfirmDialog(false)
+                        setPendingIssueData(null)
+
                         if (result.success) {
-                            // Close dialog first
-                            setShowConfirmDialog(false);
-
-                            // Auto-post journal for WIP warehouse
-                            if (pendingIssueData.mr.Warehouse?.isWip) {
-                                try {
-                                    const postResult = await postMRJournal(pendingIssueData.mr.id);
-                                    if (!postResult.success) {
-                                        console.error("❌ Auto-posting failed:", postResult.error);
-                                        toast.error("Material berhasil dikeluarkan, namun gagal posting jurnal", {
-                                            description: postResult.error
-                                        });
-                                    }
-                                } catch (postError: any) {
-                                    console.error("❌ Auto-posting error:", postError);
-                                }
-                            }
-
                             toast.success("Material berhasil dikeluarkan!", {
-                                description: pendingIssueData.mr.Warehouse?.isWip
+                                description: data.mr.Warehouse?.isWip
                                     ? "Stok telah diperbarui, jurnal akuntansi telah dibuat, dan MR telah diproses."
                                     : "Stok telah diperbarui dan MR telah diproses."
                             });
 
-                            // Clear data and refresh
-                            setPendingIssueData(null);
-                            onRefresh();
+                            // Defer side effects agar UI tidak terblokir
+                            setTimeout(async () => {
+                                if (data.mr.Warehouse?.isWip) {
+                                    try {
+                                        const postResult = await postMRJournal(data.mr.id);
+                                        if (!postResult.success) {
+                                            toast.error("Material berhasil dikeluarkan, namun gagal posting jurnal", {
+                                                description: postResult.error
+                                            });
+                                        }
+                                    } catch (postError: any) {
+                                        console.error("❌ Auto-posting error:", postError);
+                                    }
+                                }
+                                onRefresh();
+                            }, 100);
                         } else {
                             let errorDesc = result.error || "Terjadi kesalahan saat memproses";
-                            if (pendingIssueData?.mr?.items) {
-                                pendingIssueData.mr.items.forEach(item => {
+                            if (data.mr?.items) {
+                                data.mr.items.forEach(item => {
                                     if (item.productId && errorDesc.includes(item.productId)) {
                                         const name = item.product?.name || "Produk";
                                         const code = item.product?.code ? ` (${item.product.code})` : "";
@@ -1455,26 +1478,25 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                 });
                             }
                             toast.error("Gagal mengeluarkan material", {
-                                description: errorDesc
-                            });
-                        }
-                    } catch (error: any) {
-                        console.error("Issue MR Error:", error);
-                        let errorDesc = error.message || "Koneksi ke server terputus";
-                        if (pendingIssueData?.mr?.items) {
-                            pendingIssueData.mr.items.forEach(item => {
-                                if (item.productId && errorDesc.includes(item.productId)) {
-                                    const name = item.product?.name || "Produk";
-                                    const code = item.product?.code ? ` (${item.product.code})` : "";
-                                    errorDesc = errorDesc.split(item.productId).join(`"${name}${code}"`);
+                                description: errorDesc,
+                                action: {
+                                    label: "Copy",
+                                    onClick: () => navigator.clipboard.writeText(errorDesc)
                                 }
                             });
                         }
+                    } catch (error: any) {
+                        setIsProcessingQR(false)
+                        setShowConfirmDialog(false)
+                        setPendingIssueData(null)
+                        const errorDesc = error.message || "Koneksi ke server terputus";
                         toast.error("Terjadi kesalahan", {
-                            description: errorDesc
+                            description: errorDesc,
+                            action: {
+                                label: "Copy",
+                                onClick: () => navigator.clipboard.writeText(errorDesc)
+                            }
                         });
-                    } finally {
-                        setIsProcessingQR(false);
                     }
                 }}
             />

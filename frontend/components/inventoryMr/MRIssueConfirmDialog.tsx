@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect } from "react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -32,6 +33,16 @@ export function MRIssueConfirmDialog({
     totalAmount = 0,
     isLoading = false,
 }: MRIssueConfirmDialogProps) {
+    useEffect(() => {
+        if (!open) {
+            const timer = setTimeout(() => {
+                document.body.style.pointerEvents = "";
+                document.body.style.overflow = "";
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [open]);
+
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent className="max-w-md">

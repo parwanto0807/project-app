@@ -1,4 +1,5 @@
 import { prisma } from '../../config/db.js';
+import { getPeriodDate } from '../../utils/dateUtils.js';
 
 /**
  * @desc Create new stock transfer
@@ -870,7 +871,7 @@ export const updateTransferStatus = async (req, res) => {
               data: {
                 productId: item.productId,
                 warehouseId: transfer.toWarehouseId,
-                period: new Date(currentPeriod + '-01'),
+                period: getPeriodDate(),
                 stockAwal: 0,
                 stockIn: item.quantity,
                 stockOut: 0,
@@ -1292,18 +1293,9 @@ export const createDirectTransfer = async (req, res) => {
       });
     }
 
-    // Calculate period date (WIB-anchored UTC midnight)
-    const now = new Date();
-    const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-    const periodDate = new Date(Date.UTC(
-      jakartaNow.getUTCFullYear(),
-      jakartaNow.getUTCMonth(),
-      1
-    ));
-
     // Generate transfer number (Format: DT-YYYYMM-XXXX)
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
     const prefix = `DT-${year}${month}`;
 
     const lastTransfer = await prisma.stockTransfer.findFirst({
@@ -1451,7 +1443,7 @@ export const createDirectTransfer = async (req, res) => {
             data: {
               productId: item.productId,
               warehouseId: toWarehouseId,
-              period: periodDate,
+              period: getPeriodDate(),
               stockAwal: 0,
               stockIn: 0,
               stockOut: 0,

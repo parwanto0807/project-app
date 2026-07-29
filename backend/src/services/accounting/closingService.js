@@ -1,5 +1,6 @@
 import { prisma } from '../../config/db.js';
 import financialSummaryService from './financialSummaryService.js';
+import { getPeriodDate } from '../../utils/dateUtils.js';
 
 class ClosingService {
     /**
@@ -619,7 +620,7 @@ class ClosingService {
                             data: {
                                 productId: sb.productId,
                                 warehouseId: sb.warehouseId,
-                                period: nextPeriodStart,
+                                period: getPeriodDate(nextPeriod?.startDate),
                                 stockAwal: nStockAwal,
                                 stockIn: 0,
                                 stockOut: 0,

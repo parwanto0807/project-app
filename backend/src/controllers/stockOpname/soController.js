@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
-import { startOfMonth } from 'date-fns';
+
 import { prisma } from "../../config/db.js";
+import { getPeriodDate } from "../../utils/dateUtils.js";
 
 export const stockOpnameController = {
   // --- CREATE ---
@@ -250,28 +251,30 @@ export const stockOpnameController = {
           throw new Error("Data opname tidak ditemukan atau status bukan DRAFT/COMPLETED");
         }
 
+        const rawDate = opname.tanggalOpname ? new Date(opname.tanggalOpname) : new Date();
+        const monthStart = new Date(Date.UTC(rawDate.getUTCFullYear(), rawDate.getUTCMonth(), 1));
+        const monthEnd = new Date(Date.UTC(rawDate.getUTCFullYear(), rawDate.getUTCMonth() + 1, 1));
+
         // 2. Loop setiap item untuk adjustment
         for (const item of opname.items) {
           const selisih = Number(item.selisih);
           const hargaSatuan = Number(item.hargaSatuan || 0);
-          
+
+          const balance = await tx.stockBalance.findFirst({
+            where: {
+              productId: item.productId,
+              warehouseId: opname.warehouseId,
+              period: { gte: monthStart, lt: monthEnd }
+            },
+            orderBy: { period: "desc" }
+          });
+
+          const stockAwalBeforeAdj = balance ? Number(balance.stockAkhir) : 0;
+          const stokFisik = Number(item.stokFisik);
+
           if (selisih !== 0) {
             const isAddition = selisih > 0;
             const absSelisih = Math.abs(selisih);
-
-            const currentPeriod = opname.tanggalOpname ? new Date(opname.tanggalOpname) : new Date();
-            const startOfPeriod = startOfMonth(currentPeriod);
-
-            // Cari balance untuk periode, produk, dan gudang yang sesuai
-            const balance = await tx.stockBalance.findFirst({
-              where: {
-                productId: item.productId,
-                period: startOfPeriod,
-                warehouseId: opname.warehouseId
-              }
-            });
-
-            const stockAwalBeforeAdj = balance ? Number(balance.stockAkhir) : 0;
             const stockAkhirAfterAdj = stockAwalBeforeAdj + selisih;
 
             // A. Buat Record StockDetail (History Transaksi untuk Audit Trail)
@@ -287,20 +290,17 @@ export const stockOpnameController = {
                 referenceNo: opname.nomorOpname,
                 notes: `Adjustment from Stock Opname: ${opname.nomorOpname}`,
                 pricePerUnit: hargaSatuan,
-                residualQty: isAddition ? absSelisih : 0, // Set residualQty for FIFO tracking
-                isFullyConsumed: !isAddition, // Only IN transactions have residual stock
+                residualQty: isAddition ? absSelisih : 0,
+                isFullyConsumed: !isAddition,
                 stockAwalSnapshot: stockAwalBeforeAdj,
                 stockAkhirSnapshot: stockAkhirAfterAdj,
-                createdAt: currentPeriod
+                createdAt: rawDate
               }
             });
 
             // B. Update/Create StockBalance dengan kolom JustIn/JustOut
             if (balance) {
-              // Revaluasi: Total Stok Baru * Harga Satuan saat ini
               const revaluedInventory = stockAkhirAfterAdj * hargaSatuan;
-
-              // Recalculate availableStock = stockAkhir - bookedStock (min 0)
               const currentBooked = parseFloat(balance.bookedStock) || 0;
               const newAvailable = Math.max(0, stockAkhirAfterAdj - currentBooked);
 
@@ -310,30 +310,40 @@ export const stockOpnameController = {
                   stockAkhir: { set: stockAkhirAfterAdj },
                   availableStock: { set: newAvailable },
                   inventoryValue: revaluedInventory,
-                  
-                  // Mencatat selisih ke kolom adjustment agar mudah ditelusuri
                   justIn: isAddition ? { increment: absSelisih } : undefined,
                   justOut: !isAddition ? { increment: absSelisih } : undefined,
                 }
               });
             } else {
-              // Jika record balance belum ada di periode ini
               await tx.stockBalance.create({
                 data: {
                   productId: item.productId,
                   warehouseId: opname.warehouseId,
-                  period: startOfPeriod,
+                  period: getPeriodDate(opname.tanggalOpname),
                   stockAwal: 0,
-                  stockAkhir: Number(item.stokFisik),
-                  availableStock: Number(item.stokFisik),
-                  inventoryValue: Number(item.stokFisik) * hargaSatuan,
-                  
-                  // Inisialisasi kolom adjustment
+                  stockAkhir: stokFisik,
+                  availableStock: stokFisik,
+                  inventoryValue: stokFisik * hargaSatuan,
                   justIn: isAddition ? absSelisih : 0,
                   justOut: !isAddition ? absSelisih : 0,
                 }
               });
             }
+          } else if (!balance) {
+            // selisih 0 & belum ada StockBalance — catat stok fisik
+            await tx.stockBalance.create({
+              data: {
+                productId: item.productId,
+                warehouseId: opname.warehouseId,
+                period: getPeriodDate(opname.tanggalOpname),
+                stockAwal: 0,
+                stockAkhir: stokFisik,
+                availableStock: stokFisik,
+                inventoryValue: stokFisik * hargaSatuan,
+                justIn: 0,
+                justOut: 0,
+              }
+            });
           }
         }
 
@@ -530,6 +540,94 @@ export const stockOpnameController = {
       return res.status(200).json({ success: true, data: result, message: "Status updated to DRAFT" });
     } catch (error) {
         console.error("Unlock Error:", error);
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  },
+
+  // --- QUICK ADJUST (Direct stock-in without opname document) ---
+  quickAdjust: async (req, res) => {
+    try {
+      const { productId, warehouseId, qty, hargaSatuan, referenceNo, notes } = req.body;
+
+      if (!productId || !warehouseId || !qty || qty <= 0) {
+        return res.status(400).json({ success: false, message: "productId, warehouseId, dan qty (>0) harus diisi" });
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const now = new Date();
+        const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+
+        const balance = await tx.stockBalance.findFirst({
+          where: {
+            productId,
+            warehouseId,
+            period: { gte: monthStart, lt: monthEnd }
+          },
+          orderBy: { period: "desc" }
+        });
+
+        const stockAwalBeforeAdj = balance ? Number(balance.stockAkhir) : 0;
+        const stockAkhirAfterAdj = stockAwalBeforeAdj + Number(qty);
+        const price = Number(hargaSatuan || 0);
+
+        await tx.stockDetail.create({
+          data: {
+            productId,
+            warehouseId,
+            transQty: Number(qty),
+            transUnit: 'UNIT',
+            baseQty: Number(qty),
+            type: 'ADJUSTMENT_IN',
+            source: 'OPNAME',
+            referenceNo: referenceNo || null,
+            notes: notes || 'Penyesuaian Stock Opname',
+            pricePerUnit: price,
+            residualQty: Number(qty),
+            isFullyConsumed: false,
+            stockAwalSnapshot: stockAwalBeforeAdj,
+            stockAkhirSnapshot: stockAkhirAfterAdj,
+          }
+        });
+
+        if (balance) {
+          const revaluedInventory = stockAkhirAfterAdj * price;
+          const currentBooked = parseFloat(balance.bookedStock) || 0;
+          const newAvailable = Math.max(0, stockAkhirAfterAdj - currentBooked);
+
+          return await tx.stockBalance.update({
+            where: { id: balance.id },
+            data: {
+              stockAkhir: { set: stockAkhirAfterAdj },
+              availableStock: { set: newAvailable },
+              inventoryValue: revaluedInventory,
+              justIn: { increment: Number(qty) },
+            }
+          });
+        } else {
+          return await tx.stockBalance.create({
+            data: {
+              productId,
+              warehouseId,
+              period: getPeriodDate(),
+              stockAwal: 0,
+              stockAkhir: stockAkhirAfterAdj,
+              availableStock: stockAkhirAfterAdj,
+              inventoryValue: stockAkhirAfterAdj * price,
+              justIn: Number(qty),
+              justOut: 0,
+            }
+          });
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+        message: `Stok berhasil ditambahkan ${qty} unit`
+      });
+    } catch (error) {
+      console.error("QuickAdjust Error:", error);
       return res.status(400).json({ success: false, message: error.message });
     }
   }

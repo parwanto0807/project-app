@@ -2,6 +2,7 @@ import { prisma } from '../../config/db.js';
 import { ApiResponse, ListResponse } from '../../validations/api.js';
 import { updateTrialBalance, updateGeneralLedgerSummary } from '../../services/accounting/financialSummaryService.js';
 import TransferJournalService from '../../services/inventory/transferJournalService.js';
+import { getPeriodDate } from '../../utils/dateUtils.js';
 
 /**
  * Helper: Get System Account by Key
@@ -2307,11 +2308,6 @@ export const approveGR = async (req, res) => {
     // Approve and update stock in transaction
     const result = await prisma.$transaction(async (tx) => {
       const now = new Date();
-      // Use Jakarta time (UTC+7) to get correct month period
-      // StockBalance.period is stored as UTC midnight anchored to Jakarta date
-      const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-      const currentPeriod = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
-
 
       let totalInventoryValue = 0;
 
@@ -2332,7 +2328,7 @@ export const approveGR = async (req, res) => {
             where: {
               productId: item.productId,
               warehouseId: existingGR.warehouseId,
-              period: currentPeriod
+              period: getPeriodDate()
             }
           });
 
@@ -2430,7 +2426,7 @@ export const approveGR = async (req, res) => {
           });
 
           // Update or create StockBalance
-          const previousPeriod = new Date(currentPeriod);
+          const previousPeriod = getPeriodDate();
           previousPeriod.setMonth(previousPeriod.getMonth() - 1);
 
           const previousBalance = await tx.stockBalance.findFirst({
@@ -2481,7 +2477,7 @@ export const approveGR = async (req, res) => {
               data: {
                 productId: item.productId,
                 warehouseId: existingGR.warehouseId,
-                period: currentPeriod,
+                period: getPeriodDate(),
                 stockAwal: baseStockAwal,
                 stockIn: qtyConverted,
                 stockOut: 0,

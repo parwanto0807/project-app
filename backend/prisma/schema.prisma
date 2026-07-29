@@ -295,6 +295,7 @@ model Gaji {
   potonganKasbon     Float         @default(0)
   potonganDpGaji     Float         @default(0)
   total              Float
+  hariKerja          Int?          @default(0)
   status             PayrollStatus @default(DRAFT)
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -2996,6 +2997,8 @@ model PencairanUangMakan {
   nominalUangMakanLembur Float         @default(0)
   totalPencairan         Float         @default(0)
   status                 PayrollStatus @default(DRAFT)
+  isPosted               Boolean       @default(false)
+  postedAt               DateTime?
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 

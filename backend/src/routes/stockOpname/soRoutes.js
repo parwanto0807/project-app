@@ -15,6 +15,9 @@ router.route('/')
 // Endpoint Export
 router.get('/export', stockOpnameController.exportData);
 
+// Quick Adjust (harus sebelum /:id agar tidak di-intercept)
+router.post('/quick-adjust', stockOpnameController.quickAdjust);
+
 // Endpoint Detail, Update, & Delete
 router.route('/:id')
   .get(stockOpnameController.getById)

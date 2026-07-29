@@ -197,7 +197,11 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                     });
                 }
                 toast.error("Gagal mengeluarkan material", {
-                    description: errorDesc
+                    description: errorDesc,
+                    action: {
+                        label: "Copy",
+                        onClick: () => navigator.clipboard.writeText(errorDesc)
+                    }
                 });
             }
         } catch (error: any) {
@@ -213,7 +217,11 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                 });
             }
             toast.error("Terjadi kesalahan", {
-                description: errorDesc
+                description: errorDesc,
+                action: {
+                    label: "Copy",
+                    onClick: () => navigator.clipboard.writeText(errorDesc)
+                }
             })
         } finally {
             setIsProcessing(false)

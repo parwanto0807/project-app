@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import {
     Breadcrumb,
@@ -20,23 +20,59 @@ import { usePurchaseRequest } from "@/hooks/use-pr";
 import { AdminLoading } from "@/components/admin-loading";
 import { PurchaseRequestFilters, PurchaseRequest, PaginationInfo } from "@/types/pr";
 
-export default function PurchaseRequestPageAdmin() {
-    const [filters, setFilters] = useState<PurchaseRequestFilters>({
-        status: undefined,
-        projectId: undefined,
-        dateFrom: undefined,
-        dateTo: undefined,
-        page: 1,
-        limit: 15,
-        search: "",
-    });
+const STORAGE_KEY = "prVerify_filters";
 
+function loadFilters(): PurchaseRequestFilters {
+    if (typeof window === "undefined") {
+        return { status: "SUBMITTED", page: 1, limit: 50 };
+    }
+    try {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.dateFrom) parsed.dateFrom = new Date(parsed.dateFrom);
+            if (parsed.dateTo) parsed.dateTo = new Date(parsed.dateTo);
+            return parsed;
+        }
+    } catch {}
+    return { status: "SUBMITTED", page: 1, limit: 50 };
+}
+
+function saveFilters(f: PurchaseRequestFilters) {
+    try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(f));
+    } catch {}
+}
+
+function PrVerifyPageContent() {
+    const pathname = usePathname();
     const router = useRouter();
 
-    // Role auth dummy → ganti sesuai auth system kamu
+    const [filters, setFilters] = useState<PurchaseRequestFilters>(loadFilters);
+
+    const setFiltersAndPersist = useCallback((updater: PurchaseRequestFilters | ((prev: PurchaseRequestFilters) => PurchaseRequestFilters)) => {
+        setFilters(prev => {
+            const next = typeof updater === "function" ? updater(prev) : updater;
+            saveFilters(next);
+            return next;
+        });
+    }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams();
+        if (filters.status) params.set("status", filters.status);
+        if (filters.projectId) params.set("projectId", filters.projectId);
+        if (filters.dateFrom) params.set("dateFrom", filters.dateFrom.toISOString().split("T")[0]);
+        if (filters.dateTo) params.set("dateTo", filters.dateTo.toISOString().split("T")[0]);
+        params.set("page", String(filters.page));
+        params.set("limit", String(filters.limit));
+        if (filters.search) params.set("search", filters.search);
+        const qs = params.toString();
+        window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
+    }, [filters, pathname]);
+
     const userRole = "admin";
 
-    // ✅ Panggil hook dengan filters
     const {
         purchaseRequests,
         pagination,
@@ -47,13 +83,11 @@ export default function PurchaseRequestPageAdmin() {
         updatePurchaseRequestStatus
     } = usePurchaseRequest();
 
-    // Fetch data ketika filter berubah
     useEffect(() => {
         fetchAllPurchaseRequests(filters);
     }, [filters, fetchAllPurchaseRequests]);
 
-    // ✅ Filter purchaseRequests agar tidak menampilkan DRAFT
-    const filteredRequests = purchaseRequests?.filter(pr => pr.status !== "DRAFT") || [];
+    const filteredRequests = purchaseRequests || [];
 
 
     // Redirect jika bukan admin
@@ -64,37 +98,37 @@ export default function PurchaseRequestPageAdmin() {
     }, [userRole, router]);
 
     const handlePageChange = (page: number) => {
-        setFilters(prev => ({ ...prev, page }));
+        setFiltersAndPersist(prev => ({ ...prev, page }));
     };
 
     const handleLimitChange = (limit: number) => {
-        setFilters(prev => ({ ...prev, limit, page: 1 }));
+        setFiltersAndPersist(prev => ({ ...prev, limit, page: 1 }));
     };
 
     const handleSearchChange = (search: string) => {
-        setFilters(prev => ({ ...prev, search, page: 1 }));
+        setFiltersAndPersist(prev => ({ ...prev, search, page: 1 }));
     };
 
     const handleStatusFilterChange = (status: PurchaseRequestFilters['status']) => {
-        setFilters(prev => ({ ...prev, status, page: 1 }));
+        setFiltersAndPersist(prev => ({ ...prev, status, page: 1 }));
     };
 
     const handleProjectFilterChange = (projectId: string) => {
-        setFilters(prev => ({ ...prev, projectId, page: 1 }));
+        setFiltersAndPersist(prev => ({ ...prev, projectId, page: 1 }));
     };
 
     const handleDateFilterChange = (dateFrom?: Date, dateTo?: Date) => {
-        setFilters(prev => ({ ...prev, dateFrom, dateTo, page: 1 }));
+        setFiltersAndPersist(prev => ({ ...prev, dateFrom, dateTo, page: 1 }));
     };
 
     const handleClearFilters = () => {
-        setFilters({
-            status: undefined,
+        setFiltersAndPersist({
+            status: "SUBMITTED",
             projectId: undefined,
             dateFrom: undefined,
             dateTo: undefined,
             page: 1,
-            limit: 10,
+            limit: 50,
             search: "",
         });
     };
@@ -252,8 +286,8 @@ export default function PurchaseRequestPageAdmin() {
     // Buat pagination info default
     const tablePagination: PaginationInfo = pagination
         ? {
-            page: pagination.page ?? filters.page ?? 1,   // fallback ke 1
-            limit: pagination.limit ?? filters.limit ?? 10, // fallback ke 10
+            page: pagination.page ?? filters.page ?? 1,
+            limit: pagination.limit ?? filters.limit ?? 50,
             totalCount: pagination.totalCount ?? 0,
             totalPages: pagination.totalPages ?? 1,
         }
@@ -325,4 +359,12 @@ export default function PurchaseRequestPageAdmin() {
     };
 
     return <AdminLayout {...layoutProps} />;
+}
+
+export default function PurchaseRequestPageAdmin() {
+    return (
+        <Suspense fallback={<AdminLoading message="Loading..." />}>
+            <PrVerifyPageContent />
+        </Suspense>
+    );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,19 +11,34 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Play, Download, Loader2, CheckCircle, XCircle } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { useSession } from "@/components/clientSessionProvider";
 
 import HeaderCard from "@/components/ui/header-card";
-import { getDataMr } from "@/lib/action/inventory/mrInventroyAction";
+import { getDataMr, bulkIssueMR } from "@/lib/action/inventory/mrInventroyAction";
 import TableMR from "@/components/inventoryMr/TableMr";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 export default function MaterialRequisitionPage() {
     const [allMR, setAllMR] = useState<any[]>([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isInternalLoading, setIsInternalLoading] = useState(true);
+
+    const [bulkOpen, setBulkOpen] = useState(false);
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkProgress, setBulkProgress] = useState("");
+    const [bulkResult, setBulkResult] = useState<{ succeeded: any[]; failed: any[] } | null>(null);
 
     const router = useRouter();
     const { user, isLoading: sessionLoading } = useSession();
@@ -34,7 +49,6 @@ export default function MaterialRequisitionPage() {
     useEffect(() => {
         if (sessionLoading) return;
 
-        // Proteksi Role (Opsional)
         if (user?.role !== "admin" && user?.role !== "staff") {
             router.push("/unauthorized");
             return;
@@ -43,7 +57,6 @@ export default function MaterialRequisitionPage() {
         const fetchData = async () => {
             setIsInternalLoading(true);
             try {
-                // Kita ambil data tanpa filter page dulu karena pagination dilakukan di client sesuai pola Anda
                 const res = await getDataMr({ pageSize: 9999 });
 
                 if (res.success && res.data) {
@@ -68,6 +81,57 @@ export default function MaterialRequisitionPage() {
     const handleRefresh = useCallback(() => {
         setRefreshTrigger((prev) => prev + 1);
     }, []);
+
+    /* =========================
+        BULK APPROVE
+    ========================= */
+    const handleBulkApprove = async () => {
+        if (!user?.id) {
+            toast.error("User ID tidak ditemukan");
+            return;
+        }
+
+        setBulkOpen(true);
+        setBulkLoading(true);
+        setBulkProgress("Memproses semua MR PENDING...");
+        setBulkResult(null);
+
+        try {
+            const res = await bulkIssueMR(user.id);
+            if (res.success && res.data) {
+                setBulkResult(res.data);
+                toast.success(`Bulk approve selesai: ${res.data.succeeded.length} berhasil, ${res.data.failed.length} gagal`);
+            } else {
+                toast.error(res.error || "Gagal bulk approve");
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Terjadi kesalahan");
+        } finally {
+            setBulkLoading(false);
+            setBulkProgress("");
+            handleRefresh();
+        }
+    };
+
+    const exportCSV = () => {
+        if (!bulkResult?.failed?.length) return;
+
+        const header = "MR Number,Product Code,Product Name,Qty Requested,Error Message";
+        const rows = bulkResult.failed.flatMap((f: any) =>
+            (f.items || []).map((it: any) =>
+                `"${f.mrNumber}","${it.productCode}","${it.productName}","${it.qtyRequested}","${(f.error || '').replace(/"/g, '""')}"`
+            )
+        );
+
+        const csv = [header, ...rows].join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `bulk-approve-failed-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <AdminLayout title="Material Requisition" role={user?.role || "guest"}>
@@ -107,6 +171,14 @@ export default function MaterialRequisitionPage() {
                     actionArea={false}
                 />
 
+                {/* Bulk Approve Button */}
+                <div className="flex justify-end">
+                    <Button onClick={handleBulkApprove} disabled={bulkLoading} className="gap-2">
+                        {bulkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                        Approve Semua (Bulk)
+                    </Button>
+                </div>
+
                 {/* Tabel MR */}
                 <TableMR
                     data={allMR}
@@ -114,6 +186,86 @@ export default function MaterialRequisitionPage() {
                     onRefresh={handleRefresh}
                 />
             </div>
+
+            {/* Bulk Progress / Result Dialog */}
+            <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+                <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {bulkLoading ? "Memproses..." : "Hasil Bulk Approve"}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {bulkLoading
+                                ? bulkProgress
+                                : bulkResult
+                                    ? `${bulkResult.succeeded.length} berhasil, ${bulkResult.failed.length} gagal`
+                                    : ""}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+                        {bulkLoading && (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                            </div>
+                        )}
+
+                        {!bulkLoading && bulkResult && (
+                            <>
+                                {bulkResult.succeeded.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-green-700 mb-1 flex items-center gap-1">
+                                            <CheckCircle className="h-4 w-4" /> Berhasil ({bulkResult.succeeded.length})
+                                        </h4>
+                                        <div className="max-h-32 overflow-y-auto text-xs space-y-0.5">
+                                            {bulkResult.succeeded.map((s: any) => (
+                                                <div key={s.id} className="text-green-600">✓ {s.mrNumber}</div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {bulkResult.failed.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-red-700 mb-1 flex items-center gap-1">
+                                            <XCircle className="h-4 w-4" /> Gagal ({bulkResult.failed.length})
+                                        </h4>
+                                        <div className="max-h-64 overflow-y-auto text-xs space-y-1">
+                                            {bulkResult.failed.map((f: any) => (
+                                                <div key={f.id} className="p-2 rounded bg-red-50 border border-red-200">
+                                                    <span className="font-semibold text-red-800">{f.mrNumber}</span>
+                                                    <span className="text-red-600 ml-2">{f.error}</span>
+                                                    {f.items?.length > 0 && (
+                                                        <div className="mt-1 text-red-500">
+                                                            {f.items.map((it: any, i: number) => (
+                                                                <div key={i}>
+                                                                    {it.productName} ({it.productCode}) x{it.qtyRequested}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    <DialogFooter className="gap-2">
+                        {!bulkLoading && bulkResult?.failed?.length > 0 && (
+                            <Button variant="outline" onClick={exportCSV} className="gap-2">
+                                <Download className="h-4 w-4" />
+                                Export Gagal ke CSV
+                            </Button>
+                        )}
+                        <Button variant="secondary" onClick={() => setBulkOpen(false)}>
+                            Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AdminLayout>
     );
 }

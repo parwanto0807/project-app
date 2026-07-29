@@ -63,3 +63,19 @@ export const normalizeToJakartaStartOfDay = (date) => {
 export const getJakartaNow = () => {
   return new Date(); // Standard UTC now is fine for storage as transactionDate
 };
+
+/**
+ * Returns the first day of the month at 00:00 UTC for the given date's month in Jakarta timezone.
+ * This is the STANDARD format for StockBalance.period across the entire codebase.
+ * 
+ * Example: For any date in July 2026 WIB → returns `2026-07-01T00:00:00.000Z`
+ * 
+ * @param {Date|string} [dateInput=new Date()] - Date to derive the period from
+ * @returns {Date} UTC midnight of the 1st of that month in Jakarta timezone
+ */
+export const getPeriodDate = (dateInput) => {
+  const now = dateInput ? new Date(dateInput) : new Date();
+  const jakartaMs = now.getTime() + JAKARTA_OFFSET * 60 * 60 * 1000;
+  const jakartaDate = new Date(jakartaMs);
+  return new Date(Date.UTC(jakartaDate.getUTCFullYear(), jakartaDate.getUTCMonth(), 1));
+};

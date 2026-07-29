@@ -1,6 +1,7 @@
 import { prisma } from "../../config/db.js";
 import QRCode from "qrcode";
 import { updatePRRemainingBudget } from "../../utils/prParentChildHelpers.js";
+import { getPeriodDate } from "../../utils/dateUtils.js";
 
 /**
  * Helper function to convert month number to Roman numerals
@@ -1055,9 +1056,7 @@ export const updatePOStatus = async (req, res) => {
 
       if (shouldUpdateStock) {
         // Get current period (start of month)
-        const currentPeriod = new Date();
-        currentPeriod.setDate(1);
-        currentPeriod.setHours(0, 0, 0, 0);
+        const currentPeriod = getPeriodDate();
 
         // ✅ HANDLE REVISION: If this is a revised PO (requestRevisi > 0)
         // We need to reverse the previous StockBalance updates before applying new ones
@@ -1168,7 +1167,7 @@ export const updatePOStatus = async (req, res) => {
               data: {
                 productId: line.productId,
                 warehouseId: updatedPO.warehouseId,
-                period: currentPeriod,
+                period: getPeriodDate(),
                 onPR: qtyToAdd, // Apply converted quantity
                 stockAwal: 0,
                 stockIn: 0,

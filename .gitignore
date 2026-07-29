@@ -77,7 +77,6 @@ backend/*.json
 !backend/tsconfig.json
 !backend/permissions_list.json
 !backend/coa_types.json
-!backend/service-account-key.json
 
 backend/*.js
 !backend/test*.js
@@ -134,6 +133,20 @@ backend/service-account-key.json
 # ==========================================
 
 # Frontend temp/output files
+# Debug & scratch files (root level)
+backend/debugProduct.js
+backend/find_petty.js
+backend/merge.js
+backend/query_coa.js
+backend/seed_kasbon_system_account.js
+backend/temp_search_accounts.js
+backend/verify_final.js
+backend/verify_sa.js
+
+# Backend root .txt files (debug output)
+backend/*.txt
+
+# Frontend
 frontend/*.cjs
 frontend/*.mjs
 frontend/tsc_output.txt

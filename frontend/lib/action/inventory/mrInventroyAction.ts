@@ -190,6 +190,26 @@ export async function validateMRForApproval(
 /**
  * Post MR Journal - Create journal entry for ISSUED MR (WIP warehouse only)
  */
+export async function bulkIssueMR(
+    issuedById: string
+): Promise<ApiResponse<any>> {
+    try {
+        const response = await fetch(`${API_URL}/api/mr/bulk-issue`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ issuedById })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            return { success: false, error: result.error || "Gagal bulk issue" };
+        }
+        return result;
+    } catch (error: any) {
+        console.error("Bulk Issue Error:", error);
+        return { success: false, error: "Koneksi ke server terputus" };
+    }
+}
+
 export async function postMRJournal(
     mrId: string
 ): Promise<ApiResponse<any>> {
