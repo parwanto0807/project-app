@@ -17,7 +17,7 @@ import { AdminLayout } from "@/components/admin-panel/admin-layout";
 export default async function UpdateSupplierInvoicePage({
     params,
 }: {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }) {
     const user = await getUserFromToken();
 
@@ -29,7 +29,7 @@ export default async function UpdateSupplierInvoicePage({
         redirect("/unauthorized");
     }
 
-    const { id } = params;
+    const { id } = await params;
     const response = await getSupplierInvoiceById(id);
 
     if (!response.success || !response.data) {
