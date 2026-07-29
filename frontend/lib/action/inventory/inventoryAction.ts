@@ -264,3 +264,70 @@ export async function getStockOnPO(
         return { totalOnPO: 0, onPOItems: [] };
     }
 }
+
+export interface StockOpnameExportItem {
+    productName: string;
+    productCode: string;
+    stockSistem: number;
+    satuan: string;
+}
+
+export interface StockOpnameExportGroup {
+    warehouseId: string;
+    warehouseName: string;
+    items: StockOpnameExportItem[];
+}
+
+export async function getStockOpnameForPrint(params?: {
+    warehouseId?: string;
+    period?: string;
+}): Promise<StockOpnameExportGroup[]> {
+    try {
+        const cleanParams: any = {
+            limit: 100000,
+            page: 1,
+        };
+        if (params?.warehouseId) cleanParams.warehouseId = params.warehouseId;
+        if (params?.period) cleanParams.period = params.period;
+
+        const res = await serverApi.get<ApiResponse<ListResponse<StockMonitoringItem>>>(
+            '/api/inventory/monitoring',
+            { params: cleanParams }
+        );
+
+        if (!res.data?.success || !res.data?.data?.data) return [];
+
+        const items = res.data.data.data;
+
+        const grouped = new Map<string, { warehouseName: string; items: StockOpnameExportItem[] }>();
+
+        for (const item of items) {
+            const whId = item.warehouseId;
+            const whName = item.warehouse || whId;
+
+            if (!grouped.has(whId)) {
+                grouped.set(whId, { warehouseName: whName, items: [] });
+            }
+
+            const stockSistem = Number(item.stockAkhir || 0);
+
+            grouped.get(whId)!.items.push({
+                productName: item.name,
+                productCode: item.code,
+                stockSistem,
+                satuan: item.storageUnit || '',
+            });
+        }
+
+        const groups = Array.from(grouped.entries()).map(([id, g]) => ({
+            warehouseId: id,
+            warehouseName: g.warehouseName,
+            items: g.items.sort((a, b) => a.productName.localeCompare(b.productName)),
+        }));
+
+        return groups.sort((a, b) => a.warehouseName.localeCompare(b.warehouseName));
+    } catch (error) {
+        console.error("Server Action Error [getStockOpnameForPrint]:", error);
+        return [];
+    }
+}

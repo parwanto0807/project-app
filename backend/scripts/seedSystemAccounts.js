@@ -189,6 +189,12 @@ async function main() {
       description: 'Digunakan untuk mencatat selisih lebih (overage) saat Cash Opname. Dialihkan ke Ekuitas (3-10101) untuk menjaga Laba Rugi.',
       fallbackCode: '3-10101',
       searchNames: ['Saldo Awal Ekuitas']
+    },
+    {
+      key: 'EXPENSE_MEAL_ALLOWANCE',
+      description: 'Digunakan untuk mencatat beban uang makan karyawan (tunjangan makan harian dan uang makan lembur). Akun ini di-Debit saat pencairan uang makan di-posting dari modul HR Meal Allowance.',
+      fallbackCode: '6-10101',
+      searchNames: ['Beban Uang Makan', 'Tunjangan Makan', 'Beban Gaji & Honorarium', 'Beban Gaji Karyawan']
     }
   ];
 

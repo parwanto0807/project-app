@@ -350,7 +350,7 @@ function ActionsCell({ order, onDeleteSuccess, role, userEmail }: { order: Sales
                         Delete
                     </DropdownMenuItem>
 
-                    {userEmail === "parwanto0807@gmail.com" && (
+                    {(role === "admin" || userEmail === "parwanto0807@gmail.com") && (
                         <DropdownMenuItem onClick={handleForceStatusClick}>
                             <FaToolbox className="h-3 w-3" />
                             Force Status
@@ -396,7 +396,7 @@ function ActionsCell({ order, onDeleteSuccess, role, userEmail }: { order: Sales
                         <div className="space-y-4">
                             <h3 className="text-lg font-semibold flex items-center gap-2">
                                 <FaToolbox className="h-4 w-4 text-orange-500" />
-                                Force Status (Super Admin)
+                                Force Status
                             </h3>
                             <p className="text-muted-foreground text-sm">
                                 Ganti status secara paksa untuk SO <span className="font-semibold">{order.soNumber}</span>.

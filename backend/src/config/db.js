@@ -6,6 +6,10 @@ const globalForPrisma = globalThis;
 if (!globalForPrisma.prisma) {
   globalForPrisma.prisma = new PrismaClient({
     log: ["error", "warn"],
+    transactionOptions: {
+      maxWait: 15000,
+      timeout: 30000,
+    },
   });
 }
 

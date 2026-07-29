@@ -165,25 +165,6 @@ export function usePurchaseRequest(): UsePurchaseRequestReturn {
     { id: string; data: UpdatePurchaseRequestStatusData }
   >({
     mutationFn: ({ id, data }) => updatePurchaseRequestStatusAction(id, data),
-    onSuccess: (updatedPR) => {
-      // Update all purchase requests list
-      queryClient.setQueryData<{ data: PurchaseRequest[]; pagination: PaginationInfo }>(
-        ["purchaseRequests", "all"],
-        (old = { data: [], pagination: { page: 1, limit: 10, totalCount: 0, totalPages: 1 } }) => ({
-          ...old,
-          data: old.data.map((pr) => (pr.id === updatedPR.id ? updatedPR : pr))
-        })
-      );
-
-      // Update current purchase request if it's the same one
-      queryClient.setQueryData<PurchaseRequest | null>(
-        ["purchaseRequests", "current"],
-        (old) => (old?.id === updatedPR.id ? updatedPR : old)
-      );
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ["purchaseRequests"] });
-    },
   });
 
   const deleteMutation = useMutation<void, Error, string>({

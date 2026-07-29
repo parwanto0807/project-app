@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { StockMonitoringItem } from "@/types/inventoryType";
 import { PaginationMeta } from "@/types/api";
 import TabelMonitoring from "@/components/inventory/TabelMonitoring";
-import { getInventoryMonitoring } from "@/lib/action/inventory/inventoryAction";
+import { getInventoryMonitoring, getStockOpnameForPrint } from "@/lib/action/inventory/inventoryAction";
 import { toast } from "sonner";
 
 interface DashboardClientProps {
@@ -170,6 +170,19 @@ export default function DashboardClient({
         }
     }, [filters.period, debouncedSearchTerm, filters.warehouseFilter, filters.statusFilter]);
 
+    const fetchStockOpnameData = useCallback(async () => {
+        try {
+            return await getStockOpnameForPrint({
+                warehouseId: filters.warehouseFilter === "all" ? undefined : filters.warehouseFilter,
+                period: filters.period,
+            });
+        } catch (error) {
+            console.error("Error fetching stock opname data:", error);
+            toast.error("Gagal mengambil data stock opname");
+            return [];
+        }
+    }, [filters.period, filters.warehouseFilter]);
+
     return (
         <TabelMonitoring
             data={items}
@@ -193,6 +206,7 @@ export default function DashboardClient({
             // Pagination Logic
             onPageChange={(p) => setFilters(prev => ({ ...prev, page: p }))}
             onFetchAllData={fetchAllData}
+            onFetchStockOpnameData={fetchStockOpnameData}
 
             warehouses={allWarehouses}
             lastUpdated={lastUpdated}

@@ -320,3 +320,52 @@ export async function getSpkProgressLogs(id: string) {
     throw error;
   }
 }
+
+export async function updateSpkStatus(
+  id: string,
+  data: { spkStatus?: boolean; spkStatusClose?: boolean }
+) {
+  try {
+    const res = await fetch(`${API_URL}/api/spk/updateSPKStatus/${id}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Gagal update status SPK");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("updateSpkStatus error:", error);
+    throw error;
+  }
+}
+
+// ✅ Add function to update Sales Order status to mark as READ
+export async function updateSalesOrderStatus(
+  id: string,
+  status: string
+) {
+  try {
+    const res = await fetch(`${API_URL}/api/salesOrder/update/${id}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: status }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Gagal update status SO");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("updateSalesOrderStatus error:", error);
+    throw error;
+  }
+}

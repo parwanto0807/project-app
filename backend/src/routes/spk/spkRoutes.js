@@ -12,6 +12,7 @@ import {
   updateSPKProgress,
   updateSPKProgressComment,
   getSPKProgressLogs,
+  updateSPKStatus,
 } from "../../controllers/spk/spkController.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 
@@ -28,6 +29,7 @@ router.get("/getSPKById/:id", getSPKById);
 router.put("/updateSPK/:id", updateSPK);
 router.put("/updateSPKProgress/:id", authenticateToken, updateSPKProgress);
 router.put("/updateSPKProgressComment/:id", authenticateToken, updateSPKProgressComment);
+router.put("/updateSPKStatus/:id", authenticateToken, updateSPKStatus);
 router.get("/getSPKProgressLogs/:id", getSPKProgressLogs);
 router.delete("/deleteSPK/:id", deleteSPK);
 

@@ -210,42 +210,42 @@ export default function MealAllowanceTable({ disbursements, onRefresh }: MealAll
                       Slip
                     </Button>
                     
+                    {!d.isPosted && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmPost(d)}
+                        disabled={loadingId === d.id || isPublishing === d.id}
+                        className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 text-xs font-medium"
+                        title="Posting Jurnal"
+                      >
+                        {loadingId === d.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                        ) : (
+                          <Send className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        Posting
+                      </Button>
+                    )}
                     {d.status === "DRAFT" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfirmPost(d)}
-                          disabled={loadingId === d.id || isPublishing === d.id}
-                          className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50 text-xs font-medium"
-                          title="Posting Jurnal"
-                        >
-                          {loadingId === d.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                          ) : (
-                            <Send className="w-3.5 h-3.5 mr-1" />
-                          )}
-                          Posting
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfirmDelete(d)}
-                          disabled={loadingId === d.id || isPublishing === d.id}
-                          className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium"
-                          title="Hapus"
-                        >
-                          {loadingId === d.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5 mr-1" />
-                          )}
-                          Hapus
-                        </Button>
-                      </>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmDelete(d)}
+                        disabled={loadingId === d.id || isPublishing === d.id}
+                        className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 text-xs font-medium"
+                        title="Hapus"
+                      >
+                        {loadingId === d.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        Hapus
+                      </Button>
                     )}
 
-                    {(d.status === "DRAFT" || d.status === "POSTED") && (
+                    {d.status !== "PUBLISHED" && (
                       <Button
                         variant="ghost"
                         size="sm"

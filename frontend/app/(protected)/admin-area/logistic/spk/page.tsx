@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { useRouter, useSearchParams } from "next/navigation";
-import { fetchAllSpkAdmin, deleteSpk } from "@/lib/action/master/spk/spk";
+import { fetchAllSpkAdmin, deleteSpk, updateSpkStatus } from "@/lib/action/master/spk/spk";
 import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
@@ -32,14 +32,22 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
 } from "@/components/ui/dialog";
 import {
   Printer,
   Download,
   Loader2,
-  FileText
+  FileText,
+  ToggleLeft,
+  ToggleRight,
+  Check,
+  X
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import dynamic from "next/dynamic";
 import SPKSummaryPDF from "@/components/spk/SPKSummaryPDF";
 
@@ -171,6 +179,13 @@ export default function SpkPageAdmin() {
   const [isSummaryPdfOpen, setIsSummaryPdfOpen] = useState(false);
   const [isPreparingPdf, setIsPreparingPdf] = useState(false);
   const [printData, setPrintData] = useState<SPK[]>([]);
+
+  // ✅ Tambahkan state untuk Change Status dialog
+  const [isStatusChangeOpen, setIsStatusChangeOpen] = useState(false);
+  const [selectedSpkForStatus, setSelectedSpkForStatus] = useState<SPK | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [newSpkStatus, setNewSpkStatus] = useState<boolean | undefined>(undefined);
+  const [newSpkStatusClose, setNewSpkStatusClose] = useState<boolean | undefined>(undefined);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -458,6 +473,48 @@ export default function SpkPageAdmin() {
       setIsDeleting(false);
     }
   }, [dataSpk, handleRefresh]);
+
+  // ===============================
+  //    CHANGE STATUS HANDLER
+  // ===============================
+  const handleOpenStatusChange = useCallback((spk: SPK) => {
+    setSelectedSpkForStatus(spk);
+    setNewSpkStatus(spk.spkStatus);
+    setNewSpkStatusClose(spk.spkStatusClose);
+    setIsStatusChangeOpen(true);
+  }, []);
+
+  const handleCloseStatusChange = useCallback(() => {
+    setIsStatusChangeOpen(false);
+    setSelectedSpkForStatus(null);
+    setNewSpkStatus(undefined);
+    setNewSpkStatusClose(undefined);
+  }, []);
+
+  const handleUpdateSpkStatus = useCallback(async () => {
+    if (!selectedSpkForStatus) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const result = await updateSpkStatus(selectedSpkForStatus.id, {
+        spkStatus: newSpkStatus,
+        spkStatusClose: newSpkStatusClose,
+      });
+
+      if (result.success) {
+        toast.success("Status SPK berhasil diperbarui");
+        handleCloseStatusChange();
+        handleRefresh();
+      } else {
+        toast.error(result.message || "Gagal memperbarui status SPK");
+      }
+    } catch (error) {
+      console.error("Error updating SPK status:", error);
+      toast.error("Terjadi kesalahan saat memperbarui status SPK");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }, [selectedSpkForStatus, newSpkStatus, newSpkStatusClose, handleCloseStatusChange, handleRefresh]);
 
   // ===============================
   //    SCROLL TO TOP EFFECT
@@ -770,6 +827,7 @@ export default function SpkPageAdmin() {
                   onDeleteSpk={handleDeleteSpk}
                   onRefresh={handleRefresh}
                   isDeleting={isDeleting}
+                  onChangeStatus={handleOpenStatusChange}
                 />
               </div>
             )}
@@ -857,6 +915,143 @@ export default function SpkPageAdmin() {
                     </PDFViewer>
                   </div>
                 </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Change Status Dialog */}
+            <Dialog open={isStatusChangeOpen} onOpenChange={(open) => {
+              if (!open) handleCloseStatusChange();
+            }}>
+              <DialogContent className="max-w-md border-2 border-primary/20 shadow-lg">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-bold text-center">
+                    Ubah Status SPK
+                  </DialogTitle>
+                  <div className="text-center text-sm text-muted-foreground mt-2">
+                    SPK: <span className="font-semibold">{selectedSpkForStatus?.spkNumber}</span>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-6 py-4">
+                  {/* SPK Status Administrasi Switch */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">Status Administrasi SPK</Label>
+                    <div className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                      newSpkStatus
+                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-300 dark:border-green-700'
+                        : 'bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30 border-red-300 dark:border-red-700'
+                    }`}>
+                      <div className="flex items-center space-x-3">
+                        {newSpkStatus ? (
+                          <Check className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <X className="h-5 w-5 text-red-600" />
+                        )}
+                        <div>
+                          <div className={`font-semibold text-base ${
+                            newSpkStatus ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
+                          }`}>
+                            {newSpkStatus ? "Open" : "Close"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {newSpkStatus ? "Administrasi SPK aktif / terbuka" : "Administrasi SPK sudah ditutup"}
+                          </div>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={newSpkStatus || false}
+                        onCheckedChange={setNewSpkStatus}
+                        disabled={isUpdatingStatus}
+                        className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-red-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SPK Status Lapangan Switch */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Status Lapangan</Label>
+                    <div className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                      !newSpkStatusClose
+                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-300 dark:border-green-700'
+                        : 'bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30 border-red-300 dark:border-red-700'
+                    }`}>
+                      <div className="flex items-center space-x-3">
+                        {!newSpkStatusClose ? (
+                          <Check className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <X className="h-5 w-5 text-red-600" />
+                        )}
+                        <div>
+                          <div className={`font-semibold text-base ${
+                            !newSpkStatusClose ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
+                          }`}>
+                            {newSpkStatusClose ? "Close" : "Open"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {newSpkStatusClose ? "Pekerjaan lapangan sudah selesai / ditutup" : "Pekerjaan lapangan masih berlangsung"}
+                          </div>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={!newSpkStatusClose}
+                        onCheckedChange={(val) => setNewSpkStatusClose(!val)}
+                        disabled={isUpdatingStatus}
+                        className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-red-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Info Section */}
+                  {(newSpkStatus !== selectedSpkForStatus?.spkStatus ||
+                    newSpkStatusClose !== selectedSpkForStatus?.spkStatusClose) && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                        <div className="font-medium">Perubahan yang akan dilakukan:</div>
+                        {newSpkStatus !== selectedSpkForStatus?.spkStatus && (
+                          <div>
+                            • Status Administrasi SPK: <span className="font-semibold">
+                              {selectedSpkForStatus?.spkStatus ? "Open" : "Close"} →{" "}
+                              {newSpkStatus ? "Open" : "Close"}
+                            </span>
+                          </div>
+                        )}
+                        {newSpkStatusClose !== selectedSpkForStatus?.spkStatusClose && (
+                          <div>
+                            • Status Lapangan: <span className="font-semibold">
+                              {selectedSpkForStatus?.spkStatusClose ? "Close" : "Open"} →{" "}
+                              {newSpkStatusClose ? "Close" : "Open"}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter className="gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseStatusChange}
+                    disabled={isUpdatingStatus}
+                    className="flex-1"
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    onClick={handleUpdateSpkStatus}
+                    disabled={isUpdatingStatus ||
+                      (newSpkStatus === selectedSpkForStatus?.spkStatus &&
+                       newSpkStatusClose === selectedSpkForStatus?.spkStatusClose)}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  >
+                    {isUpdatingStatus ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-2" />
+                    )}
+                    Perbarui Status
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
