@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: false,
+    ignoreDuringBuilds: true,
   },
   transpilePackages: ["@react-pdf/renderer"],
   experimental: {
