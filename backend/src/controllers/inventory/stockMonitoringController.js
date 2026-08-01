@@ -744,6 +744,157 @@ export const stockMonitoringController = {
     }
   },
 
+  getPriceReference: async (req, res) => {
+    try {
+      const { productId, warehouseId } = req.query;
+
+      if (!productId) {
+        return res.status(400).json({ success: false, message: "ProductId is required" });
+      }
+
+      const whFilter = warehouseId && warehouseId !== 'all' ? { warehouseId } : {};
+
+      const toNumber = (val) => {
+        if (!val) return 0;
+        return typeof val.toNumber === 'function' ? val.toNumber() : Number(val);
+      };
+
+      const [product, lastPrices, poLines, grItems] = await Promise.all([
+        prisma.product.findUnique({
+          where: { id: productId },
+          select: {
+            id: true, code: true, name: true, type: true,
+            purchaseUnit: true, storageUnit: true, usageUnit: true,
+            category: { select: { name: true } }
+          }
+        }),
+        prisma.stockDetail.findMany({
+          where: {
+            productId,
+            ...whFilter,
+            pricePerUnit: { gt: 0 }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: {
+            createdAt: true, type: true, source: true,
+            referenceNo: true, pricePerUnit: true, transQty: true,
+            warehouse: { select: { name: true } }
+          }
+        }),
+        prisma.purchaseOrderLine.findMany({
+          where: {
+            productId,
+            OR: [{ unitPrice: { gt: 0 } }, { unitPriceActual: { gt: 0 } }]
+          },
+          orderBy: { purchaseOrder: { orderDate: 'desc' } },
+          take: 10,
+          select: {
+            id: true, quantity: true, receivedQuantity: true,
+            unitPrice: true, unitPriceActual: true,
+            purchaseOrder: {
+              select: {
+                poNumber: true, orderDate: true, status: true,
+                supplier: { select: { name: true } }
+              }
+            }
+          }
+        }),
+        prisma.goodsReceiptItem.findMany({
+          where: {
+            productId,
+            unitPrice: { gt: 0 }
+          },
+          orderBy: { goodsReceipt: { receivedDate: 'desc' } },
+          take: 10,
+          select: {
+            id: true, qtyReceived: true, unitPrice: true,
+            goodsReceipt: {
+              select: {
+                grNumber: true, receivedDate: true,
+                PurchaseOrder: {
+                  select: { poNumber: true, supplier: { select: { name: true } } }
+                }
+              }
+            }
+          }
+        })
+      ]);
+
+      if (!product) {
+        return res.status(404).json({ success: false, message: "Product not found" });
+      }
+
+      const masterPrice = lastPrices[0]
+        ? {
+            price: toNumber(lastPrices[0].pricePerUnit),
+            date: lastPrices[0].createdAt,
+            source: lastPrices[0].source,
+            referenceNo: lastPrices[0].referenceNo,
+            warehouse: lastPrices[0].warehouse?.name || null
+          }
+        : null;
+
+      const avgLastPrice = lastPrices.length > 0
+        ? lastPrices.reduce((sum, p) => sum + toNumber(p.pricePerUnit), 0) / lastPrices.length
+        : 0;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          product: {
+            id: product.id,
+            code: product.code,
+            name: product.name,
+            type: product.type,
+            purchaseUnit: product.purchaseUnit,
+            storageUnit: product.storageUnit,
+            usageUnit: product.usageUnit,
+            category: product.category?.name || null
+          },
+          masterPrice,
+          avgLastPrice,
+          priceHistory: lastPrices.map(p => ({
+            date: p.createdAt,
+            type: p.type,
+            source: p.source,
+            referenceNo: p.referenceNo,
+            pricePerUnit: toNumber(p.pricePerUnit),
+            transQty: toNumber(p.transQty),
+            warehouse: p.warehouse?.name || null
+          })),
+          poPrices: poLines.map(line => ({
+            id: line.id,
+            poNumber: line.purchaseOrder.poNumber,
+            orderDate: line.purchaseOrder.orderDate,
+            status: line.purchaseOrder.status,
+            supplier: line.purchaseOrder.supplier?.name || null,
+            quantity: toNumber(line.quantity),
+            receivedQuantity: toNumber(line.receivedQuantity),
+            unitPrice: toNumber(line.unitPrice),
+            unitPriceActual: toNumber(line.unitPriceActual)
+          })),
+          grPrices: grItems.map(item => ({
+            id: item.id,
+            grNumber: item.goodsReceipt.grNumber,
+            receivedDate: item.goodsReceipt.receivedDate,
+            poNumber: item.goodsReceipt.PurchaseOrder?.poNumber || null,
+            supplier: item.goodsReceipt.PurchaseOrder?.supplier?.name || null,
+            qtyReceived: toNumber(item.qtyReceived),
+            unitPrice: toNumber(item.unitPrice)
+          }))
+        }
+      });
+    } catch (error) {
+      console.error("Get Price Reference Error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "SERVER_ERROR",
+        message: error.message
+      });
+    }
+  },
+
   getTopUsage: async (req, res) => {
     try {
       const { period, limit = 5, warehouseId } = req.query;
