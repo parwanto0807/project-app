@@ -96,8 +96,6 @@ interface ReportProgressTabProps {
 }
 
 // Helper untuk resize image
-// Helper untuk resize image
-// Helper untuk resize image
 async function resizeImage(
     file: File,
     maxWidth = 800,
@@ -107,6 +105,19 @@ async function resizeImage(
     return new Promise((resolve, reject) => {
         const img = document.createElement("img")
         const reader = new FileReader()
+        let settled = false
+
+        const finish = (fn: (arg: any) => void, arg: any) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            fn(arg)
+        }
+
+        // Timeout: cegah hang kalau file raksasa/format tak didukung (mis. HEIC di Chrome/Android)
+        const timeout = setTimeout(() => {
+            finish(reject, new Error("Timeout memproses gambar (file terlalu besar atau format tidak didukung)"))
+        }, 15000)
 
         reader.onload = (e) => {
             img.src = e.target?.result as string
@@ -147,19 +158,27 @@ async function resizeImage(
             // --- BAGIAN PERUBAHAN ---
             canvas.toBlob(
                 (blob) => {
-                    if (!blob) return reject(new Error("Resize gagal"))
+                    if (!blob) {
+                        finish(reject, new Error("Resize gagal"))
+                        return
+                    }
 
                     // 1. Ubah ekstensi nama file jadi .jpg
                     const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg"
 
                     // 2. Ubah mimeType jadi 'image/jpeg'
-                    resolve(new File([blob], newName, { type: "image/jpeg" }))
+                    finish(resolve, new File([blob], newName, { type: "image/jpeg" }))
                 },
                 "image/jpeg", // <--- Ganti 'image/webp' jadi ini
                 quality
             )
         }
-        reader.onerror = reject
+
+        // Gagal decode (format tak didukung, HEIC, file rusak) → reject supaya fallback ke file asli
+        img.onerror = () => finish(reject, new Error("Gambar tidak dapat dibaca (format tidak didukung browser)"))
+        reader.onerror = () => finish(reject, new Error("Gagal membaca file gambar"))
+        reader.onabort = () => finish(reject, new Error("Pembacaan file dibatalkan"))
+
         reader.readAsDataURL(file)
     })
 }
@@ -192,65 +211,80 @@ const ReportProgressTab = ({
         // Set uploading state agar UI tidak freeze jika memproses banyak foto
         setUploading(true);
 
-        // Ambil lokasi hanya sekali untuk semua foto yang diupload bersamaan
-        let lat: number | undefined;
-        let lon: number | undefined;
-        try {
-            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 0
-                });
-            });
-            lat = position.coords.latitude;
-            lon = position.coords.longitude;
-        } catch (geoErr) {
-            console.warn("Geolokasi gagal atau tidak diizinkan", geoErr);
-        }
+        // Catatan: lokasi/GPS TIDAK diminta di sini lagi.
+        // Diminta saat submit (di handleSubmit), jadi pemilihan foto instan tanpa delay.
 
         const currentCategory = formData.photoCategory;
         const processedPhotos: PhotoWithCategory[] = [];
+        const errors: string[] = [];
 
         try {
             for (const [index, file] of Array.from(files).entries()) {
-                if (!file.type.startsWith("image/")) continue;
+                const fileName = file.name || `Foto ${index + 1}`;
+
+                // Terima image/* ATAU file berekstensi gambar (type kadang kosong di Android)
+                const isImage = file.type.startsWith("image/") || /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(file.name);
+
+                if (!isImage) {
+                    errors.push(`"${fileName}" bukan file gambar, dilewati`);
+                    continue;
+                }
 
                 let processedFile = file;
 
                 // Selalu lakukan resize tanpa cek ukuran file asli
-                // Ini menjamin semua output adalah WebP, 800px, dan size kecil
+                // Ini menjamin semua output adalah JPEG 800px, dan size kecil (< 5MB backend limit)
                 try {
-                    const resized = await resizeImage(file);
-                    processedFile = resized;
+                    processedFile = await resizeImage(file);
                 } catch (err) {
                     console.error("Gagal resize, menggunakan file asli:", err);
-                    // Fallback ke file asli jika resize gagal (jarang terjadi)
+                    // Fallback ke file asli, tapi beri tahu user karena bisa gagal saat upload (batas 5MB)
+                    errors.push(`"${fileName}" tidak bisa dikompres (terlalu besar / format tidak didukung). Foto tetap dipakai, tapi bisa gagal terkirim bila ukurannya > 5MB`);
                 }
 
-                // Penamaan file (dilakukan setelah resize agar ekstensi .webp konsisten)
-                const extension = processedFile.name.split('.').pop() || 'jpg';
-                const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, ""); // Pakai nama asli file input
-                const newFileName = `${currentCategory}-${nameWithoutExtension || `Foto${formData.photos.length + index + 1}`}.${extension}`;
+                try {
+                    // Penamaan file (dilakukan setelah resize agar ekstensi konsisten)
+                    const extension = processedFile.name.split('.').pop() || 'jpg';
+                    const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, ""); // Pakai nama asli file input
+                    const newFileName = `${currentCategory}-${nameWithoutExtension || `Foto${formData.photos.length + index + 1}`}.${extension}`;
 
-                // Re-create file object dengan nama baru yang benar
-                processedFile = new File([processedFile], newFileName, {
-                    type: processedFile.type,
-                    lastModified: new Date().getTime()
-                });
+                    // Re-create file object dengan nama baru yang benar
+                    processedFile = new File([processedFile], newFileName, {
+                        type: processedFile.type,
+                        lastModified: new Date().getTime()
+                    });
 
-                processedPhotos.push({
-                    file: processedFile,
-                    category: currentCategory,
-                    latitude: lat,
-                    longitude: lon
+                    processedPhotos.push({
+                        file: processedFile,
+                        category: currentCategory,
+                        latitude: undefined,
+                        longitude: undefined
+                    });
+                } catch (err) {
+                    console.error("Gagal menyiapkan file:", err);
+                    errors.push(`"${fileName}" gagal diproses`);
+                }
+            }
+
+            if (processedPhotos.length > 0) {
+                setFormData((prev) => ({
+                    ...prev,
+                    photos: [...prev.photos, ...processedPhotos],
+                }));
+                toast.success(`${processedPhotos.length} foto berhasil ditambahkan`, {
+                    description: errors.length === 0
+                        ? "Foto siap dikirim bersama laporan."
+                        : "Sebagian foto lain gagal diproses.",
                 });
             }
 
-            setFormData((prev) => ({
-                ...prev,
-                photos: [...prev.photos, ...processedPhotos],
-            }));
+            if (errors.length > 0) {
+                const shown = errors.slice(0, 3);
+                const rest = errors.length - shown.length;
+                toast.error(`${errors.length} foto bermasalah`, {
+                    description: shown.join(" • ") + (rest > 0 ? ` (+${rest} lainnya)` : ""),
+                });
+            }
         } finally {
             setUploading(false); // Kembalikan state uploading
             e.target.value = "";
