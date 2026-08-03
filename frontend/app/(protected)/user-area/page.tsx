@@ -108,17 +108,14 @@ export default function DashboardPage() {
   return (
     <UserLayout title="Dashboard User" role={displayRole}>
       {/* Page Header */}
-      <div className="space-y-3 sm:space-y-4 mb-2 sm:mb-4">
-        <div className="flex items-start sm:items-center justify-between">
+      <div className="mt-1 mb-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+            <UserCircle className="h-6 w-6 text-indigo-600 dark:text-indigo-300" />
+          </div>
           <div>
-            <p className="pl-1 text-sm sm:text-sm md:text-base text-muted-foreground my-1 flex items-center gap-1.5 sm:gap-2">
-              <UserCircle className="h-6 w-6 text-green-500 sm:h-5 sm:w-5" />
-              Selamat datang kembali,&nbsp;
-              <span className="shine-text font-bold">
-                {displayName}!
-              </span>
-              <span className="hidden xs:inline">(Role: {displayRole})</span>
-            </p>
+            <p className="text-[11px] text-muted-foreground font-medium">Selamat datang kembali,</p>
+            <p className="text-base font-bold text-foreground leading-tight">{displayName}</p>
           </div>
         </div>
       </div>

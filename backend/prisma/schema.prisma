@@ -264,6 +264,7 @@ model Karyawan {
   uangMuka             UangMuka[]
   documents            DocumentKaryawan[]
   absensi              Absensi[]
+  absensiKegiatan      AbsensiKegiatan[]
   kasbonSementara      KasbonSementara[]
   pinjaman             Pinjaman[]
   leaveRequests        LeaveRequest[]
@@ -335,6 +336,48 @@ model Absensi {
   @@index([karyawanId])
   @@index([tanggal])
   @@index([isValidated])
+}
+
+model AbsensiKegiatan {
+  id              String         @id @default(cuid())
+  karyawanId      String
+  jenis           KegiatanJenis  @default(SURVEY)
+  tanggal         DateTime
+  jamMulai        DateTime
+  jamSelesai      DateTime?
+  durasiJam       Float          @default(0)
+  fotoMulai       String?
+  fotoSelesai     String?
+  fotoKegiatan    String?
+  latMulai        Float?
+  longMulai       Float?
+  latSelesai      Float?
+  longSelesai     Float?
+  isMockedMulai   Boolean        @default(false)
+  isMockedSelesai Boolean        @default(false)
+  deviceMulai     String?
+  deviceSelesai   String?
+  keterangan      String?
+  status          KegiatanStatus @default(BERJALAN)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  karyawan        Karyawan       @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+
+  @@index([karyawanId])
+  @@index([tanggal])
+  @@index([status])
+}
+
+enum KegiatanJenis {
+  SURVEY
+  DINAS
+  RAPAT_LUAR
+  KEGIATAN_LAIN
+}
+
+enum KegiatanStatus {
+  BERJALAN
+  SELESAI
 }
 
 model KasbonSementara {

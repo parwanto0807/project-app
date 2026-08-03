@@ -46,7 +46,7 @@ function hitungMenitTerlambat(jamMasuk, jamStandarMasuk = "07:00") {
  * Core kalkulasi gaji — dipakai oleh preview, createGaji, dan bulk
  * Mengembalikan breakdown lengkap
  */
-async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config, overrides = {}) {
+async function kalkulasiGaji(karyawan, absensiList, kegiatanList, loanDetails, kasbonList, config, overrides = {}) {
   const tipePenggajian = (karyawan.tipePenggajian || "BULANAN").toUpperCase();
   const gajiPokok = karyawan.gajiPokok || 0;
   const tunjanganLama = karyawan.tunjangan || 0;
@@ -86,6 +86,18 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
 
   // ── Jam kerja detail per hari ──
   // Prioritas: jamKerjaDisetujui (admin validated) > hitung dari jamKeluarDisetujui > hitung dari jamKeluar asli
+  // Jam kegiatan (survey/dinas) diakumulasi ke hari yang sama — hitung via tanggal WIB
+  const getWibDateStr = (dateObj) => {
+    const d = new Date(new Date(dateObj).getTime() + 7 * 60 * 60 * 1000);
+    return d.toISOString().split('T')[0];
+  };
+  const kegiatanByDate = new Map();
+  for (const k of kegiatanList || []) {
+    const key = getWibDateStr(k.tanggal);
+    kegiatanByDate.set(key, (kegiatanByDate.get(key) || 0) + (k.durasiJam || 0));
+  }
+  const totalJamKegiatan = Math.round((kegiatanList || []).reduce((s, k) => s + (k.durasiJam || 0), 0) * 100) / 100;
+
   const detailHarian = absensiList.map((a) => {
     let jamKerja;
     if (a.jamKerjaDisetujui !== null && a.jamKerjaDisetujui !== undefined) {
@@ -95,6 +107,9 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
       // Belum divalidasi — hitung dari jam keluar asli
       jamKerja = hitungJamKerja(a.jamMasuk, a.jamKeluar);
     }
+    // Akumulasi jam kegiatan pada hari yang sama
+    const jamKegiatanHariIni = kegiatanByDate.get(getWibDateStr(a.tanggal)) || 0;
+    jamKerja += jamKegiatanHariIni;
     const menitTerlambat = 0; // Keterlambatan dinonaktifkan
     const threshold = config?.jamKerjaPerHari || 9;
     let jamLembur = a.jamLembur || 0;
@@ -305,6 +320,7 @@ async function kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, con
     hariTerlambat,
     totalJamKerja: Math.round(totalJamKerja * 100) / 100,
     totalJamLembur: Math.round(totalJamLembur * 100) / 100,
+    totalJamKegiatan,
     detailHarian,
     // Config yang dipakai
     configUsed: config ? {
@@ -326,9 +342,13 @@ async function fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, g
     select: { payrollConfigId: true },
   });
 
-  const [absensiList, loanDetails, kasbonList, config] = await Promise.all([
+  const [absensiList, kegiatanList, loanDetails, kasbonList, config] = await Promise.all([
     prisma.absensi.findMany({
       where: { karyawanId, tanggal: { gte: cutoffStart, lte: cutoffEnd } },
+      orderBy: { tanggal: "asc" },
+    }),
+    prisma.absensiKegiatan.findMany({
+      where: { karyawanId, status: "SELESAI", tanggal: { gte: cutoffStart, lte: cutoffEnd } },
       orderBy: { tanggal: "asc" },
     }),
     prisma.pinjamanDetail.findMany({
@@ -368,7 +388,7 @@ async function fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, g
       ? prisma.payrollConfig.findUnique({ where: { id: karyawanInfo.payrollConfigId } })
       : prisma.payrollConfig.findFirst({ where: { isActive: true } }),
   ]);
-  return { absensiList, loanDetails, kasbonList, config };
+  return { absensiList, kegiatanList, loanDetails, kasbonList, config };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -489,7 +509,7 @@ export const getPayrollPreview = async (req, res) => {
     });
     if (!karyawan) return res.status(404).json({ message: "Karyawan tidak ditemukan" });
 
-    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
+    const { absensiList, kegiatanList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
 
     const overrides = {
       pajak: parseFloat(pajak || 0),
@@ -502,7 +522,7 @@ export const getPayrollPreview = async (req, res) => {
       hitungUangMakanLembur: hitungUangMakanLembur === "false" ? false : true,
     };
 
-    const kalkulasi = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config, overrides);
+    const kalkulasi = await kalkulasiGaji(karyawan, absensiList, kegiatanList, loanDetails, kasbonList, config, overrides);
 
     const existingGaji = await prisma.gaji.findFirst({
       where: { karyawanId, periode: { gte: gajiStart, lte: gajiEnd } },
@@ -544,9 +564,9 @@ export const createGaji = async (req, res) => {
     });
     if (!karyawan) return res.status(404).json({ message: "Karyawan tidak ditemukan" });
 
-    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
+    const { absensiList, kegiatanList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawanId, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
 
-    const k = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config, {
+    const k = await kalkulasiGaji(karyawan, absensiList, kegiatanList, loanDetails, kasbonList, config, {
       pajak: parseFloat(pajak),
       potonganDpGaji: parseFloat(potonganDpGaji),
       potonganLain: parseFloat(potonganLain),
@@ -631,7 +651,7 @@ export const updateGaji = async (req, res) => {
 
     const { gajiStart, gajiEnd, cutoffStart, cutoffEnd } = getPayrollDateRanges(existing.periode);
 
-    const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(existing.karyawanId, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
+    const { absensiList, kegiatanList, loanDetails, kasbonList, config } = await fetchPayrollData(existing.karyawanId, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
 
     const overrides = {
       pajak: parseFloat(pajak || 0),
@@ -644,7 +664,7 @@ export const updateGaji = async (req, res) => {
       hitungUangMakanLembur: hitungUangMakanLembur !== false,
     };
 
-    const k = await kalkulasiGaji(existing.karyawan, absensiList, loanDetails, kasbonList, config, overrides);
+    const k = await kalkulasiGaji(existing.karyawan, absensiList, kegiatanList, loanDetails, kasbonList, config, overrides);
 
     const updated = await prisma.gaji.update({
       where: { id },
@@ -702,8 +722,8 @@ export const getBulkPayrollPreview = async (req, res) => {
     const previews = await Promise.all(
       karyawanList.map(async (karyawan) => {
         const sudah = sudahDiprosesSet.has(karyawan.id);
-        const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
-        const k = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config);
+        const { absensiList, kegiatanList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
+        const k = await kalkulasiGaji(karyawan, absensiList, kegiatanList, loanDetails, kasbonList, config);
         return { karyawan, sudahDiproses: sudah, kalkulasi: k };
       })
     );
@@ -754,8 +774,8 @@ export const processBulkPayroll = async (req, res) => {
 
     for (const karyawan of toBeProcesed) {
       try {
-        const { absensiList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
-        const k = await kalkulasiGaji(karyawan, absensiList, loanDetails, kasbonList, config);
+        const { absensiList, kegiatanList, loanDetails, kasbonList, config } = await fetchPayrollData(karyawan.id, cutoffStart, cutoffEnd, gajiStart, gajiEnd);
+        const k = await kalkulasiGaji(karyawan, absensiList, kegiatanList, loanDetails, kasbonList, config);
 
         await prisma.$transaction(async (tx) => {
           const gaji = await tx.gaji.create({

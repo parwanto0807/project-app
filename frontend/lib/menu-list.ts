@@ -60,6 +60,7 @@ import {
   Layers,
   CalendarCheck,
   HandCoins,
+  MapPinned,
 } from "lucide-react";
 
 interface Permission {
@@ -594,7 +595,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
           tooltip: "Manajemen Sumber Daya Manusia",
           href: "#",
           icon: Users,
-          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname) || isActive(`${basePath}/hr/attendance`, pathname) || isActive(`${basePath}/hr/leaves`, pathname) || isActive(`${basePath}/hr/loans`, pathname) || isActive(`${basePath}/hr/payroll`, pathname),
+          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname) || isActive(`${basePath}/hr/attendance`, pathname) || isActive(`${basePath}/hr/kegiatan`, pathname) || isActive(`${basePath}/hr/leaves`, pathname) || isActive(`${basePath}/hr/loans`, pathname) || isActive(`${basePath}/hr/payroll`, pathname),
           requiredPermission: "hr.view",
           submenus: [
             {
@@ -603,6 +604,14 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               tooltip: "Monitoring Kehadiran Karyawan",
               icon: LayoutDashboard,
               active: isActive(`${basePath}/hr/attendance`, pathname),
+              requiredPermission: "hr.view",
+            },
+            {
+              href: `${basePath}/hr/kegiatan`,
+              label: "Monitoring Kegiatan Lapangan",
+              tooltip: "Monitoring Survey & Kegiatan Lapangan",
+              icon: MapPinned,
+              active: isActive(`${basePath}/hr/kegiatan`, pathname),
               requiredPermission: "hr.view",
             },
             {
