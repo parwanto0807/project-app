@@ -86,6 +86,18 @@ const permissions = [
     module: 'inventory',
     description: 'Dapat mengelola gudang dan lokasi penyimpanan'
   },
+  {
+    code: 'assembly.view',
+    name: 'View Perakitan Barang',
+    module: 'inventory',
+    description: 'Dapat melihat daftar dan detail perakitan barang'
+  },
+  {
+    code: 'assembly.manage',
+    name: 'Manage Perakitan Barang',
+    module: 'inventory',
+    description: 'Dapat membuat, menyelesaikan, dan membatalkan perakitan barang'
+  },
 
   // ==========================================
   // FINANCE MODULE
@@ -218,6 +230,8 @@ const defaultRolePermissions = {
     // Inventory & Warehouse
     { code: 'inventory.view', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'inventory.manage', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
+    { code: 'assembly.view', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
+    { code: 'assembly.manage', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'warehouse.manage', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'mr.view', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'mr.approve', canRead: true, canCreate: true, canUpdate: true, canDelete: true },

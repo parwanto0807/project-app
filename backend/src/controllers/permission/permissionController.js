@@ -717,6 +717,70 @@ export class PermissionController {
       });
     }
   }
+
+  /**
+   * Update user role
+   */
+  async updateUserRole(req, res) {
+    try {
+      const { userId } = req.params;
+      const { role } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: 'User ID is required',
+        });
+      }
+
+      const allowedRoles = ['super', 'admin', 'pic', 'user'];
+      if (!role || !allowedRoles.includes(role)) {
+        return res.status(400).json({
+          success: false,
+          message: `Role harus salah satu dari: ${allowedRoles.join(', ')}`,
+        });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true, name: true, role: true },
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+
+      if (role === user.role) {
+        return res.json({
+          success: true,
+          message: 'Role user tidak berubah',
+          data: user,
+        });
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { role },
+        select: { id: true, email: true, name: true, role: true },
+      });
+
+      res.json({
+        success: true,
+        message: `Role untuk '${user.email}' diubah dari '${user.role}' menjadi '${role}'`,
+        data: updatedUser,
+      });
+    } catch (error) {
+      console.error('Update user role error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update user role',
+        error: error.message,
+      });
+    }
+  }
 }
 
 export default new PermissionController();

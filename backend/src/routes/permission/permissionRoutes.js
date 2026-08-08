@@ -108,6 +108,18 @@ router.put(
   permissionController.updateUserPermissions.bind(permissionController)
 );
 
+/**
+ * PATCH /api/permissions/user/:userId/role
+ * Update role untuk user tertentu
+ * Body: { role: string }
+ */
+router.patch(
+  '/user/:userId/role',
+  authenticateToken,
+  authorizeSuperAdmin,
+  permissionController.updateUserRole.bind(permissionController)
+);
+
 // ==========================================
 // PERMISSION CRUD ROUTES
 // (Dynamic routes must be LAST)

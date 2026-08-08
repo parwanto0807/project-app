@@ -64,6 +64,22 @@ export async function updateUserPermissions(
 }
 
 /**
+ * Update role untuk user tertentu
+ */
+export async function updateUserRole(userId: string, role: string) {
+    try {
+        const response = await api.patch(`${API_URL}/api/permissions/user/${userId}/role`, { role });
+        return response.data;
+    } catch (error: any) {
+        console.error('Update user role error:', error);
+        return {
+            success: false,
+            error: error.response?.data?.message || error.message || 'Failed to update user role',
+        };
+    }
+}
+
+/**
  * Get current user's permissions
  */
 export async function getMyPermissions() {

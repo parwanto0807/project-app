@@ -21,8 +21,15 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { Shield, Eye, Edit, Trash2, Plus, Save, RefreshCw, X, User, Search, Settings } from 'lucide-react';
-import { getAllUsers, getUserPermissions, updateUserPermissions } from '@/lib/action/permission/userPermission';
+import { Shield, Eye, Edit, Trash2, Plus, Save, RefreshCw, X, User, Search, Settings, Loader2 } from 'lucide-react';
+import { getAllUsers, getUserPermissions, updateUserPermissions, updateUserRole } from '@/lib/action/permission/userPermission';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import toast from 'react-hot-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SuperLayout } from "@/components/admin-panel/super-layout";
@@ -102,6 +109,10 @@ export default function PermissionsPage() {
     const [saving, setSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
+    // Role change state
+    const [selectedRole, setSelectedRole] = useState('');
+    const [savingRole, setSavingRole] = useState(false);
+
     useEffect(() => {
         fetchUsers();
     }, []);
@@ -162,13 +173,40 @@ export default function PermissionsPage() {
 
     const handleEditUser = (user: User) => {
         setSelectedUser(user);
+        setSelectedRole(user.role);
         setIsDialogOpen(true);
     };
 
     const handleCloseDialog = () => {
         setIsDialogOpen(false);
         setSelectedUser(null);
+        setSelectedRole('');
         setHasChanges(false);
+    };
+
+    const handleRoleChange = async (role: string) => {
+        if (!selectedUser) return;
+        if (role === selectedUser.role) return;
+
+        setSelectedRole(role);
+        setSavingRole(true);
+        try {
+            const result = await updateUserRole(selectedUser.id, role);
+            if (result.success) {
+                toast.success(result.message || 'Role user berhasil diubah');
+                setSelectedUser({ ...selectedUser, role });
+                fetchUsers();
+            } else {
+                toast.error(result.error || 'Gagal mengubah role user');
+                setSelectedRole(selectedUser.role);
+            }
+        } catch (error: any) {
+            console.error('Update user role error:', error);
+            toast.error(error.message || 'Gagal mengubah role user');
+            setSelectedRole(selectedUser.role);
+        } finally {
+            setSavingRole(false);
+        }
     };
 
     const handleToggle = (
@@ -398,6 +436,38 @@ export default function PermissionsPage() {
                                 Atur hak akses untuk <strong>{selectedUser?.email}</strong>
                             </DialogDescription>
                         </DialogHeader>
+
+                        <div className="flex items-center justify-between gap-4 p-4 border rounded-lg bg-muted/40">
+                            <div className="flex items-center gap-3">
+                                <div className={`h-3 w-3 rounded-full ${roleConfig[selectedUser?.role || '']?.color || 'bg-gray-500'}`} />
+                                <div>
+                                    <p className="text-sm font-medium">Role User</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Mengubah role akan menyesuaikan permission bawaan sesuai role baru
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Select
+                                    value={selectedRole}
+                                    onValueChange={handleRoleChange}
+                                    disabled={savingRole}
+                                >
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Pilih role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="super">Super Admin</SelectItem>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="pic">PIC</SelectItem>
+                                        <SelectItem value="user">User</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {savingRole && (
+                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
+                            </div>
+                        </div>
 
                         <div className="space-y-4 py-4">
                             {loadingPermissions ? (

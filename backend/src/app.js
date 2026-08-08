@@ -61,6 +61,7 @@ import loanRoutes from './routes/finance/loanRoutes.js';
 import leaveRoutes from './routes/hr/leaveRoutes.js';
 import locationRoutes from './routes/master/location/locationRoutes.js';
 import wifiSsidRoutes from './routes/master/wifi/wifiSsidRoutes.js';
+import assemblyRoutes from './routes/assembly/assemblyRoutes.js';
 
 
 
@@ -230,6 +231,7 @@ app.use('/api/loans', loanRoutes);
 app.use('/api/hr/leaves', leaveRoutes);
 app.use('/api/master/location', locationRoutes);
 app.use('/api/master/wifi-ssid', wifiSsidRoutes);
+app.use('/api/assembly', assemblyRoutes);
 app.use('/iclock', iclockRoutes);
 
 

@@ -271,6 +271,7 @@ model Karyawan {
   attendanceLocationId String?
   attendanceLocation   AttendanceLocation? @relation(fields: [attendanceLocationId], references: [id])
   pencairanUangMakan   PencairanUangMakan[]
+  assemblyOrders       AssemblyOrder[]
 }
 
 model Gaji {
@@ -569,6 +570,8 @@ model Product {
   StockOpnameItem           StockOpnameItem[]
   stockTransferItems        StockTransferItem[]
   SupplierInvoiceItem       SupplierInvoiceItem[]
+  assemblyOutputs           AssemblyOrder[]        @relation("AssemblyOutput")
+  assemblyComponents        AssemblyComponent[]    @relation("AssemblyComponentProduct")
 }
 
 model StockOpname {
@@ -619,6 +622,7 @@ model Warehouse {
   stockBalances        StockBalance[]
   stockDetails         StockDetail[]
   stockOpnames         StockOpname[]
+  assemblyOrders       AssemblyOrder[]
   transfersFrom        StockTransfer[]       @relation("FromWarehouse")
   transfersTo          StockTransfer[]       @relation("ToWarehouse")
   inventoryAccount     ChartOfAccounts?      @relation("WarehouseInventory", fields: [inventoryAccountId], references: [id])
@@ -717,6 +721,43 @@ model StockTransferItem {
   cogs       Decimal       @default(0) @db.Decimal(18, 2)
   product    Product       @relation(fields: [productId], references: [id])
   transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+}
+
+model AssemblyOrder {
+  id              String              @id @default(uuid())
+  assemblyNumber  String              @unique
+  assemblyDate    DateTime            @default(now())
+  status          AssemblyStatus      @default(DRAFT)
+  notes           String?
+  warehouseId     String
+  outputProductId String
+  outputQuantity  Decimal             @default(1) @db.Decimal(18, 4)
+  outputUnit      String
+  outputCogs      Decimal             @default(0) @db.Decimal(18, 2)
+  createdById     String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  warehouse       Warehouse           @relation(fields: [warehouseId], references: [id])
+  outputProduct   Product             @relation("AssemblyOutput", fields: [outputProductId], references: [id])
+  createdBy       Karyawan?           @relation(fields: [createdById], references: [id])
+  components      AssemblyComponent[]
+
+  @@index([assemblyNumber])
+  @@index([warehouseId])
+  @@index([status])
+}
+
+model AssemblyComponent {
+  id         String        @id @default(uuid())
+  assemblyId String
+  productId  String
+  quantity   Decimal       @db.Decimal(18, 4)
+  unit       String
+  cogs       Decimal       @default(0) @db.Decimal(18, 2)
+  assembly   AssemblyOrder @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  product    Product       @relation("AssemblyComponentProduct", fields: [productId], references: [id])
+
+  @@index([assemblyId])
 }
 
 model GoodsReceipt {
@@ -2302,6 +2343,12 @@ enum TransferStatus {
   CANCELLED
 }
 
+enum AssemblyStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
 enum TransactionType {
   IN
   OUT
@@ -2317,6 +2364,7 @@ enum SourceType {
   OPNAME
   WASTAGE
   TRANSFER
+  ASSEMBLY
 }
 
 enum QCStatus {

@@ -61,6 +61,7 @@ import {
   CalendarCheck,
   HandCoins,
   MapPinned,
+  Wrench,
 } from "lucide-react";
 
 interface Permission {
@@ -318,6 +319,14 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               icon: ArrowLeftRight,
               active: isActive(`${basePath}/inventory/internal-transfer`, pathname),
               requiredPermission: "inventory.manage",
+            },
+            {
+              href: `${basePath}/inventory/assembly`,
+              label: "Perakitan Barang",
+              tooltip: "Perakitan Barang (Assembly)",
+              icon: Wrench,
+              active: isActive(`${basePath}/inventory/assembly`, pathname),
+              requiredPermission: "assembly.manage",
             },
             {
               href: `${basePath}/inventory/transfer`,
