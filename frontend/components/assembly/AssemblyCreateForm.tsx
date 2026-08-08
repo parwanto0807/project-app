@@ -10,14 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Loader2, Wrench, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getWarehouses } from "@/lib/action/wh/whAction";
 import { getInventoryMonitoring } from "@/lib/action/inventory/inventoryAction";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { fetchAllProducts } from "@/lib/action/master/product";
-import { createAssembly, completeAssembly } from "@/lib/action/assembly/assemblyAction";
+import { createAssembly } from "@/lib/action/assembly/assemblyAction";
 import { toast } from "sonner";
 
 interface Warehouse {
@@ -69,8 +68,6 @@ export default function AssemblyCreateForm() {
 
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [createdAssembly, setCreatedAssembly] = useState<any>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -251,29 +248,10 @@ export default function AssemblyCreateForm() {
             });
 
             if (result.success) {
-                setCreatedAssembly(result.data);
-                setConfirmOpen(true);
-            } else {
-                toast.error(result.message || "Gagal membuat perakitan");
-            }
-        } catch (error: any) {
-            toast.error(error.message || "Terjadi kesalahan");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleComplete = async () => {
-        if (!createdAssembly) return;
-        setIsLoading(true);
-        try {
-            const result = await completeAssembly(createdAssembly.id);
-            if (result.success) {
-                toast.success("Perakitan selesai, stock gudang terupdate!");
+                toast.success("Perakitan berhasil disimpan sebagai DRAFT. Stock belum terpengaruh.");
                 router.push("/admin-area/inventory/assembly");
             } else {
-                toast.error(result.message || "Gagal menyelesaikan perakitan");
-                setConfirmOpen(false);
+                toast.error(result.message || "Gagal membuat perakitan");
             }
         } catch (error: any) {
             toast.error(error.message || "Terjadi kesalahan");
@@ -664,85 +642,11 @@ export default function AssemblyCreateForm() {
                     ) : (
                         <>
                             <Wrench className="h-4 w-4 mr-2" />
-                            Simpan Perakitan
+                            Simpan sebagai Draft
                         </>
                     )}
                 </Button>
             </div>
-
-            {/* Confirm Dialog: Selesaikan Perakitan */}
-            <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Konfirmasi Selesaikan Perakitan</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Pastikan data sudah benar. Stock komponen akan dikurangi dan hasil perakitan akan ditambahkan ke stock gudang.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-
-                    <div className="space-y-3 text-sm">
-                        <div className="rounded-md border p-3 space-y-2">
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-slate-500 dark:text-slate-400">Nomor Perakitan</span>
-                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                    {createdAssembly?.assemblyNumber || "-"}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-slate-500 dark:text-slate-400">Gudang</span>
-                                <span className="font-semibold text-right">
-                                    {warehouses.find(w => w.id === warehouseId)?.name || "-"}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-slate-500 dark:text-slate-400">Hasil Perakitan</span>
-                                <span className="font-semibold text-right">
-                                    {createdAssembly?.outputProduct?.code} - {createdAssembly?.outputProduct?.name} ({createdAssembly?.outputQuantity} {createdAssembly?.outputUnit})
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-md border p-3">
-                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">
-                                Komponen ({createdAssembly?.components?.length || 0})
-                            </p>
-                            <div className="space-y-1.5 max-h-48 overflow-auto">
-                                {createdAssembly?.components?.map((comp: any, idx: number) => (
-                                    <div key={idx} className="flex items-center justify-between gap-4">
-                                        <span className="text-slate-700 dark:text-slate-200 truncate">
-                                            {comp.product?.code} - {comp.product?.name}
-                                        </span>
-                                        <span className="font-semibold whitespace-nowrap">
-                                            {Number(comp.quantity)} {comp.unit}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isLoading}>Batal</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleComplete}
-                            disabled={isLoading}
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Processing...
-                                </>
-                            ) : (
-                                <>
-                                    <Wrench className="h-4 w-4 mr-2" />
-                                    Selesaikan & Input Stok
-                                </>
-                            )}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </form>
     );
 }
