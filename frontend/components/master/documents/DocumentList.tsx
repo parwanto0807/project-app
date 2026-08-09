@@ -24,6 +24,7 @@ import {
     BookOpen,
     AlertTriangle,
     Activity,
+    Copy,
 } from "lucide-react";
 import {
     Tooltip,
@@ -243,6 +244,24 @@ export default function DocumentList({ role }: { role: string }) {
                                                             </Button>
                                                         </TooltipTrigger>
                                                         <TooltipContent side="top" className="bg-gray-900 border-none text-[10px] font-bold">Lihat Detail</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                asChild
+                                                                className="h-8 w-8 rounded-lg hover:bg-indigo-100 hover:text-indigo-600 transition-all text-gray-400"
+                                                            >
+                                                                <Link href={role === "super" ? `/super-admin-area/master/documents/create?copyFrom=${doc.id}` : `/admin-area/master/documents/create?copyFrom=${doc.id}`}>
+                                                                    <Copy size={16} />
+                                                                </Link>
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="bg-gray-900 border-none text-[10px] font-bold">Salin Dokumen</TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
 

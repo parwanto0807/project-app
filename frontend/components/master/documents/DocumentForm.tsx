@@ -90,9 +90,11 @@ type FormValues = z.infer<typeof formSchema>;
 export default function DocumentForm({
     initialData,
     role,
+    isCopy = false,
 }: {
     initialData?: any;
     role: string;
+    isCopy?: boolean;
 }) {
     const router = useRouter();
     const [departments, setDepartments] = useState<any[]>([]);
@@ -102,9 +104,9 @@ export default function DocumentForm({
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            title: initialData?.title || "",
+            title: initialData?.title ? (isCopy ? `${initialData.title} (Salinan)` : initialData.title) : "",
             type: initialData?.type || "JOB_DESCRIPTION",
-            status: (initialData?.status as any) || "DRAFT",
+            status: isCopy ? "DRAFT" : ((initialData?.status as any) || "DRAFT"),
             version: initialData?.version || "1.0",
             content: initialData?.content || "",
             departments: initialData?.departments?.map((d: any) => ({
@@ -180,15 +182,16 @@ export default function DocumentForm({
     const onSubmit = async (values: FormValues) => {
         setIsSubmitting(true);
         try {
-            const url = initialData
+            const isEditing = initialData && !isCopy;
+            const url = isEditing
                 ? `${process.env.NEXT_PUBLIC_API_URL}/api/master/documents/${initialData.id}`
                 : `${process.env.NEXT_PUBLIC_API_URL}/api/master/documents`;
 
-            const method = initialData ? "put" : "post";
+            const method = isEditing ? "put" : "post";
 
             await axios[method](url, values as any, { withCredentials: true });
 
-            toast.success(initialData ? "Dokumen berhasil diperbarui" : "Dokumen berhasil dibuat");
+            toast.success(isEditing ? "Dokumen berhasil diperbarui" : "Dokumen berhasil dibuat");
             router.push(role === "super" ? "/super-admin-area/master/documents" : "/admin-area/master/documents");
         } catch (error: any) {
             console.error("Submission error:", error);
@@ -204,7 +207,7 @@ export default function DocumentForm({
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-6">
                     <div>
                         <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-                            {initialData ? "Edit Dokumen" : "Buat Dokumen Baru"}
+                            {initialData ? (isCopy ? "Salin Dokumen" : "Edit Dokumen") : "Buat Dokumen Baru"}
                         </h2>
                         <p className="text-sm text-gray-500 mt-1">
                             Kelola Job Description dan SOP perusahaan secara profesional.

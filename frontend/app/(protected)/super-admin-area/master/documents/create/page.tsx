@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useState, Suspense } from "react";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
     Breadcrumb,
@@ -15,6 +15,56 @@ import {
 import DocumentForm from "@/components/master/documents/DocumentForm";
 import { PageLoading } from "@/components/ui/loading";
 import { useSession } from "@/components/clientSessionProvider";
+import axios from "axios";
+
+function CreateDocumentFormWrapper({ role, authorized }: { role: string; authorized: boolean }) {
+    const searchParams = useSearchParams();
+    const copyFrom = searchParams.get("copyFrom");
+    const [initialData, setInitialData] = useState<any>(null);
+    const [isFetchingCopy, setIsFetchingCopy] = useState(false);
+
+    useEffect(() => {
+        if (authorized && copyFrom) {
+            const fetchDocumentToCopy = async () => {
+                setIsFetchingCopy(true);
+                try {
+                    const response = await axios.get(
+                        `${process.env.NEXT_PUBLIC_API_URL}/api/master/documents/${copyFrom}`,
+                        { withCredentials: true }
+                    );
+
+                    const doc = response.data;
+                    const transformedData = {
+                        ...doc,
+                        departments: doc.departments.map((d: any) => ({
+                            code: d.department.code,
+                            isPrimary: d.isPrimary,
+                        })),
+                        sections: doc.sections.map((s: any) => ({
+                            ...s,
+                            items: s.items.map((item: any) => ({
+                                ...item,
+                            }))
+                        }))
+                    };
+
+                    setInitialData(transformedData);
+                } catch (error) {
+                    console.error("Gagal mengambil data dokumen untuk disalin:", error);
+                } finally {
+                    setIsFetchingCopy(false);
+                }
+            };
+            fetchDocumentToCopy();
+        }
+    }, [authorized, copyFrom]);
+
+    if (isFetchingCopy) {
+        return <PageLoading />;
+    }
+
+    return <DocumentForm role={role} initialData={initialData} isCopy={!!copyFrom} />;
+}
 
 export default function CreateDocumentPageSuper() {
     const { user, isLoading } = useSession();
@@ -76,7 +126,9 @@ export default function CreateDocumentPageSuper() {
             </div>
 
             <div className="bg-card rounded-lg border shadow-sm p-6">
-                <DocumentForm role="super" />
+                <Suspense fallback={<PageLoading />}>
+                    <CreateDocumentFormWrapper role="super" authorized={authorized} />
+                </Suspense>
             </div>
         </AdminLayout>
     );
