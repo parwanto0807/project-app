@@ -811,7 +811,8 @@ export async function approveGRAction(
         } else {
             return {
                 success: false,
-                message: result.error || 'Failed to approve GR'
+                message: result.error || result.details || 'Failed to approve GR',
+                data: result.data
             };
         }
     } catch (error) {

@@ -68,6 +68,7 @@ export default function DocumentView({ id }: { id: string }) {
     if (isLoading) return <PageLoading />;
     if (!docData) return <div className="p-8 text-center">Dokumen tidak ditemukan</div>;
 
+    const isSop = docData.type === "SOP";
     const fileName = `${docData.title.replace(/\s+/g, "_")}_V${docData.version}.pdf`;
 
     return (
@@ -107,12 +108,18 @@ export default function DocumentView({ id }: { id: string }) {
             </div>
 
             <Card className="shadow-lg border-2 print:shadow-none print:border-none">
-                <CardHeader className="border-b pb-8 bg-gray-50/50 print:bg-white">
+                <CardHeader className={`border-b pb-8 bg-gray-50/50 print:bg-white ${isSop ? "sop-header" : ""}`}>
                     <div className="flex justify-between items-start mb-6">
                         <div className="space-y-1">
-                            <Badge variant="outline" className="mb-2 bg-primary/10 text-primary border-primary/20">
-                                {docData.type === "JOB_DESCRIPTION" ? "DESKRIPSI JABATAN" : "PROSEDUR OPERASI STANDAR"}
-                            </Badge>
+                            {isSop ? (
+                                <span className="inline-block mb-2 px-3 py-1 rounded-md bg-blue-600 text-white text-[10px] font-bold uppercase tracking-widest">
+                                    PROSEDUR OPERASI STANDAR
+                                </span>
+                            ) : (
+                                <Badge variant="outline" className="mb-2 bg-primary/10 text-primary border-primary/20">
+                                    DESKRIPSI JABATAN
+                                </Badge>
+                            )}
                             <h1 className="text-3xl font-bold tracking-tight text-gray-900">{docData.title}</h1>
                         </div>
                         <div className="text-right space-y-1">
@@ -179,8 +186,8 @@ export default function DocumentView({ id }: { id: string }) {
                     <div className="space-y-12">
                         {docData.sections.map((section: any, idx: number) => (
                             <div key={section.id} className="space-y-4">
-                                <h2 className="text-xl font-bold border-b-2 border-primary/10 pb-2 flex items-center gap-3">
-                                    <span className="bg-primary text-white w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold">
+                                <h2 className={`text-xl font-bold border-b-2 pb-2 flex items-center gap-3 ${isSop ? "border-blue-200" : "border-primary/10"}`}>
+                                    <span className={`w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold ${isSop ? "bg-blue-600 text-white" : "bg-primary text-white"}`}>
                                         {idx + 1}
                                     </span>
                                     {section.title}
@@ -193,7 +200,7 @@ export default function DocumentView({ id }: { id: string }) {
                                 <div className="space-y-3 pl-10">
                                     {section.items.map((item: any) => (
                                         <div key={item.id} className="flex gap-4">
-                                            <span className="font-bold text-primary shrink-0 min-w-[1.5rem]">{item.itemNumber}</span>
+                                            <span className={`font-bold shrink-0 min-w-[1.5rem] ${isSop ? "text-blue-600" : "text-primary"}`}>{item.itemNumber}</span>
                                             <p className="text-gray-800 leading-relaxed">{item.content}</p>
                                         </div>
                                     ))}

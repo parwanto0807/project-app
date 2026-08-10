@@ -55,6 +55,20 @@ export function ApproveGRDialog({
         unitLabel: isTransfer ? 'Usage Unit' : 'Storage Unit'
     };
 
+    // Deteksi item yang unit penerimaannya ≠ satuan penyimpanan tapi konversi belum diatur (guard)
+    const missingConversionItems = (gr.items || []).filter(item => {
+        if (isTransfer) return false;
+        if (Number(item.qtyPassed || 0) <= 0) return false;
+        if (item.unit === item.product?.storageUnit) return false;
+        let factor = 1;
+        if (item.unit === item.product?.usageUnit && item.product?.usageUnit !== item.product?.storageUnit) {
+            factor = 1 / (Number(item.product?.conversionToUsage) || 1);
+        } else if (item.unit === item.product?.purchaseUnit && item.product?.purchaseUnit !== item.product?.storageUnit) {
+            factor = Number(item.product?.conversionToStorage) || 1;
+        }
+        return Math.abs(factor - 1) < 0.000001;
+    });
+
     const handleSubmit = async () => {
         try {
             setIsSubmitting(true);
@@ -131,6 +145,27 @@ export function ApproveGRDialog({
                             <p>Setelah di-approve, GR tidak bisa diubah lagi dan stock balance akan otomatis terupdate.</p>
                         </div>
                     </div>
+
+                    {/* Guard: konversi satuan belum diatur */}
+                    {missingConversionItems.length > 0 && (
+                        <div className="p-4 bg-red-50 border border-red-300 rounded-lg flex gap-3">
+                            <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="text-sm text-red-800">
+                                <p className="font-semibold mb-1">Konversi Satuan Belum Diatur!</p>
+                                <p className="mb-2">Berikut item yang unit penerimaannya berbeda dengan satuan penyimpanan tapi faktor konversinya belum diisi di Master Product:</p>
+                                <ul className="list-disc pl-5 space-y-1">
+                                    {missingConversionItems.map(item => (
+                                        <li key={item.id}>
+                                            <span className="font-semibold">{item.product?.name || item.productId}</span>{' '}
+                                            — terima <span className="font-semibold">{item.qtyPassed} {item.unit}</span>
+                                            {' → '}satuan stok <span className="font-semibold">{item.product?.storageUnit}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-2 font-medium">Approve akan ditolak sampai conversionToStorage / conversionToUsage diisi di Master Product.</p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Summary */}
                     <div className="space-y-3">

@@ -2323,6 +2323,16 @@ export const approveGR = async (req, res) => {
         const qtyConverted = qtyPassed * conversion;
         
         if (qtyPassed > 0) {
+          // GUARD: Blokir approve jika unit penerimaan berbeda dengan satuan penyimpanan
+          // tapi faktor konversi belum diatur di Master Product (masih fallback 1).
+          if (item.unit !== item.product?.storageUnit && Math.abs(conversion - 1) < 0.000001) {
+            throw new Error(
+              `Konversi satuan untuk produk "${item.product?.name || item.productId}" belum diatur. ` +
+              `Unit penerimaan "${item.unit}" berbeda dengan satuan penyimpanan "${item.product?.storageUnit}". ` +
+              `Silakan lengkapi conversionToStorage / conversionToUsage di Master Product sebelum Approve GR.`
+            );
+          }
+
           // Get current stock balance to calculate snapshots
           const existingBalance = await tx.stockBalance.findFirst({
             where: {
