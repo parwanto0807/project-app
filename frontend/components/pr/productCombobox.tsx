@@ -1,120 +1,210 @@
-import { forwardRef, useState } from "react";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Check, ChevronsUpDown, Search, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import { ProductCreateDialog } from "../sales/salesOrder/productDialog";
 
 interface ProductComboboxProps {
     value: string;
     onValueChange: (value: string) => void;
-    products: Array<{ id: string; name: string }>;
+    products: Array<{ id: string; name: string; code?: string; availableStock?: number; unit?: string; storageUnit?: string }>;
     error?: boolean;
     placeholder?: string;
-    onCreated?: (product: { id: string; name: string }) => void;
+    onCreated?: (product: { id: string; name: string; code?: string }) => void;
 }
 
-export const ProductCombobox = forwardRef<HTMLButtonElement, ProductComboboxProps>(
-    ({ value, onValueChange, products, error = false, placeholder = "Select product...", onCreated }, ref) => {
-        const [open, setOpen] = useState(false);
+export const ProductCombobox = React.forwardRef<HTMLButtonElement, ProductComboboxProps>(
+    ({ value, onValueChange, products, error = false, placeholder = "Pilih Barang / Part Number", onCreated }, ref) => {
+        const [isOpen, setIsOpen] = useState(false);
         const [search, setSearch] = useState("");
+        const containerRef = useRef<HTMLDivElement>(null);
+        const inputRef = useRef<HTMLInputElement>(null);
+
+        const selectedProduct = products.find((p) => p.id === value);
+
+        // Auto focus input when dropdown opens
+        useEffect(() => {
+            if (isOpen) {
+                const timer = setTimeout(() => {
+                    inputRef.current?.focus();
+                }, 50);
+                return () => clearTimeout(timer);
+            }
+        }, [isOpen]);
+
+        // Close on click outside
+        useEffect(() => {
+            const handleClickOutside = (event: MouseEvent) => {
+                if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                    setIsOpen(false);
+                }
+            };
+            if (isOpen) {
+                document.addEventListener("mousedown", handleClickOutside);
+            }
+            return () => {
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }, [isOpen]);
+
+        const filteredProducts = products.filter((p) => {
+            if (!search.trim()) return true;
+            const q = search.toLowerCase().trim();
+            const codeMatch = p.code ? p.code.toLowerCase().includes(q) : false;
+            const nameMatch = p.name ? p.name.toLowerCase().includes(q) : false;
+            return codeMatch || nameMatch;
+        });
+
+        const handleSelect = (productId: string) => {
+            onValueChange(productId);
+            setIsOpen(false);
+            setSearch("");
+        };
 
         return (
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                    <Button
-                        ref={ref} // ✅ ref untuk focus dari luar
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={open}
-                        className={cn(
-                            "w-full justify-between",
-                            !value && "text-muted-foreground",
-                            error && "border-red-500"
+            <div ref={containerRef} className="relative w-full">
+                {/* Trigger Button */}
+                <Button
+                    ref={ref}
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsOpen((prev) => !prev)}
+                    className={cn(
+                        "w-full justify-between text-left font-normal truncate bg-white dark:bg-slate-950 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-lg h-10 px-3",
+                        !value && "text-muted-foreground",
+                        error && "border-red-500"
+                    )}
+                >
+                    <span className="truncate flex items-center gap-2">
+                        {selectedProduct ? (
+                            <>
+                                {selectedProduct.code && (
+                                    <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded shrink-0">
+                                        {selectedProduct.code}
+                                    </span>
+                                )}
+                                <span className="truncate font-medium text-slate-800 dark:text-slate-200">
+                                    {selectedProduct.name}
+                                </span>
+                            </>
+                        ) : (
+                            placeholder
                         )}
-                    >
-                        {value
-                            ? products.find((p) => p.id === value)?.name
-                            : placeholder}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command>
-                        <CommandInput
-                            placeholder="Search product..."
-                            className="h-9"
-                            value={search}
-                            onValueChange={setSearch}
-                        />
-                        <CommandList>
-                            <CommandEmpty>
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+
+                {/* Dropdown Menu (Rendered directly inside container within Dialog) */}
+                {isOpen && (
+                    <div className="absolute top-full left-0 mt-1.5 w-full min-w-[340px] max-w-[480px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[9999] p-2 space-y-2 animate-in fade-in-50 zoom-in-95">
+                        {/* Search Input Box */}
+                        <div className="relative flex items-center">
+                            <Search className="absolute left-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                            <Input
+                                ref={inputRef}
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Cari part number atau nama barang..."
+                                className="pl-9 pr-8 h-9 text-sm bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-lg focus-visible:ring-emerald-500"
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") {
+                                        setIsOpen(false);
+                                    }
+                                }}
+                            />
+                            {search && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                    className="absolute right-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Product List */}
+                        <div className="max-h-60 overflow-y-auto space-y-0.5 pr-1">
+                            {filteredProducts.length === 0 ? (
                                 <div className="p-4 text-center">
-                                    <p className="text-sm text-muted-foreground mb-3">
-                                        {search ? `"${search}" tidak ditemukan` : "Tidak ada data"}
+                                    <p className="text-xs text-slate-400 mb-2">
+                                        {search ? `"${search}" tidak ditemukan` : "Tidak ada data barang"}
                                     </p>
                                     {onCreated && search && (
                                         <ProductCreateDialog
                                             createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
                                             onCreated={(created) => {
                                                 onCreated(created);
-                                                onValueChange(created.id);
-                                                setOpen(false);
-                                                setSearch("");
+                                                handleSelect(created.id);
                                             }}
                                             trigger={
                                                 <Button
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
-                                                    className="w-full"
+                                                    className="w-full text-xs"
                                                 >
-                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    <Plus className="h-3.5 w-3.5 mr-1.5" />
                                                     Tambah Produk Baru
                                                 </Button>
                                             }
                                         />
                                     )}
                                 </div>
-                            </CommandEmpty>
-                            <CommandGroup className="max-h-64 overflow-auto">
-                                {products.map((p) => (
-                                    <CommandItem
-                                        key={p.id}
-                                        value={p.name}
-                                        onSelect={() => {
-                                            onValueChange(p.id);
-                                            setOpen(false);
-                                            setSearch("");
-                                        }}
-                                        className="cursor-pointer"
-                                    >
-                                        {p.name}
-                                        <Check
+                            ) : (
+                                filteredProducts.map((p) => {
+                                    const isSelected = value === p.id;
+                                    const stockVal = p.availableStock;
+                                    const unitVal = p.storageUnit || p.unit || "pcs";
+                                    return (
+                                        <div
+                                            key={p.id}
+                                            onClick={() => handleSelect(p.id)}
                                             className={cn(
-                                                "ml-auto h-4 w-4",
-                                                value === p.id ? "opacity-100" : "opacity-0"
+                                                "cursor-pointer py-2 px-3 rounded-lg flex items-center justify-between text-sm transition-colors",
+                                                isSelected
+                                                    ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200 font-semibold"
+                                                    : "hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-200"
                                             )}
-                                        />
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </Popover>
+                                        >
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                {p.code ? (
+                                                    <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-950/80 px-1.5 py-0.5 rounded shrink-0">
+                                                        {p.code}
+                                                    </span>
+                                                ) : (
+                                                    <span className="font-mono text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded shrink-0">
+                                                        No Code
+                                                    </span>
+                                                )}
+                                                <span className="truncate">{p.name}</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                                                {stockVal !== undefined && (
+                                                    <span className={cn(
+                                                        "text-[11px] font-mono font-semibold px-2 py-0.5 rounded",
+                                                        stockVal > 0 
+                                                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800" 
+                                                            : "bg-red-50 text-red-600 dark:bg-red-950/80 dark:text-red-400 border border-red-200/50 dark:border-red-800"
+                                                    )}>
+                                                        Stok: {stockVal} {unitVal}
+                                                    </span>
+                                                )}
+                                                {isSelected && (
+                                                    <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
         );
     }
 );

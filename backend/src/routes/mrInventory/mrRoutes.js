@@ -9,6 +9,9 @@ router.get('/', mrController.getMRList);
 // Create New MR (Triggered after PR Approved)
 router.post('/create', mrController.createMR);
 
+// Create Direct MR (Keperluan Kantor Sendiri)
+router.post('/create-direct', mrController.createDirectMR);
+
 // Finalize MR (Triggered by QR Code Scan at Warehouse)
 router.post('/issue-scan', mrController.issueMR);
 

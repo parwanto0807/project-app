@@ -820,8 +820,10 @@ model MaterialRequisition {
   purchaseOrderId String?
   qrToken         String                    @unique @default(cuid())
   sourceType      SourceType                @default(PO)
+  expenseAccountId String?
   PurchaseOrder   PurchaseOrder?            @relation(fields: [purchaseOrderId], references: [id])
   Warehouse       Warehouse?                @relation(fields: [warehouseId], references: [id])
+  expenseAccount  ChartOfAccounts?          @relation("MRExpenseAccount", fields: [expenseAccountId], references: [id])
   items           MaterialRequisitionItem[]
 }
 
@@ -1622,6 +1624,7 @@ model ChartOfAccounts {
   expenseAccount       ProjectExpense[]       @relation("ExpenseCOA")
   paidFromAccount      ProjectExpense[]       @relation("PaidFromCOA")
   purchaseRequests     PurchaseRequest[]
+  materialRequisitions MaterialRequisition[]  @relation("MRExpenseAccount")
   Reconciliation       Reconciliation[]
   systemAccounts       SystemAccount[]
   TrialBalance         TrialBalance[]

@@ -120,7 +120,7 @@ export function SupplyChainDialog({ purchaseRequest, children }: SupplyChainDial
             remainingQty: Number(po.remainingQty ?? po.qtyOrdered ?? 0) - Number(po.qtyReceived ?? 0),
           }))
 
-        const totalIncoming = pendingPOs.reduce((sum, po) => sum + Math.max(0, po.remainingQty), 0)
+        const totalIncoming = pendingPOs.reduce((sum: number, po: any) => sum + Math.max(0, po.remainingQty), 0)
         const shortage = Math.max(0, Number(detail.jumlah) - totalAvailableStock - totalIncoming)
 
         results.push({
@@ -168,8 +168,8 @@ export function SupplyChainDialog({ purchaseRequest, children }: SupplyChainDial
     setAdjustMsg((prev) => ({ ...prev, [item.productId]: "" }))
     try {
       const wipInBreakdown = item.stockPerWarehouse.find((wh) => wh.isWip)
-      let warehouseId = wipInBreakdown?.warehouseId
-      if (!warehouseId) warehouseId = await getWipWarehouseId()
+      let warehouseId: string | undefined = wipInBreakdown?.warehouseId
+      if (!warehouseId) warehouseId = (await getWipWarehouseId()) || undefined
       if (!warehouseId) {
         setAdjustMsg((prev) => ({ ...prev, [item.productId]: "Gudang WIP tidak ditemukan" }))
         setAdjusting((prev) => ({ ...prev, [item.productId]: false }))

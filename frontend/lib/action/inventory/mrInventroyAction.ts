@@ -242,3 +242,51 @@ export async function postMRJournal(
         };
     }
 }
+
+/**
+ * Create Direct MR (Keperluan Kantor Sendiri)
+ */
+export interface CreateDirectMrParams {
+    warehouseId: string;
+    requestedById: string;
+    expenseAccountId: string;
+    notes?: string;
+    items: {
+        productId: string;
+        qty: number;
+        unit: string;
+    }[];
+}
+
+export async function createDirectMRAction(
+    params: CreateDirectMrParams
+): Promise<ApiResponse<any>> {
+    try {
+        const response = await fetch(`${API_URL}/api/mr/create-direct`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(params)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                error: result.error || "Gagal membuat pengeluaran kantor",
+                details: result.details
+            };
+        }
+
+        return result;
+    } catch (error: any) {
+        console.error("Create Direct MR Error:", error);
+        return {
+            success: false,
+            error: "Koneksi ke server terputus",
+            details: error.message
+        };
+    }
+}

@@ -585,9 +585,13 @@ export const mrController = {
           throw new Error(`Ledger already posted for ${mr.mrNumber} (${existingLedger.ledgerNumber})`);
         }
 
-        // 4. Validate WIP warehouse
-        if (!mr.Warehouse || !mr.Warehouse.isWip) {
-          throw new Error('Journal posting only allowed for WIP warehouses');
+        // 4. Validate WIP warehouse OR Direct Office Requisition
+        const isDirectOfficeMR = mr.sourceType === 'DIRECT' && mr.expenseAccountId;
+
+        if (!isDirectOfficeMR) {
+          if (!mr.Warehouse || !mr.Warehouse.isWip) {
+            throw new Error('Journal posting only allowed for WIP warehouses');
+          }
         }
 
         ;(() => {})(`📝 Posting journal for ${mr.mrNumber} (WIP Warehouse: ${mr.Warehouse.name})`);
@@ -657,8 +661,22 @@ export const mrController = {
           ? ` | PR: ${prNumbers.join(', ')}` 
           : '';
 
-        // 7. Get inventory account key
-        const inventoryAccountKey = getWarehouseInventoryAccountKey(mr.Warehouse);
+        // 7. Get inventory account key or direct COA ID
+        let creditCoaId = null;
+        let creditSystemAccountKey = null;
+        let debitCoaId = null;
+        let debitSystemAccountKey = null;
+
+        if (isDirectOfficeMR) {
+          if (!mr.Warehouse || !mr.Warehouse.inventoryAccountId) {
+            throw new Error(`Gudang asal "${mr.Warehouse?.name || 'Gudang'}" tidak memiliki pemetaan akun persediaan (inventoryAccount)`);
+          }
+          creditCoaId = mr.Warehouse.inventoryAccountId;
+          debitCoaId = mr.expenseAccountId;
+        } else {
+          creditSystemAccountKey = getWarehouseInventoryAccountKey(mr.Warehouse);
+          debitSystemAccountKey = 'PURCHASE_EXPENSE';
+        }
 
         // 8. Create ledger entry
         const ledger = await createLedgerEntry({
@@ -666,21 +684,29 @@ export const mrController = {
           referenceId: mr.id,
           referenceNumber: mr.mrNumber,
           tanggal: new Date(),
-          keterangan: `Pemakaian Material Proyek - ${mr.mrNumber}${projectName ? ` (Proyek: ${projectName})` : ''}${prNumbersText}`,
+          keterangan: isDirectOfficeMR
+            ? `Pemakaian Material Kantor - ${mr.mrNumber} | Gudang: ${mr.Warehouse.name}${mr.notes ? ` | Keterangan: ${mr.notes}` : ''}`
+            : `Pemakaian Material Proyek - ${mr.mrNumber}${projectName ? ` (Proyek: ${projectName})` : ''}${prNumbersText}`,
           entries: [
             {
-              systemAccountKey: 'PURCHASE_EXPENSE', // 5-10101 Biaya Material Proyek (HPP)
+              systemAccountKey: debitSystemAccountKey,
+              coaId: debitCoaId,
               debit: totalMaterialCost,
               credit: 0,
-              keterangan: `Material usage - ${mr.mrNumber}${prNumbersText}`,
+              keterangan: isDirectOfficeMR
+                ? `Biaya pemakaian material kantor - ${mr.mrNumber}`
+                : `Material usage - ${mr.mrNumber}${prNumbersText}`,
               projectId: mr.projectId,
               salesOrderId: salesOrderId
             },
             {
-              systemAccountKey: inventoryAccountKey, // PROJECT_WIP (1-10205 Persediaan On WIP)
+              systemAccountKey: creditSystemAccountKey,
+              coaId: creditCoaId,
               debit: 0,
               credit: totalMaterialCost,
-              keterangan: `Stock reduction from ${mr.Warehouse.name}${prNumbersText}`,
+              keterangan: isDirectOfficeMR
+                ? `Pengurangan stok dari ${mr.Warehouse.name} untuk kantor`
+                : `Stock reduction from ${mr.Warehouse.name}${prNumbersText}`,
               projectId: mr.projectId,
               salesOrderId: salesOrderId
             }
@@ -1232,6 +1258,87 @@ export const mrController = {
       });
     } catch (error) {
       console.error('Bulk issue error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  // ============== Create Direct MR (Keperluan Kantor Sendiri) ==============
+  createDirectMR: async (req, res) => {
+    const { warehouseId, requestedById, expenseAccountId, notes, items } = req.body;
+
+    try {
+      if (!warehouseId) {
+        return res.status(400).json({ success: false, error: "Warehouse ID wajib diisi" });
+      }
+      if (!requestedById) {
+        return res.status(400).json({ success: false, error: "Karyawan Peminta (Requested By) wajib diisi" });
+      }
+      if (!expenseAccountId) {
+        return res.status(400).json({ success: false, error: "Akun Biaya (Expense Account) wajib diisi" });
+      }
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, error: "Daftar barang (items) wajib diisi" });
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        // Generate MR Number (Format: MR-YYYYMM-XXXX)
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const prefix = `MR-${year}${month}`;
+
+        // Find last MR with this prefix
+        const lastMR = await tx.materialRequisition.findFirst({
+          where: {
+            mrNumber: {
+              startsWith: prefix
+            }
+          },
+          orderBy: {
+            mrNumber: 'desc'
+          }
+        });
+
+        let sequence = 1;
+        if (lastMR) {
+          const parts = lastMR.mrNumber.split('-');
+          if (parts.length === 3) {
+             const lastSeq = parseInt(parts[2]);
+             if (!isNaN(lastSeq)) {
+               sequence = lastSeq + 1;
+             }
+          }
+        }
+
+        const mrNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
+
+        const newMR = await tx.materialRequisition.create({
+          data: {
+            mrNumber,
+            requestedById,
+            warehouseId,
+            expenseAccountId,
+            sourceType: 'DIRECT',
+            status: 'PENDING',
+            notes,
+            items: {
+              create: items.map(item => ({
+                productId: item.productId,
+                qtyRequested: Number(item.qty),
+                qtyIssued: 0,
+                unit: item.unit || 'pcs'
+              }))
+            }
+          },
+          include: { items: true }
+        });
+
+        return newMR;
+      });
+
+      res.status(201).json({ success: true, data: result, message: "Direct MR Created successfully" });
+    } catch (error) {
+      console.error("Error creating direct MR:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   }
