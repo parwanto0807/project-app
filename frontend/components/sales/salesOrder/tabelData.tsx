@@ -82,6 +82,16 @@ function getBasePathSPK(role?: string) {
     return paths[role ?? "admin"] || "/admin-area/logistic/spk"
 }
 
+function getResponsiveHideClass(columnId: string): string {
+    switch (columnId) {
+        case "trend":
+        case "totalPR":
+            return "hidden 2xl:table-cell";
+        default:
+            return "";
+    }
+}
+
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
     DRAFT: {
         label: "Draft",
@@ -1866,7 +1876,7 @@ export function SalesOrderTable({
                                     {table.getHeaderGroups().map((headerGroup) => (
                                         <TableRow key={headerGroup.id}>
                                             {headerGroup.headers.map((header) => (
-                                                <TableHead key={header.id} className="py-4 font-semibold">
+                                                <TableHead key={header.id} className={cn("py-4 font-semibold", getResponsiveHideClass(header.column.id))}>
                                                     {header.isPlaceholder
                                                         ? null
                                                         : flexRender(
@@ -1898,7 +1908,7 @@ export function SalesOrderTable({
                                                 >
 
                                                     {row.getVisibleCells().map((cell) => (
-                                                        <TableCell key={cell.id} className="py-4">
+                                                        <TableCell key={cell.id} className={cn("py-4", getResponsiveHideClass(cell.column.id))}>
                                                             {flexRender(
                                                                 cell.column.columnDef.cell,
                                                                 cell.getContext()

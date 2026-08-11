@@ -665,144 +665,51 @@ export default function SpkPageAdmin() {
                 icon={<MessageSquareQuoteIcon className="h-5 w-5 md:h-7 md:w-7" />}
                 gradientFrom="from-cyan-600"
                 gradientTo="to-purple-600"
-                showActionArea={true}
-                actionArea={
-                  <div className="hidden lg:flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
+                showActionArea={false}
+              />
+
+              {/* ACTION & FILTER TOOLBAR */}
+              <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 space-y-4">
+                {/* Top Row: Search & Actions */}
+                <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
+                  <div className="w-full xl:max-w-md">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search SPK..."
-                      className="w-full sm:w-64"
-                      // disabled={userLoading || isDataFetching}
+                      className="w-full"
                       showLoading={false}
                       initialValue={urlSearch}
                     />
-                    <SpkFilter
-                      filterBy={urlStatus}
-                      onFilterChange={handleStatusChange}
-                      availableTeams={[]}
-                      className="min-w-[150px]"
-                      variant="glass"
-                      size="md"
-                      mode="progress"
-                    />
-                    <SpkFilter
-                      filterBy={urlTeam}
-                      onFilterChange={handleTeamChange}
-                      availableTeams={availableTeams}
-                      className="min-w-[150px]"
-                      variant="glass"
-                      size="md"
-                      mode="team"
-                    />
-                    <ItemsPerPageDropdown
-                      itemsPerPage={urlPageSize}
-                      itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]}
-                      onItemsPerPageChange={handleItemsPerPageChange}
-                      disabled={isDataFetching}
-                    />
-                    <Button
-                      variant="outline"
-                      className="gap-2 border-primary/20 hover:bg-primary/5 text-primary"
-                      onClick={handlePreparePrint}
-                      disabled={isPreparingPdf || isDataFetching}
-                    >
-                      {isPreparingPdf ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Printer className="h-4 w-4" />
-                      )}
-                      <span>Print PDF</span>
+                  </div>
+                  
+                  <div className="flex flex-row flex-wrap gap-2 w-full xl:w-auto">
+                    <Button variant="outline" className="flex-1 xl:flex-none gap-2 border-primary/20 hover:bg-primary/5 text-primary" onClick={handlePreparePrint} disabled={isPreparingPdf || isDataFetching}>
+                      {isPreparingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                      <span className="whitespace-nowrap">Print PDF</span>
                     </Button>
-                    <CreateButtonSPK
-                      role={user?.role || "admin"}
-                      onSuccess={handleRefresh}
-                      variant="default"
-                      size="default"
-                      disabled={isDataFetching}
-                    />
-                    <Link href={salesOrderPath}>
-                      <Button variant="outline" className="flex items-center gap-2 border-primary/20 hover:bg-primary/5 text-primary">
+                    <div className="flex-1 xl:flex-none">
+                      <CreateButtonSPK role={user?.role || "admin"} onSuccess={handleRefresh} className="w-full" variant="default" size="default" disabled={isDataFetching} />
+                    </div>
+                    <Link href={salesOrderPath} className="flex-1 xl:flex-none">
+                      <Button variant="outline" className="w-full gap-2 border-primary/20 hover:bg-primary/5 text-primary">
                         <ArrowLeft className="h-4 w-4" />
-                        <span className="font-semibold whitespace-nowrap">Back to Sales Order</span>
+                        <span className="whitespace-nowrap">Back</span>
                       </Button>
                     </Link>
                   </div>
-                }
-              />
+                </div>
 
-              {/* Action Area untuk Mobile & Tablet (Breakpoint < lg) */}
-              <div className="lg:hidden mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                <div className="flex flex-col gap-3">
-                  <SearchInput
-                    onSearch={handleSearch}
-                    placeholder="Search SPK..."
-                    className="w-full"
-                    // disabled={userLoading || isDataFetching}
-                    showLoading={false}
-                    initialValue={urlSearch}
-                  />
-
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <SpkFilter
-                        filterBy={urlStatus}
-                        onFilterChange={handleStatusChange}
-                        availableTeams={[]}
-                        className="w-full"
-                        variant="glass"
-                        size="md"
-                        mode="progress"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <SpkFilter
-                        filterBy={urlTeam}
-                        onFilterChange={handleTeamChange}
-                        availableTeams={availableTeams}
-                        className="w-full"
-                        variant="glass"
-                        size="md"
-                        mode="team"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <ItemsPerPageDropdown
-                        itemsPerPage={urlPageSize}
-                        itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]}
-                        onItemsPerPageChange={handleItemsPerPageChange}
-                        disabled={isDataFetching}
-                        className="w-full"
-                      />
-                    </div>
+                {/* Bottom Row: Filters */}
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                  <div className="flex-1 min-w-[150px]">
+                    <SpkFilter filterBy={urlStatus} onFilterChange={handleStatusChange} availableTeams={[]} className="w-full" variant="glass" size="md" mode="progress" />
                   </div>
-
-                  <CreateButtonSPK
-                    role={user?.role || "admin"}
-                    onSuccess={handleRefresh}
-                    variant="default"
-                    size="sm"
-                    disabled={isDataFetching}
-                    className="w-full"
-                  />
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2 border-primary/20 hover:bg-primary/5 text-primary"
-                    onClick={handlePreparePrint}
-                    disabled={isPreparingPdf || isDataFetching}
-                  >
-                    {isPreparingPdf ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Printer className="h-4 w-4" />
-                    )}
-                    <span>Print PDF Summary</span>
-                  </Button>
-                  <Link href={salesOrderPath} className="w-full">
-                    <Button variant="outline" className="w-full flex items-center justify-center gap-2 border-primary/20 hover:bg-primary/5 text-primary">
-                      <ArrowLeft className="h-4 w-4" />
-                      <span className="font-semibold">Back to Sales Order</span>
-                    </Button>
-                  </Link>
+                  <div className="flex-1 min-w-[150px]">
+                    <SpkFilter filterBy={urlTeam} onFilterChange={handleTeamChange} availableTeams={availableTeams} className="w-full" variant="glass" size="md" mode="team" />
+                  </div>
+                  <div className="flex-1 min-w-[120px]">
+                    <ItemsPerPageDropdown itemsPerPage={urlPageSize} itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]} onItemsPerPageChange={handleItemsPerPageChange} disabled={isDataFetching} className="w-full" />
+                  </div>
                 </div>
               </div>
             </>

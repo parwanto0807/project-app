@@ -359,7 +359,7 @@ export default function SalesOrderPageAdmin() {
                 gradientTo="to-purple-600"
                 showActionArea={true}
                 actionArea={
-                  <div className="hidden lg:flex flex-row gap-3 items-center">
+                  <div className="hidden 2xl:flex flex-row gap-3 items-center">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search Sales Order..."
@@ -395,8 +395,8 @@ export default function SalesOrderPageAdmin() {
                 }
               />
 
-              {/* Action Area untuk Mobile & Tablet (lg:hidden) */}
-              <div className="lg:hidden p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border space-y-3">
+              {/* Action Area untuk Mobile & Tablet (2xl:hidden) */}
+              <div className="2xl:hidden p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border space-y-3">
                 <SearchInput
                   onSearch={handleSearch}
                   placeholder="Search Sales Order..."

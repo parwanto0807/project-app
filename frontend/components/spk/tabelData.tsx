@@ -988,22 +988,23 @@ const searchParams = useSearchParams();
 
     // 👇 RENDER DESKTOP TABLE VIEW YANG DIPERBAIKI
     const renderDesktopView = () => (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-            <div className="min-w-[1000px]">
-                <Table>
-                    <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="w-full overflow-x-auto">
+                <div className="min-w-[1000px]">
+                    <Table className="text-xs">
+                        <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 text-xs">
                         <TableRow>
-                            <TableHead className="w-12 text-center font-semibold text-gray-700 dark:text-gray-300">#</TableHead>
+                            <TableHead className="hidden 2xl:table-cell w-12 text-center font-semibold text-gray-700 dark:text-gray-300">#</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Nomor SPK & SO</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Tanggal SPK</TableHead>
+                            <TableHead className="hidden 2xl:table-cell font-semibold text-gray-700 dark:text-gray-300">Tanggal SPK</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Customer</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Tim / Karyawan</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Pembuat</TableHead>
+                            <TableHead className="hidden 2xl:table-cell font-semibold text-gray-700 dark:text-gray-300">Pembuat</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Project Name</TableHead>
-                            <TableHead className="w-40 font-semibold text-gray-700 dark:text-gray-300">Progress</TableHead>
+                            <TableHead className="w-28 2xl:w-40 font-semibold text-gray-700 dark:text-gray-300">Progress</TableHead>
                             <TableHead className="w-10 font-semibold text-gray-700 dark:text-gray-300">Status</TableHead>
-                            <TableHead className="w-48 font-semibold text-gray-700 dark:text-gray-300">Monitoring Admin</TableHead>
-                            <TableHead className="w-32 font-semibold text-gray-700 dark:text-gray-300">Catatan</TableHead>
+                            <TableHead className="hidden 2xl:table-cell w-48 font-semibold text-gray-700 dark:text-gray-300">Monitoring Admin</TableHead>
+                            <TableHead className="hidden 2xl:table-cell w-32 font-semibold text-gray-700 dark:text-gray-300">Catatan</TableHead>
                             <TableHead className="text-center w-48 font-semibold text-gray-700 dark:text-gray-300">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -1011,12 +1012,12 @@ const searchParams = useSearchParams();
                         {isLoading ? (
                             Array.from({ length: 5 }).map((_, idx) => (
                                 <TableRow key={`skeleton-${idx}`} className="hover:bg-transparent">
-                                    <TableCell><Skeleton className="h-4 w-6 mx-auto" /></TableCell>
+                                    <TableCell className="hidden 2xl:table-cell"><Skeleton className="h-4 w-6 mx-auto" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                    <TableCell className="hidden 2xl:table-cell"><Skeleton className="h-5 w-20" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                                    <TableCell className="hidden 2xl:table-cell"><Skeleton className="h-5 w-28" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-full" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                                     <TableCell>
@@ -1049,7 +1050,7 @@ const searchParams = useSearchParams();
                                                 "cursor-pointer hover:bg-muted/30 transition-colors",
                                                 highlightId === spk.id ? "bg-yellow-200 dark:bg-yellow-900" : ""
                                             )}>
-                                            <TableCell className="text-center font-medium text-gray-600 dark:text-gray-400">
+                                            <TableCell className="hidden 2xl:table-cell text-center font-medium text-gray-600 dark:text-gray-400">
                                                 {idx + 1}
                                             </TableCell>
                                             <TableCell>
@@ -1070,7 +1071,7 @@ const searchParams = useSearchParams();
                                                     </Link>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="font-medium text-gray-700 dark:text-gray-300">
+                                            <TableCell className="hidden 2xl:table-cell font-medium text-gray-700 dark:text-gray-300">
                                                 {new Date(spk.spkDate).toLocaleDateString("id-ID", {
                                                     day: "2-digit",
                                                     month: "short",
@@ -1121,7 +1122,7 @@ const searchParams = useSearchParams();
                                                     <span className="text-gray-400 dark:text-gray-600">-</span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="font-medium text-gray-700 dark:text-gray-300 w-20">
+                                            <TableCell className="hidden 2xl:table-cell font-medium text-gray-700 dark:text-gray-300 w-20">
                                                 <div className="flex items-center space-x-2">
                                                     <User className="h-4 w-4 text-purple-600 flex-shrink-0" />
                                                     <span className="truncate max-w-[100px] uppercase">{spk.createdBy?.namaLengkap || "Name..."}</span>
@@ -1170,7 +1171,7 @@ const searchParams = useSearchParams();
                                                 </div>
                                             </TableCell>
 
-                                            <TableCell className="max-w-[220px]">
+                                            <TableCell className="hidden 2xl:table-cell max-w-[220px]">
                                                 {role === "admin" ? (
                                                     <TooltipProvider>
                                                         <Tooltip>
@@ -1331,7 +1332,7 @@ const searchParams = useSearchParams();
                                                 )}
                                             </TableCell>
 
-                                            <TableCell className="text-center">
+                                            <TableCell className="hidden 2xl:table-cell text-center">
                                                 {spk.notes ? (
                                                     <TooltipProvider>
                                                         <Tooltip>
@@ -1396,7 +1397,7 @@ const searchParams = useSearchParams();
                                                                         <BarChart2 className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
                                                                         <div className="absolute -inset-1 bg-blue-200/20 dark:bg-blue-400/10 rounded-full blur-sm group-hover:bg-blue-300/30 transition-all duration-300" />
                                                                     </div>
-                                                                    <span className="hidden sm:inline text-sm font-semibold">Monitoring Progress</span>
+                                                                    <span className="hidden 2xl:inline text-sm font-semibold">Monitoring Progress</span>
                                                                 </Button>
                                                             </TooltipTrigger>
                                                             <TooltipContent
@@ -1796,6 +1797,7 @@ const searchParams = useSearchParams();
                         )}
                     </TableBody>
                 </Table>
+                </div>
             </div>
         </div>
     );
