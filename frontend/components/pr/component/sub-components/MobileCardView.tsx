@@ -5,12 +5,13 @@ import { PurchaseRequestWithRelations } from "@/types/pr";
 import { MobileCardSkeleton } from "@/components/ui/mobileCardSkeleton";
 import { MobileEmptyState } from "@/components/ui/mobileEmptyState";
 import { STATUS_CONFIG } from "../constants";
-import { formatCurrency, formatDate } from "../utils";
+import { formatCurrency, formatDate, formatDateTime } from "../utils";
 import {
   FileText,
   Building,
   User,
   Calendar,
+  Clock,
   ChevronDown,
   ChevronRight,
   Edit,
@@ -127,6 +128,11 @@ export function MobileCardView({
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3 text-orange-500 flex-shrink-0" />
                     <span className="text-xs">{formatDate(pr.tanggalPr)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                    <span className="text-xs text-muted-foreground">Input:</span>
+                    <span className="text-xs">{formatDateTime(pr.createdAt)}</span>
                   </div>
                 </div>
               </div>

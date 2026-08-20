@@ -14,11 +14,31 @@ export const formatDate = (date: Date | string | null | undefined): string => {
     const dateObj = typeof date === "string" ? new Date(date) : date;
     if (isNaN(dateObj.getTime())) return "-";
 
-    return new Intl.DateTimeFormat("id-ID", {
+    return new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
+      month: "short",
+      year: "2-digit",
+    }).format(dateObj).replace(/ /g, "-");
+  } catch {
+    return "-";
+  }
+};
+
+export const formatDateTime = (date: Date | string | null | undefined): string => {
+  if (!date) return "-";
+
+  try {
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    if (isNaN(dateObj.getTime())) return "-";
+
+    const datePart = formatDate(dateObj);
+    const timePart = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
     }).format(dateObj);
+
+    return `${datePart} ${timePart}`;
   } catch {
     return "-";
   }

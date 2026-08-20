@@ -65,7 +65,7 @@ export class PurchaseRequestController {
               select: {
                 id: true,
                 spkNumber: true,
-                salesOrder: { select: { soNumber: true } },
+                salesOrder: { select: { soNumber: true, soDate: true } },
               },
             },
             parentPr: {
@@ -1533,10 +1533,12 @@ export class PurchaseRequestController {
                 });
 
                 // ✅ VALIDATION: Check if physical batches are sufficient
+                // Mirror MR logic: hard-fail only when BOTH StockBalance AND physical batches are short.
+                // When balance availableStock is enough, trust the ledger (batches may be stale).
                 const totalPhysicalStock = batches.reduce((sum, b) => sum + Number(b.residualQty), 0);
                 const availablePhysical = totalPhysicalStock - currentBooked;
 
-                if (availablePhysical < takeQty) {
+                if (availablePhysical < takeQty && availableQty < takeQty) {
                   // Get product and warehouse names for better error message
                   const product = await tx.product.findUnique({
                     where: { id: productId },
@@ -1583,10 +1585,15 @@ export class PurchaseRequestController {
                 }
 
                 // If 'qtyToPrice' is still > 0, it means we ran out of batches (shouldn't happen if availableQty is correct)
-                // Fallback: use last batch price or 0
-                if (qtyToPrice > 0 && batches.length > 0) {
-                    const lastPrice = Number(batches[batches.length - 1].pricePerUnit);
-                    currentBatchCost += qtyToPrice * lastPrice;
+                // Fallback: use last batch price, or avg price from StockBalance when no batch backs the unit
+                if (qtyToPrice > 0) {
+                    let fallbackPrice = 0;
+                    if (batches.length > 0) {
+                        fallbackPrice = Number(batches[batches.length - 1].pricePerUnit);
+                    } else if (stockBalance && Number(stockBalance.stockAkhir) > 0) {
+                        fallbackPrice = (Number(stockBalance.inventoryValue) || 0) / Number(stockBalance.stockAkhir);
+                    }
+                    currentBatchCost += qtyToPrice * fallbackPrice;
                 }
 
                 totalCost += currentBatchCost;

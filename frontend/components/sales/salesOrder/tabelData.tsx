@@ -85,7 +85,6 @@ function getBasePathSPK(role?: string) {
 function getResponsiveHideClass(columnId: string): string {
     switch (columnId) {
         case "trend":
-        case "totalPR":
             return "hidden 2xl:table-cell";
         default:
             return "";
@@ -836,6 +835,67 @@ function PRItemsDialog({ prItemsWithInfo }: { prItemsWithInfo: any[] }) {
     );
 }
 
+function LPPItemsDialog({ lppItems }: { lppItems: any[] }) {
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    if (lppItems.length === 0) return null;
+
+    const formatIDR = (n: number) =>
+        new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger
+                className="hover:underline cursor-pointer text-xs text-muted-foreground focus:outline-none mt-1 inline-block"
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsOpen(true);
+                }}
+            >
+                {lppItems.length} rincian LPP
+            </DialogTrigger>
+            <DialogContent
+                className="max-w-xl max-h-[80vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <DialogHeader>
+                    <DialogTitle>Detail Rincian LPP</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 overflow-y-auto pr-2" style={{ maxHeight: 'calc(80vh - 100px)' }}>
+                    <div className="space-y-2">
+                        {lppItems.map((item, idx) => (
+                            <div key={idx} className="flex flex-col text-sm bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border gap-1">
+                                <div className="flex justify-between items-start">
+                                    <span className="font-medium">{item.keterangan || item.productName || "Item"}</span>
+                                    <span className="font-semibold shrink-0 ml-4 text-green-600">
+                                        Rp {formatIDR(item.jumlah.toNumber())}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                    {item.productName && <span>{item.productName}</span>}
+                                    <span>{item.tanggalTransaksi ? format(new Date(item.tanggalTransaksi), "dd MMM yyyy") : "-"}</span>
+                                </div>
+                                <div className="flex flex-wrap items-center justify-between gap-1">
+                                    <span className="font-mono bg-muted px-2 py-1 rounded">{item.nomorLpp}</span>
+                                    <span className="flex items-center gap-1">
+                                        {item.nomorBukti && item.nomorBukti !== "-" && (
+                                            <span className="font-mono bg-muted px-2 py-1 rounded">Bukti: {item.nomorBukti}</span>
+                                        )}
+                                        <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                            {item.jenisPembayaran || "-"}
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export function SalesOrderTable({
     salesOrders: initialSalesOrders,
     isLoading,
@@ -1297,7 +1357,7 @@ export function SalesOrderTable({
             baseColumns.push({
                 id: "totalPR",
                 header: ({ column }) => (
-                    <DataTableColumnHeader column={column} title="Total PR / LPP" className="text-right" />
+                    <DataTableColumnHeader column={column} title="Total PR" className="text-right" />
                 ),
                 cell: ({ row }) => {
                     const order = row.original as SalesOrder;
@@ -1409,7 +1469,6 @@ export function SalesOrderTable({
                     });
                 } */
 
-        /* 
         if (isAdminOrSuper) {
             baseColumns.push({
                 id: "pertanggungjawaban",
@@ -1420,9 +1479,12 @@ export function SalesOrderTable({
                     const order = row.original as SalesOrder;
 
                     // Ambil semua Pertanggungjawaban dari semua UangMuka di semua PR di semua SPK
+                    // Hanya yang sudah punya rincian LPP (details)
                     const allPJ = order.spk?.flatMap(spk =>
                         spk.purchaseRequest?.flatMap(pr =>
-                            pr.uangMuka?.flatMap(um => um.pertanggungjawaban ?? []) ?? []
+                            pr.uangMuka?.flatMap(um =>
+                                (um.pertanggungjawaban ?? []).filter(pj => (pj.details?.length ?? 0) > 0)
+                            ) ?? []
                         ) ?? []
                     ) ?? [];
 
@@ -1446,7 +1508,19 @@ export function SalesOrderTable({
                     const formattedBiaya = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalBiaya.toNumber());
                     const formattedSisa = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalSisa.toNumber());
 
-                    const marginPercent = totalBiaya.div(totalSales).times(100).toFixed(0);
+                    const marginPercent = totalSales.isZero() ? "0" : totalBiaya.div(totalSales).times(100).toFixed(0);
+
+                    const lppItems = allPJ.flatMap((pj: any) =>
+                        (pj.details ?? []).map((d: any) => ({
+                            nomorLpp: pj.nomor || "-",
+                            keterangan: d.keterangan || "-",
+                            tanggalTransaksi: d.tanggalTransaksi,
+                            jumlah: new Decimal(d.jumlah ?? 0),
+                            nomorBukti: d.nomorBukti || "-",
+                            jenisPembayaran: d.jenisPembayaran || "-",
+                            productName: d.product?.name,
+                        }))
+                    );
 
                     return (
                         <div className="text-right space-y-1">
@@ -1469,12 +1543,14 @@ export function SalesOrderTable({
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
+                            <div className="flex justify-end w-full">
+                                <LPPItemsDialog lppItems={lppItems} />
+                            </div>
                         </div>
                     );
                 },
             });
         }
-        */
 
         if (isAdminOrSuper) {
             // Kolom indikator tren

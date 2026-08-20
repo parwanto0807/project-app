@@ -53,6 +53,7 @@ export interface PurchaseRequest {
     salesOrder?: {
       id: string;
       soNumber: string;
+      soDate?: Date;
       customer?: {
         name: string;
       };
@@ -251,6 +252,7 @@ export interface PurchaseRequestWithRelations extends PurchaseRequest {
     salesOrder?: {
       id: string;
       soNumber: string;
+      soDate?: Date;
       customer?: {
         name: string;
       };

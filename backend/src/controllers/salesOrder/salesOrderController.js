@@ -80,7 +80,9 @@ export const getAll = async (req, res) => {
                     id: true,
                     nomor: true,
                     jumlah: true,
-                    pertanggungjawaban: true,
+                    pertanggungjawaban: {
+                      include: { details: true },
+                    },
                   },
                 },
               },
@@ -135,7 +137,9 @@ export const getAllSPK = async (req, res) => {
                     id: true,
                     nomor: true,
                     jumlah: true,
-                    pertanggungjawaban: true,
+                    pertanggungjawaban: {
+                      include: { details: true },
+                    },
                   },
                 },
               },

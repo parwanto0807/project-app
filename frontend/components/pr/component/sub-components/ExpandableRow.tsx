@@ -9,7 +9,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PurchaseRequestWithRelations } from "@/types/pr";
-import { formatCurrency, formatDate, cleanNumber } from "../utils";
+import { formatCurrency, formatDate, formatDateTime, cleanNumber } from "../utils";
 import { STATUS_CONFIG, STATUS_APPROVE_CONFIG } from "../constants";
 import { ActionButtons } from "./actionButtons";
 import { ExpandedDetails } from "./expandedDetails";
@@ -21,6 +21,7 @@ import {
     Calendar,
     BanknoteArrowUp,
     FileCheck,
+    Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -257,6 +258,7 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                         >
                                             <FileText className="h-2 w-2 mr-0.5" />
                                             No SO : {pr.spk?.salesOrder?.soNumber || "-"}
+                                            {pr.spk?.salesOrder?.soDate && ` (${formatDate(pr.spk.salesOrder.soDate)})`}
                                         </Badge>
                                     </Link>
 
@@ -408,7 +410,13 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                             <Calendar className="h-4 w-4 text-orange-500" />
+                            <span className="text-xs text-muted-foreground">Tgl PR:</span>
                             {formatDate(pr.tanggalPr)}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                            <Clock className="h-4 w-4 text-gray-500" />
+                            <span className="text-xs text-muted-foreground">Input:</span>
+                            {formatDateTime(pr.createdAt)}
                         </div>
                     </TableCell>
 
