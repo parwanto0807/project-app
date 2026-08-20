@@ -1054,16 +1054,6 @@ export const updateSPKProgressComment = async (req, res) => {
       const spk = result.spk;
       const shortComment = (progressComment || "").slice(0, 120);
 
-      // DEBUG MARKER: verifikasi kode baru dijalankan server
-      await prisma.notification.create({
-        data: {
-          userId: "9db550a0-742d-46ba-9576-94f8940f5503",
-          title: "DEBUG_MARKER_SPK_PROGRESS",
-          body: `spk=${id} tt=${new Date().toISOString()}`,
-          type: "debug",
-        },
-      });
-
       // Import NotificationService
       const { NotificationService } = await import(
         "../../utils/firebase/notificationService.js"
