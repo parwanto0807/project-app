@@ -1049,6 +1049,76 @@ export const updateSPKProgressComment = async (req, res) => {
       return { spk, log };
     });
 
+    // ✅ BROADCAST NOTIFICATION KE SEMUA ADMIN/PIC & TEAM SPK
+    try {
+      const spk = result.spk;
+      const shortComment = (progressComment || "").slice(0, 120);
+
+      // DEBUG MARKER: verifikasi kode baru dijalankan server
+      await prisma.notification.create({
+        data: {
+          userId: "9db550a0-742d-46ba-9576-94f8940f5503",
+          title: "DEBUG_MARKER_SPK_PROGRESS",
+          body: `spk=${id} tt=${new Date().toISOString()}`,
+          type: "debug",
+        },
+      });
+
+      // Import NotificationService
+      const { NotificationService } = await import(
+        "../../utils/firebase/notificationService.js"
+      );
+
+      // Dapatkan semua user dengan role admin/pic
+      const adminUsers = await prisma.user.findMany({
+        where: {
+          role: { in: ["admin", "pic"] },
+          active: true,
+        },
+        select: { id: true, email: true, role: true },
+      });
+
+      ;(() => {})(
+        `📢 Sending SPK progress notification to ${adminUsers.length} admin/pic users`
+      );
+
+      const notificationPayload = {
+        title: "Update Monitoring Progress SPK 📋",
+        body: `SPK ${spk.spkNumber} diupdate: ${shortComment}`,
+        data: {
+          type: "spk_progress_update",
+          spkId: id,
+          spkNumber: spk.spkNumber,
+          progress: spk.progress,
+          comment: progressComment,
+          action: `/spk/${id}`,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      for (const admin of adminUsers) {
+        await NotificationService.sendToUser(admin.id, notificationPayload);
+      }
+
+      // ✅ BROADCAST KE TEAM YANG MENANGANI SPK
+      if (spk.teamId) {
+        try {
+          await NotificationService.broadcastToTeamMembers(spk.teamId, {
+            ...notificationPayload,
+            type: "team_spk_progress_update",
+          });
+        } catch (teamNotifyError) {
+          console.error(
+            "❌ Error sending SPK progress team notification:",
+            teamNotifyError
+          );
+        }
+      }
+    } catch (notificationError) {
+      // Jangan gagalkan update progress jika notifikasi gagal
+      console.error("❌ Error sending SPK progress notification:", notificationError);
+    }
+
     res.json({
       success: true,
       message: "Monitoring progress updated successfully",
