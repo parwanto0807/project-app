@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
     Form,
@@ -73,6 +73,18 @@ import { DatePicker } from "../ui/date-picker";
 import { createPurchaseOrder } from "@/lib/action/po/po";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+
+// Reuse formatters & limits (avoid creating new Intl.NumberFormat per product per render)
+const MAX_PRODUCTS_SHOWN = 50;
+const currencyFormatter = new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+});
+const currencyFormatterCents = new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+});
 
 // Define form schema
 const formSchema = z.object({
@@ -159,14 +171,35 @@ export default function CreateFormPO({
         },
     });
 
+    const items = form.watch("items");
+
+    // O(1) product lookups + single-pass filtering (was O(n²) recomputed per render)
+    const productMap = useMemo(() => {
+        const map = new Map<string, Product>();
+        products.forEach((p) => map.set(p.id, p));
+        return map;
+    }, [products]);
+
+    const selectedProductIds = useMemo(() => {
+        const ids = new Set<string>();
+        items.forEach((item) => {
+            if (item.productId) ids.add(item.productId);
+        });
+        return ids;
+    }, [items]);
+
+    const availableProducts = useMemo(
+        () => products.filter((p) => !selectedProductIds.has(p.id)),
+        [products, selectedProductIds]
+    );
+
     // Calculate totals
-    const calculateTotals = () => {
-        const items = form.getValues().items;
+    const calculateTotals = (list: FormValues["items"]) => {
         let subtotal = 0;
         let totalDiscount = 0;
         let totalTax = 0;
 
-        items.forEach(item => {
+        list.forEach(item => {
             const itemTotal = item.quantity * item.unitPrice;
             const itemDiscount = (itemTotal * (item.discount || 0)) / 100;
             const itemAfterDiscount = itemTotal - itemDiscount;
@@ -186,6 +219,8 @@ export default function CreateFormPO({
             grandTotal,
         };
     };
+
+    const totals = useMemo(() => calculateTotals(items), [items]);
 
     // Add new item
     const addItem = () => {
@@ -236,7 +271,7 @@ export default function CreateFormPO({
 
     // Handle product selection
     const handleProductSelect = (index: number, productId: string) => {
-        const product = products.find(p => p.id === productId);
+        const product = productMap.get(productId);
         if (!product) return;
 
         const items = form.getValues().items;
@@ -277,7 +312,7 @@ export default function CreateFormPO({
 
         setIsSubmitting(true);
         try {
-            const totals = calculateTotals();
+            const totals = calculateTotals(values.items);
 
             const poData = {
                 ...values,
@@ -303,8 +338,6 @@ export default function CreateFormPO({
             setIsSubmitting(false);
         }
     };
-
-    const totals = calculateTotals();
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950/20 animate-in fade-in duration-700">
@@ -796,7 +829,7 @@ export default function CreateFormPO({
                                         </div>
                                     </CardHeader>
                                     <CardContent className="pt-6">
-                                        {form.watch("items").length === 0 ? (
+                                        {items.length === 0 ? (
                                             <div className="text-center py-12 border-2 border-dashed border-indigo-100 dark:border-indigo-900/50 rounded-2xl bg-gradient-to-b from-indigo-50/30 to-white dark:from-indigo-950/20 dark:to-gray-950">
                                                 <div className="h-20 w-20 mx-auto bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900 dark:to-indigo-800 rounded-full flex items-center justify-center mb-4">
                                                     <Package className="h-10 w-10 text-indigo-400 dark:text-indigo-500" />
@@ -816,19 +849,15 @@ export default function CreateFormPO({
                                             </div>
                                         ) : (
                                             <div className="space-y-6">
-                                                {form.watch("items").map((item, index) => {
+                                                {items.map((item, index) => {
                                                     const searchState = productSearchStates[index] || { open: false, query: "" };
-                                                    const availableProducts = products.filter(product => {
-                                                        const selectedProductIds = form.getValues().items
-                                                            .map((item, i) => i !== index ? item.productId : null)
-                                                            .filter(Boolean);
-                                                        return !selectedProductIds.includes(product.id);
-                                                    });
                                                     const filteredProducts = availableProducts.filter(product =>
                                                         product.name.toLowerCase().includes(searchState.query.toLowerCase()) ||
                                                         product.code.toLowerCase().includes(searchState.query.toLowerCase())
                                                     );
-                                                    const selectedProduct = products.find(p => p.id === item.productId);
+                                                    const showLimitHint = filteredProducts.length > MAX_PRODUCTS_SHOWN;
+                                                    const renderedProducts = filteredProducts.slice(0, MAX_PRODUCTS_SHOWN);
+                                                    const selectedProduct = productMap.get(item.productId);
 
                                                     return (
                                                         <div
@@ -925,44 +954,46 @@ export default function CreateFormPO({
                                                                                             <CommandEmpty className="py-6 text-center text-muted-foreground">
                                                                                                 {searchState.query ? "Produk tidak ditemukan" : "Tidak ada produk tersedia"}
                                                                                             </CommandEmpty>
-                                                                                            <CommandGroup>
-                                                                                                {filteredProducts.map((product) => (
-                                                                                                    <CommandItem
-                                                                                                        key={product.id}
-                                                                                                        value={product.name}
-                                                                                                        onSelect={() => {
-                                                                                                            field.onChange(product.id);
-                                                                                                            handleProductSelect(index, product.id);
-                                                                                                            updateProductSearchState(index, {
-                                                                                                                open: false,
-                                                                                                                query: ""
-                                                                                                            });
-                                                                                                        }}
-                                                                                                        className="py-3 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                                                                                                    >
-                                                                                                        <Check
-                                                                                                            className={cn(
-                                                                                                                "mr-3 h-4 w-4",
-                                                                                                                field.value === product.id ? "opacity-100 text-purple-600" : "opacity-0"
-                                                                                                            )}
-                                                                                                        />
-                                                                                                        <div className="flex items-center gap-3">
-                                                                                                            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 flex items-center justify-center flex-shrink-0">
-                                                                                                                <Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                                                                                                            </div>
-                                                                                                            <div className="flex flex-col">
-                                                                                                                <span className="font-medium dark:text-gray-100">{product.name}</span>
-                                                                                                                <span className="text-xs text-muted-foreground">
-                                                                                                                    {product.code} • {product.uom || 'pcs'} • {new Intl.NumberFormat("id-ID", {
-                                                                                                                        style: "currency",
-                                                                                                                        currency: "IDR",
-                                                                                                                    }).format(product.price || 0)}
-                                                                                                                </span>
-                                                                                                            </div>
-                                                                                                        </div>
-                                                                                                    </CommandItem>
-                                                                                                ))}
-                                                                                            </CommandGroup>
+<CommandGroup>
+                                                                {renderedProducts.map((product) => (
+                                                                    <CommandItem
+                                                                        key={product.id}
+                                                                        value={product.name}
+                                                                        onSelect={() => {
+                                                                            field.onChange(product.id);
+                                                                            handleProductSelect(index, product.id);
+                                                                            updateProductSearchState(index, {
+                                                                                open: false,
+                                                                                query: ""
+                                                                            });
+                                                                        }}
+                                                                        className="py-3 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                                                                    >
+                                                                        <Check
+                                                                            className={cn(
+                                                                                "mr-3 h-4 w-4",
+                                                                                field.value === product.id ? "opacity-100 text-purple-600" : "opacity-0"
+                                                                            )}
+                                                                        />
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 flex items-center justify-center flex-shrink-0">
+                                                                                <Package className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                                                            </div>
+                                                                            <div className="flex flex-col">
+                                                                                <span className="font-medium dark:text-gray-100">{product.name}</span>
+                                                                                <span className="text-xs text-muted-foreground">
+                                                                                    {product.code} • {product.uom || 'pcs'} • {currencyFormatterCents.format(product.price || 0)}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </CommandItem>
+                                                                ))}
+                                                                {showLimitHint && (
+                                                                    <CommandItem disabled className="py-3 text-xs text-muted-foreground cursor-default">
+                                                                        Ketik untuk mencari di antara {filteredProducts.length} produk...
+                                                                    </CommandItem>
+                                                                )}
+                                                            </CommandGroup>
                                                                                         </CommandList>
                                                                                     </Command>
                                                                                 </PopoverContent>
@@ -1112,11 +1143,7 @@ export default function CreateFormPO({
                                                                         <div className="h-10 px-3 py-2 bg-gradient-to-r from-purple-50/50 to-white dark:from-purple-950 dark:to-gray-900 border border-purple-100 dark:border-purple-900/50 rounded-lg flex items-center justify-end">
                                                                             <div className="text-right">
                                                                                 <div className="font-bold text-purple-700 dark:text-purple-400 text-sm">
-                                                                                    {new Intl.NumberFormat("id-ID", {
-                                                                                        style: "currency",
-                                                                                        currency: "IDR",
-                                                                                        minimumFractionDigits: 0,
-                                                                                    }).format(
+                                                                                    {currencyFormatter.format(
                                                                                         (item.quantity * item.unitPrice) *
                                                                                         (1 - (item.discount || 0) / 100) *
                                                                                         (1 + (item.taxRate || 0) / 100)
@@ -1240,7 +1267,7 @@ export default function CreateFormPO({
                                         </Button>
                                         <Button
                                             type="submit"
-                                            disabled={isSubmitting || form.watch("items").length === 0}
+                                            disabled={isSubmitting || items.length === 0}
                                             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25 dark:text-black"
                                         >
                                             {isSubmitting ? (
@@ -1289,11 +1316,7 @@ export default function CreateFormPO({
                                                 <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
                                             </div>
                                             <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                                {new Intl.NumberFormat("id-ID", {
-                                                    style: "currency",
-                                                    currency: "IDR",
-                                                    minimumFractionDigits: 0,
-                                                }).format(totals.subtotal)}
+                                                {currencyFormatter.format(totals.subtotal)}
                                             </span>
                                         </div>
 
@@ -1305,11 +1328,7 @@ export default function CreateFormPO({
                                                 <span className="text-sm text-gray-600 dark:text-gray-400">Total Diskon:</span>
                                             </div>
                                             <span className="font-semibold text-red-600 dark:text-red-400">
-                                                -{new Intl.NumberFormat("id-ID", {
-                                                    style: "currency",
-                                                    currency: "IDR",
-                                                    minimumFractionDigits: 0,
-                                                }).format(totals.totalDiscount)}
+                                                -{currencyFormatter.format(totals.totalDiscount)}
                                             </span>
                                         </div>
 
@@ -1321,11 +1340,7 @@ export default function CreateFormPO({
                                                 <span className="text-sm text-gray-600 dark:text-gray-400">Total Pajak:</span>
                                             </div>
                                             <span className="font-semibold text-blue-600 dark:text-blue-400">
-                                                +{new Intl.NumberFormat("id-ID", {
-                                                    style: "currency",
-                                                    currency: "IDR",
-                                                    minimumFractionDigits: 0,
-                                                }).format(totals.totalTax)}
+                                                +{currencyFormatter.format(totals.totalTax)}
                                             </span>
                                         </div>
                                     </div>
@@ -1338,11 +1353,7 @@ export default function CreateFormPO({
                                                 Total Pembayaran:
                                             </span>
                                             <span className="text-2xl bg-gradient-to-r from-emerald-600 to-green-600 dark:from-emerald-400 dark:to-green-400 bg-clip-text text-transparent">
-                                                {new Intl.NumberFormat("id-ID", {
-                                                    style: "currency",
-                                                    currency: "IDR",
-                                                    minimumFractionDigits: 0,
-                                                }).format(totals.grandTotal)}
+                                                {currencyFormatter.format(totals.grandTotal)}
                                             </span>
                                         </div>
                                         <div className="text-xs text-muted-foreground mt-2 text-right">
@@ -1372,13 +1383,13 @@ export default function CreateFormPO({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-gradient-to-br from-blue-50/50 to-blue-100/30 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 text-center border border-blue-100 dark:border-blue-900/50">
                                         <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
-                                            {form.watch("items").length}
+                                            {items.length}
                                         </div>
                                         <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Total Item</div>
                                     </div>
                                     <div className="bg-gradient-to-br from-purple-50/50 to-purple-100/30 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 text-center border border-purple-100 dark:border-purple-900/50">
                                         <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">
-                                            {form.watch("items").reduce((acc, item) => acc + item.quantity, 0)}
+                                            {items.reduce((acc, item) => acc + item.quantity, 0)}
                                         </div>
                                         <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Jumlah Unit</div>
                                     </div>
@@ -1387,14 +1398,10 @@ export default function CreateFormPO({
                                     <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center justify-between">
                                         <span>Rata-rata harga:</span>
                                         <span className="font-medium dark:text-gray-100">
-                                            {form.watch("items").length > 0
-                                                ? new Intl.NumberFormat("id-ID", {
-                                                    style: "currency",
-                                                    currency: "IDR",
-                                                    minimumFractionDigits: 0,
-                                                }).format(
-                                                    form.watch("items").reduce((acc, item) => acc + item.unitPrice, 0) /
-                                                    form.watch("items").length
+                                            {items.length > 0
+                                                ? currencyFormatter.format(
+                                                    items.reduce((acc, item) => acc + item.unitPrice, 0) /
+                                                    items.length
                                                 )
                                                 : "Rp 0"
                                             }

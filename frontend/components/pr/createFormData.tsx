@@ -1202,9 +1202,10 @@ export function TabelInputPR({
                                                         <TableCell className="align-top">
                                                             <Input
                                                                 type="number"
-                                                                min="1"
+                                                                min="0"
+                                                                step="0.01"
                                                                 value={item.jumlah}
-                                                                onChange={(e) => updateItem(item.tempId, "jumlah", parseInt(e.target.value) || 1)}
+                                                                onChange={(e) => updateItem(item.tempId, "jumlah", parseFloat(e.target.value) || 1)}
                                                                 className={cn("w-20", errors[`quantity-${index}`] && "border-red-500")}
                                                             />
                                                             {errors[`quantity-${index}`] && (
