@@ -201,12 +201,10 @@ export const updatePRRemainingBudget = async (prId, transaction = null) => {
         include: { details: true }
       },
       uangMuka: {
-        where: { status: { in: ['DISBURSED', 'SETTLED'] } }, // Only consider disbursed/settled cash advances as consuming budget
+        where: { status: { in: ['DISBURSED', 'SETTLED'] } },
         include: {
           pertanggungjawaban: {
-            where: { status: { not: 'REJECTED' } }, // Exclude rejected LPJ
-            orderBy: { createdAt: 'desc' },
-            take: 1
+            where: { status: { not: 'REJECTED' } }
           }
         }
       }
@@ -226,20 +224,20 @@ export const updatePRRemainingBudget = async (prId, transaction = null) => {
     totalPrSpk += calculatePRBudget(child.details);
   }
 
-  // 3. Total Uang Muka yang disetujui / cair
-  // Jika ada LPJ yang valid (tidak rejected), maka budget yang terpakai adalah totalBiaya dari LPJ (karena sisa uang akan dikembalikan).
-  // Jika belum ada LPJ, budget yang terpakai adalah seluruh jumlah Uang Muka.
-  const totalUangMuka = pr.uangMuka.reduce((sum, um) => {
-    let amountToDeduct = Number(um.jumlah) || 0;
-    
-    if (um.pertanggungjawaban && um.pertanggungjawaban.length > 0) {
-      amountToDeduct = Number(um.pertanggungjawaban[0].totalBiaya) || 0;
-    }
-    
-    return sum + amountToDeduct;
-  }, 0);
+  // 3. Cek apakah sudah ada LPP (Pertanggungjawaban) yang valid (tidak rejected)
+  const hasValidLpp = pr.uangMuka.some(um => 
+    um.pertanggungjawaban && um.pertanggungjawaban.length > 0
+  );
 
-  const newSisaBudget = totalPR - (totalPO + totalPrSpk + totalUangMuka);
+  let newSisaBudget = 0;
+
+  if (hasValidLpp) {
+    // Jika sudah ada LPP, Sisa Budget otomatis menjadi 0
+    newSisaBudget = 0;
+  } else {
+    // Opsi 2: Abaikan Uang Muka Cair, hanya kurangi PR SPK (dan PO)
+    newSisaBudget = totalPR - (totalPO + totalPrSpk);
+  }
 
   await db.purchaseRequest.update({
     where: { id: prId },
