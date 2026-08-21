@@ -1,8 +1,11 @@
 "use client";
 
+import React from "react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
-import { SalesOrderPDF, SalesOrderPDFProps } from "./SalesOrderPDF";
+import { Download, FileText, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { SalesOrderPDF, SalesOrderPDFProps, buildHppSummary, HppSourceSpk } from "./SalesOrderPDF";
 
 type Customer = {
     id: string
@@ -50,46 +53,110 @@ export interface SalesOrderFormData {
     location?: string;
     customerPIC?: string;
     createdBy?: string;
+    spk?: HppSourceSpk[];
 }
 
 export default function SalesOrderPdfPreview({ formData }: { formData: SalesOrderFormData }) {
     const pdfData: SalesOrderPDFProps["data"] = mapFormToPdfData(formData);
-    ;((...args: any[]) => {})("Mapped PDF Data:", pdfData);
+    const [isGenerating, setIsGenerating] = React.useState<"print" | "download" | null>(null);
+
+    const generateBlob = () => pdf(<SalesOrderPDF data={pdfData} />).toBlob();
 
     const handlePrint = async () => {
-        const blob = await pdf(<SalesOrderPDF data={pdfData} />).toBlob();
-        const url = URL.createObjectURL(blob);
-        const win = window.open(url);
-        win?.print();
+        try {
+            setIsGenerating("print");
+            const blob = await generateBlob();
+            const url = URL.createObjectURL(blob);
+            const win = window.open(url);
+            win?.print();
+        } catch (error) {
+            console.error("Error printing PDF:", error);
+        } finally {
+            setIsGenerating(null);
+        }
     };
 
     const handleDownload = async () => {
-        const blob = await pdf(<SalesOrderPDF data={pdfData} />).toBlob();
-        const url = URL.createObjectURL(blob);
+        try {
+            setIsGenerating("download");
+            const blob = await generateBlob();
+            const url = URL.createObjectURL(blob);
 
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `SalesOrder_${formData.soNumber || new Date().toISOString().slice(0, 10)}.pdf`;
-        a.click();
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `SalesOrder_${formData.soNumber || new Date().toISOString().slice(0, 10)}.pdf`;
+            a.click();
+
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+            console.error("Error downloading PDF:", error);
+        } finally {
+            setIsGenerating(null);
+        }
     };
 
     return (
-        <div className="flex flex-col gap-4 p-4">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Pratinjau Sales Order</h2>
-                <div className="flex gap-2">
-                    <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
-                        <i className="fas fa-print mr-2"></i> Cetak
+        <div className="flex h-full flex-col overflow-hidden">
+            {/* Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
+                <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-sm shadow-green-500/30">
+                        <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <h3 className="truncate text-sm font-semibold leading-tight">
+                                Pratinjau Sales Order
+                            </h3>
+                            <Badge variant="secondary" className="hidden font-mono text-[10px] sm:inline-flex">
+                                {formData.soNumber}
+                            </Badge>
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">
+                            {formData.customerName}
+                            {formData.project?.name ? ` • ${formData.project.name}` : ""}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrint}
+                        disabled={isGenerating !== null}
+                        className="cursor-pointer gap-1.5"
+                    >
+                        {isGenerating === "print"
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Printer className="h-4 w-4" />}
+                        Cetak
                     </Button>
-                    <Button onClick={handleDownload} variant="secondary" className="bg-green-600 hover:bg-green-700 text-white">
-                        <i className="fas fa-download mr-2"></i> Unduh PDF
+                    <Button
+                        size="sm"
+                        onClick={handleDownload}
+                        disabled={isGenerating !== null}
+                        className="cursor-pointer gap-1.5 bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-lg shadow-green-500/30 hover:from-green-500 hover:to-emerald-600 dark:shadow-green-600/30"
+                    >
+                        {isGenerating === "download"
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Download className="h-4 w-4" />}
+                        Unduh PDF
                     </Button>
                 </div>
             </div>
 
-            <PDFViewer width="100%" height="600" className="border border-gray-300 rounded-md">
-                <SalesOrderPDF data={pdfData} />
-            </PDFViewer>
+            {/* PDF Viewer */}
+            <div className="min-h-[420px] flex-1 bg-slate-200/70 p-3 dark:bg-slate-950">
+                <PDFViewer
+                    width="100%"
+                    height="100%"
+                    className="h-full rounded-md border shadow-sm"
+                    style={{ minHeight: "60vh" }}
+                >
+                    <SalesOrderPDF data={pdfData} />
+                </PDFViewer>
+            </div>
         </div>
     );
 }
@@ -99,14 +166,16 @@ function mapFormToPdfData(formData: SalesOrderFormData): SalesOrderPDFProps["dat
     return {
         soNumber: formData.soNumber || "",
         soDate: formData.soDate,
-        customerName: formData.customerName || "N/A",   // pakai field langsung
-        branch: formData.branch || "",                  // pakai field langsung
+        customerName: formData.customerName || "N/A",
+        branch: formData.branch || "",
         location: formData.location || "",
         projectName: formData.project?.name || formData.projectId || "N/A",
         customerPIC: formData.customerPIC || "",
         notes: formData.notes || null,
         type: formData.type || "REGULAR",
+        status: formData.status,
         createdBy: formData.userId || "",
+        hpp: buildHppSummary(formData.spk),
         items: formData.items?.map((item) => ({
             itemType: item.itemType,
             productId: item.productId || null,

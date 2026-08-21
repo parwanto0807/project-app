@@ -175,6 +175,22 @@ function mapToFormData(order: SalesOrder): SalesOrderFormData {
         customer: order.customer
             ? { ...order.customer, branch: order.customer.branch ?? undefined }
             : undefined,
+        spk: order.spk?.map((s) => ({
+            id: s.id,
+            spkNumber: s.spkNumber,
+            purchaseRequest: s.purchaseRequest?.map((pr) => ({
+                id: pr.id,
+                nomorPr: pr.nomorPr,
+                status: pr.status,
+                details: pr.details?.map((d) => ({
+                    estimasiTotalHarga: d.estimasiTotalHarga,
+                    sourceProduct: d.sourceProduct ?? null,
+                    jumlah: d.jumlah,
+                    satuan: d.satuan,
+                    productName: d.product?.name ?? null,
+                })),
+            })),
+        })),
     };
 }
 export function useBodyScrollLock(locked: boolean) {
@@ -1637,8 +1653,8 @@ export function SalesOrderTable({
                                             Preview
                                         </Button>
                                     </DialogTrigger>
-                                    <DialogContent className="max-w-4xl max-h-[90vh]">
-                                        <DialogHeader>
+                                    <DialogContent className="max-w-5xl gap-0 overflow-hidden p-0 sm:max-w-5xl">
+                                        <DialogHeader className="sr-only">
                                             <DialogTitle>
                                                 Preview Sales Order - {order.soNumber}
                                             </DialogTitle>
