@@ -12,6 +12,7 @@ import {
 } from "../../validations/umValidation.js";
 import fs from "fs";
 import { deleteFinanceFile } from "../../utils/deleteFileImage.js";
+import { updatePRRemainingBudget } from "../../utils/prParentChildHelpers.js";
 
 // const prisma = new PrismaClient();
 
@@ -681,6 +682,11 @@ export const uangMukaController = {
           }
         }
 
+        // Update PR budget if linked to a PR
+        if (purchaseRequestId) {
+          await updatePRRemainingBudget(purchaseRequestId, prismaTx);
+        }
+
         return uangMuka;
       }, { timeout: 15000 });
 
@@ -1267,6 +1273,11 @@ export const uangMukaController = {
               }
             }
           }
+        }
+
+        // Update PR budget if linked to a PR
+        if (existingUangMuka.purchaseRequestId) {
+          await updatePRRemainingBudget(existingUangMuka.purchaseRequestId, prismaTx);
         }
 
         return uangMuka;

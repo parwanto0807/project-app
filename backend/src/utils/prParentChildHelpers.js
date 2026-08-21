@@ -181,14 +181,14 @@ export const validateChildBudget = async (parentPrId, childBudget, excludePrId =
 
 /**
  * Update the sisaBudget field of a PR (usually a Parent PR UM)
- * Logic: totalAmount - (totalPO + totalPrSpkOperational)
+ * Logic: totalAmount - (totalPO + totalPrSpkOperational + totalUangMukaDisbursed)
  * @param {string} prId - PR ID to update
  * @param {Object} transaction - Optional Prisma transaction
  */
 export const updatePRRemainingBudget = async (prId, transaction = null) => {
   const db = transaction || prisma;
   
-  // Get PR with its own POs and its child PRs
+  // Get PR with its own POs, child PRs, and UangMuka
   const pr = await db.purchaseRequest.findUnique({
     where: { id: prId },
     include: { 
@@ -199,6 +199,16 @@ export const updatePRRemainingBudget = async (prId, transaction = null) => {
       childPrs: {
         where: { status: { notIn: ['REJECTED'] } },
         include: { details: true }
+      },
+      uangMuka: {
+        where: { status: { in: ['DISBURSED', 'SETTLED'] } }, // Only consider disbursed/settled cash advances as consuming budget
+        include: {
+          pertanggungjawaban: {
+            where: { status: { not: 'REJECTED' } }, // Exclude rejected LPJ
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          }
+        }
       }
     }
   });
@@ -216,7 +226,20 @@ export const updatePRRemainingBudget = async (prId, transaction = null) => {
     totalPrSpk += calculatePRBudget(child.details);
   }
 
-  const newSisaBudget = totalPR - (totalPO + totalPrSpk);
+  // 3. Total Uang Muka yang disetujui / cair
+  // Jika ada LPJ yang valid (tidak rejected), maka budget yang terpakai adalah totalBiaya dari LPJ (karena sisa uang akan dikembalikan).
+  // Jika belum ada LPJ, budget yang terpakai adalah seluruh jumlah Uang Muka.
+  const totalUangMuka = pr.uangMuka.reduce((sum, um) => {
+    let amountToDeduct = Number(um.jumlah) || 0;
+    
+    if (um.pertanggungjawaban && um.pertanggungjawaban.length > 0) {
+      amountToDeduct = Number(um.pertanggungjawaban[0].totalBiaya) || 0;
+    }
+    
+    return sum + amountToDeduct;
+  }, 0);
+
+  const newSisaBudget = totalPR - (totalPO + totalPrSpk + totalUangMuka);
 
   await db.purchaseRequest.update({
     where: { id: prId },
