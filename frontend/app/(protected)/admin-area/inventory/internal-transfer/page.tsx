@@ -53,8 +53,11 @@ export default function InternalTransferPage() {
         if (t.fromWarehouse?.name?.toLowerCase().includes(localSearch.toLowerCase())) return true;
         if (t.toWarehouse?.name?.toLowerCase().includes(localSearch.toLowerCase())) return true;
 
-        // Search in sender name
+        // Search in sender / user name / NIK
         if (t.sender?.namaLengkap?.toLowerCase().includes(localSearch.toLowerCase())) return true;
+        if (t.sender?.name?.toLowerCase().includes(localSearch.toLowerCase())) return true;
+        if (t.sender?.user?.name?.toLowerCase().includes(localSearch.toLowerCase())) return true;
+        if (t.sender?.nik?.toLowerCase().includes(localSearch.toLowerCase())) return true;
 
         // Search in items (product code, product name)
         if (t.items && Array.isArray(t.items)) {
@@ -183,7 +186,7 @@ export default function InternalTransferPage() {
                                 </div>
                                 <form onSubmit={handleSearch} className="flex gap-2">
                                     <Input
-                                        placeholder="Cari: transfer no, product, gudang..."
+                                        placeholder="Cari: transfer no, user, product, gudang..."
                                         value={localSearch}
                                         onChange={(e) => setLocalSearch(e.target.value)}
                                         className="w-72"
@@ -226,6 +229,7 @@ export default function InternalTransferPage() {
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Tanggal</th>
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Dari</th>
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Ke</th>
+                                                <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">User Input</th>
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Catatan</th>
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Items</th>
                                                 <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Status</th>
@@ -248,6 +252,27 @@ export default function InternalTransferPage() {
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         <div className="text-sm font-medium">{transfer.toWarehouse?.name || '-'}</div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-7 w-7 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center flex-shrink-0">
+                                                                <User className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate max-w-[160px]" title={transfer.sender?.user?.name || transfer.sender?.user?.username || transfer.sender?.namaLengkap || transfer.sender?.name || '-'}>
+                                                                    {transfer.sender?.user?.name || transfer.sender?.user?.username || transfer.sender?.namaLengkap || transfer.sender?.name || '-'}
+                                                                </p>
+                                                                {transfer.sender?.user?.username ? (
+                                                                    <p className="text-[11px] text-slate-400 font-mono">
+                                                                        @{transfer.sender.user.username}
+                                                                    </p>
+                                                                ) : transfer.sender?.nik ? (
+                                                                    <p className="text-[11px] text-slate-400 font-mono">
+                                                                        NIK: {transfer.sender.nik}
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         {transfer.notes ? (
@@ -361,10 +386,29 @@ export default function InternalTransferPage() {
                                         <p className="font-medium text-sm">{formatDate(selectedTransfer.createdAt)}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-slate-500 mb-1">Pengirim</p>
+                                        <p className="text-xs text-slate-500 mb-1">User Input (Login)</p>
                                         <div className="flex items-center gap-2">
                                             <User className="h-4 w-4 text-slate-400" />
-                                            <p className="font-medium text-sm">{selectedTransfer.sender?.namaLengkap || '-'}</p>
+                                            <div>
+                                                <p className="font-semibold text-sm">
+                                                    {selectedTransfer.sender?.user?.name || selectedTransfer.sender?.user?.username || selectedTransfer.sender?.namaLengkap || selectedTransfer.sender?.name || '-'}
+                                                </p>
+                                                {selectedTransfer.sender?.user?.username && (
+                                                    <p className="text-[11px] text-slate-400 font-mono">
+                                                        @{selectedTransfer.sender.user.username}
+                                                    </p>
+                                                )}
+                                                {selectedTransfer.sender?.user?.email && (
+                                                    <p className="text-[11px] text-slate-400">
+                                                        {selectedTransfer.sender.user.email}
+                                                    </p>
+                                                )}
+                                                {!selectedTransfer.sender?.user && selectedTransfer.sender?.nik && (
+                                                    <p className="text-[11px] text-slate-400 font-mono">
+                                                        NIK: {selectedTransfer.sender.nik}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

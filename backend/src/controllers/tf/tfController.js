@@ -399,8 +399,16 @@ export const getAllTransfers = async (req, res) => {
         include: {
           fromWarehouse: true,
           toWarehouse: true,
-          sender: true,
-          receiver: true,
+          sender: {
+            include: {
+              user: true
+            }
+          },
+          receiver: {
+            include: {
+              user: true
+            }
+          },
           items: {
             include: {
               product: true
@@ -1321,7 +1329,37 @@ export const createDirectTransfer = async (req, res) => {
       }
     }
 
-    const transferNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
+    let finalSenderId = senderId;
+    if (finalSenderId) {
+      const karyawanCheck = await prisma.karyawan.findUnique({
+        where: { id: finalSenderId }
+      });
+      if (!karyawanCheck) {
+        const karyawanByUser = await prisma.karyawan.findUnique({
+          where: { userId: finalSenderId }
+        });
+        if (karyawanByUser) {
+          finalSenderId = karyawanByUser.id;
+        }
+      }
+    } else if (req.user?.id) {
+      const karyawanByUser = await prisma.karyawan.findUnique({
+        where: { userId: req.user.id }
+      });
+      if (karyawanByUser) {
+        finalSenderId = karyawanByUser.id;
+      }
+    }
+
+    if (!finalSenderId) {
+      // Fallback to first active karyawan if none matched
+      const fallbackKaryawan = await prisma.karyawan.findFirst({
+        where: { isActive: true }
+      });
+      if (fallbackKaryawan) {
+        finalSenderId = fallbackKaryawan.id;
+      }
+    }
 
     // Execute in transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -1331,7 +1369,7 @@ export const createDirectTransfer = async (req, res) => {
           transferNumber,
           fromWarehouseId,
           toWarehouseId,
-          senderId,
+          senderId: finalSenderId,
           notes,
           status: 'RECEIVED', // Direct completion
           items: {

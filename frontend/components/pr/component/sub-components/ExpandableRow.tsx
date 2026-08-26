@@ -582,6 +582,16 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                     </Badge>
                                 ) : null}
 
+                                {/* Tanggal Input LPP */}
+                                {pr.uangMuka?.[0]?.pertanggungjawaban?.[0] && (
+                                    <div className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3 text-gray-400" />
+                                        <span className="text-[10px] text-muted-foreground">
+                                            Input LPP: {formatDateTime(pr.uangMuka[0].pertanggungjawaban[0].createdAt)}
+                                        </span>
+                                    </div>
+                                )}
+
                                 {/* Selisih LPP Badge */}
                                 {pr.uangMuka?.[0]?.pertanggungjawaban?.[0] && (
                                     <div className="flex flex-col items-end">

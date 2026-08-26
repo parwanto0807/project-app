@@ -11,12 +11,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, Loader2, ArrowRightLeft, Check, ChevronsUpDown } from 'lucide-react';
+import { Plus, Trash2, Loader2, ArrowRightLeft, Check, ChevronsUpDown, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWarehouses } from '@/lib/action/wh/whAction';
 import { getInventoryMonitoring } from '@/lib/action/inventory/inventoryAction';
 import { createDirectTransfer } from '@/lib/action/tf/directTransferAction';
 import { fetchAllKaryawan } from '@/lib/action/master/karyawan';
+import { useSession } from '@/components/clientSessionProvider';
 import { toast } from 'sonner';
 
 interface Warehouse {
@@ -50,6 +51,7 @@ interface TransferItem {
 
 export default function InternalTransferForm() {
     const router = useRouter();
+    const { user } = useSession();
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [karyawans, setKaryawans] = useState<Karyawan[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -94,6 +96,18 @@ export default function InternalTransferForm() {
 
                 if (karyawanRes && karyawanRes.karyawan) {
                     setKaryawans(karyawanRes.karyawan);
+
+                    // Auto-select karyawan based on logged in user
+                    const matchedKaryawan = karyawanRes.karyawan.find((k: any) => 
+                        (user?.id && k.userId === user.id) ||
+                        (user?.email && k.email?.toLowerCase() === user.email?.toLowerCase()) ||
+                        (user?.name && k.namaLengkap?.toLowerCase() === user.name?.toLowerCase()) ||
+                        (user?.username && k.namaLengkap?.toLowerCase() === user.username?.toLowerCase())
+                    ) || karyawanRes.karyawan[0];
+
+                    if (matchedKaryawan) {
+                        setSenderId(matchedKaryawan.id);
+                    }
                 }
 
                 if (productsRes.success && productsRes.data) {
@@ -192,8 +206,20 @@ export default function InternalTransferForm() {
             return false;
         }
 
-        if (!senderId) {
-            toast.error('Pilih karyawan pengirim');
+        // Ensure senderId is populated (from session or matched karyawan)
+        let finalSenderId = senderId;
+        if (!finalSenderId && karyawans.length > 0) {
+            const matched = karyawans.find((k: any) => 
+                (user?.id && k.userId === user.id) ||
+                (user?.email && k.email?.toLowerCase() === user.email?.toLowerCase()) ||
+                (user?.name && k.namaLengkap?.toLowerCase() === user.name?.toLowerCase())
+            ) || karyawans[0];
+            finalSenderId = matched.id;
+            setSenderId(finalSenderId);
+        }
+
+        if (!finalSenderId) {
+            toast.error('Data karyawan untuk user login tidak ditemukan');
             return false;
         }
 
@@ -214,10 +240,18 @@ export default function InternalTransferForm() {
 
         try {
             const validItems = items.filter(item => item.productId && item.quantity > 0);
+            
+            // Resolve final senderId from user if still empty
+            const effectiveSenderId = senderId || karyawans.find((k: any) => 
+                (user?.id && k.userId === user.id) ||
+                (user?.email && k.email?.toLowerCase() === user.email?.toLowerCase()) ||
+                (user?.name && k.namaLengkap?.toLowerCase() === user.name?.toLowerCase())
+            )?.id || karyawans[0]?.id;
+
             const result = await createDirectTransfer({
                 fromWarehouseId: fromWarehouse,
                 toWarehouseId: toWarehouse,
-                senderId,
+                senderId: effectiveSenderId,
                 notes,
                 items: validItems.map(item => ({
                     ...item,
@@ -286,19 +320,18 @@ export default function InternalTransferForm() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Pengirim *</Label>
-                            <Select value={senderId} onValueChange={setSenderId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih karyawan pengirim" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {karyawans.map(karyawan => (
-                                        <SelectItem key={karyawan.id} value={karyawan.id}>
-                                            {karyawan.namaLengkap}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label>User Input (Login)</Label>
+                            <div className="flex items-center gap-2.5 h-10 px-3 rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                <div className="h-6 w-6 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center flex-shrink-0">
+                                    <User className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                                <span className="font-semibold truncate">{user?.name || user?.username || 'Current User'}</span>
+                                {user?.role && (
+                                    <span className="ml-auto text-[11px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 capitalize whitespace-nowrap">
+                                        {user.role}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -418,7 +451,7 @@ export default function InternalTransferForm() {
                                     </div>
                                 </div>
 
-                                <div className="col-span-3 md:col-span-1">
+                                <div className="col-span-6 md:col-span-2">
                                     <Label className="text-sm">Jumlah *</Label>
                                     <Input
                                         type="number"
@@ -428,30 +461,19 @@ export default function InternalTransferForm() {
                                         onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                                         min="0.01"
                                     />
-                                </div>
-
-                                <div className="col-span-3 md:col-span-1">
-                                    <Label className="text-sm">Satuan</Label>
-                                    <Input value={item.unit} disabled className="mt-1.5 h-10 bg-slate-50" />
-                                </div>
-
-                                <div className="col-span-3 md:col-span-1">
-                                    <Label className="text-sm">Jumlah *</Label>
-                                    <Input
-                                        type="number"
-                                        step="0.01"
-                                        value={item.quantity}
-                                        onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                                        min="0.01"
-                                    />
                                     {isStockInsufficient(item) && (() => {
                                         const product = getItemProduct(item);
                                         return (
                                             <p className="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400">
-                                                Melebihi stok tersedia ({product?.availableStock} {product?.unit})
+                                                Melebihi stok ({product?.availableStock} {product?.unit})
                                             </p>
                                         );
                                     })()}
+                                </div>
+
+                                <div className="col-span-6 md:col-span-1">
+                                    <Label className="text-sm">Satuan</Label>
+                                    <Input value={item.unit} disabled className="mt-1.5 h-10 bg-slate-50" />
                                 </div>
 
                                 <div className="col-span-3 md:col-span-1">
@@ -546,9 +568,9 @@ export default function InternalTransferForm() {
                                 </span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
-                                <span className="text-slate-500 dark:text-slate-400">Pengirim</span>
+                                <span className="text-slate-500 dark:text-slate-400">User Input (Login)</span>
                                 <span className="font-semibold text-right">
-                                    {karyawans.find(k => k.id === senderId)?.namaLengkap || '-'}
+                                    {user?.name || user?.username || karyawans.find(k => k.id === senderId)?.namaLengkap || '-'}
                                 </span>
                             </div>
                         </div>
