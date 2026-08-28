@@ -1361,33 +1361,55 @@ export const createDirectTransfer = async (req, res) => {
       }
     }
 
+    let transferNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
+
     // Execute in transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create transfer record with status 'COMPLETED'
-      const transfer = await tx.stockTransfer.create({
-        data: {
-          transferNumber,
-          fromWarehouseId,
-          toWarehouseId,
-          senderId: finalSenderId,
-          notes,
-          status: 'RECEIVED', // Direct completion
-          items: {
-            create: items.map(item => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unit: item.unit,
-              cogs: item.pricePerUnit || 0
-            }))
+      // Create transfer record with status 'COMPLETED' + retry on collision
+      let transfer = null;
+      let dtRetry = 0;
+      const dtMaxRetries = 3;
+      while (dtRetry < dtMaxRetries) {
+        const tryNumber = dtRetry === 0 ? transferNumber : `${prefix}-${String(sequence + dtRetry).padStart(4, '0')}`;
+        try {
+          transfer = await tx.stockTransfer.create({
+            data: {
+              transferNumber: tryNumber,
+              fromWarehouseId,
+              toWarehouseId,
+              senderId: finalSenderId,
+              notes,
+              status: 'RECEIVED', // Direct completion
+              items: {
+                create: items.map(item => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                  cogs: item.pricePerUnit || 0
+                }))
+              }
+            },
+            include: {
+              items: { include: { product: true } },
+              fromWarehouse: true,
+              toWarehouse: true,
+              sender: true
+            }
+          });
+          transferNumber = tryNumber;
+          break;
+        } catch (error) {
+          if (error.code === 'P2002' && dtRetry < dtMaxRetries - 1) {
+            dtRetry++;
+            continue;
           }
-        },
-        include: {
-          items: { include: { product: true } },
-          fromWarehouse: true,
-          toWarehouse: true,
-          sender: true
+          throw error;
         }
-      });
+      }
+
+      if (!transfer) {
+        throw new Error('Failed to create direct transfer after retries');
+      }
 
       // Process each item
       for (const item of items) {
@@ -1459,7 +1481,7 @@ export const createDirectTransfer = async (req, res) => {
             transUnit: item.unit,
             baseQty: qtyInStorageUnit,
             pricePerUnit: item.pricePerUnit || 0,
-            referenceNo: transferNumber,
+            referenceNo: transfer.transferNumber,
             stockAwalSnapshot: sourceBalance.stockAkhir,
             stockAkhirSnapshot: Number(sourceBalance.stockAkhir) - qtyInStorageUnit,
             notes: notes || `Direct transfer to ${transfer.toWarehouse.name}`
@@ -1516,7 +1538,7 @@ export const createDirectTransfer = async (req, res) => {
             transUnit: item.unit,
             baseQty: qtyInStorageUnit,
             pricePerUnit: item.pricePerUnit || 0,
-            referenceNo: transferNumber,
+            referenceNo: transfer.transferNumber,
             residualQty: qtyInStorageUnit,
             stockAwalSnapshot: destBalance.stockAkhir,
             stockAkhirSnapshot: Number(destBalance.stockAkhir) + qtyInStorageUnit,
