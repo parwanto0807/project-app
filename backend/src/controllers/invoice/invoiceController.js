@@ -171,24 +171,27 @@ class InvoiceController {
 
         // Create new invoice items
         const newInvoiceItems = await tx.invoiceItem.createMany({
-          data: items.map((item) => ({
-            invoiceId: invoice.id,
-            soItemId: item.soItemId,
-            itemCode: item.itemCode, // itemCode adalah productId
-            name: item.name,
-            description: item.description,
-            uom: item.uom,
-            qty: item.qty,
-            unitPrice: item.unitPrice,
-            discount: item.discount || 0,
-            discountPercent: item.discountPercent || 0,
-            taxRate: item.taxRate || 0,
-            taxCode: item.taxCode,
-            taxable: item.taxable !== false,
-            lineTotal: item.lineTotal,
-            taxAmount: item.taxAmount,
-            netAmount: item.netAmount,
-          })),
+          data: items.map((item) => {
+            const { lineTotal, taxAmount, netAmount } = this.calculateItemTotals(item);
+            return {
+              invoiceId: invoice.id,
+              soItemId: item.soItemId,
+              itemCode: item.itemCode,
+              name: item.name,
+              description: item.description,
+              uom: item.uom,
+              qty: item.qty,
+              unitPrice: item.unitPrice,
+              discount: item.discount || 0,
+              discountPercent: item.discountPercent || 0,
+              taxRate: item.taxRate || 0,
+              taxCode: item.taxCode,
+              taxable: item.taxable !== false,
+              lineTotal,
+              taxAmount,
+              netAmount,
+            };
+          }),
         });
 
         // UPDATE SALES ORDER ITEMS - menggunakan itemCode sebagai productId
@@ -206,6 +209,7 @@ class InvoiceController {
 
           // Gunakan itemCode sebagai productId
           if (item.soItemId && item.itemCode && salesOrderId) {
+            const soItemTotals = this.calculateItemTotals(item);
             try {
               // OPTION 1: Update menggunakan soItemId, salesOrderId, dan productId (itemCode)
               const updateResult = await tx.salesOrderItem.updateMany({
@@ -219,7 +223,7 @@ class InvoiceController {
                   unitPrice: item.unitPrice,
                   discount: item.discount || 0,
                   taxRate: item.taxRate || 0,
-                  lineTotal: item.lineTotal,
+                  lineTotal: soItemTotals.lineTotal,
                 },
               });
 
@@ -245,7 +249,7 @@ class InvoiceController {
                     unitPrice: item.unitPrice,
                     discount: item.discount || 0,
                     taxRate: item.taxRate || 0,
-                    lineTotal: item.lineTotal,
+                    lineTotal: soItemTotals.lineTotal,
                   },
                 });
                 ;(() => {})(`Fallback update successful:`, fallbackResult);
@@ -268,7 +272,7 @@ class InvoiceController {
                     unitPrice: item.unitPrice,
                     discount: item.discount || 0,
                     taxRate: item.taxRate || 0,
-                    lineTotal: item.lineTotal,
+                    lineTotal: soItemTotals.lineTotal,
                   },
                 });
                 ;(() => {})(`Last resort update successful:`, lastResortResult);
@@ -366,6 +370,24 @@ class InvoiceController {
     }
   }
 
+  // Calculate lineTotal, taxAmount, netAmount for a single item (server-side)
+  calculateItemTotals(item) {
+    const qty = parseFloat(item.qty) || 0;
+    const unitPrice = parseFloat(item.unitPrice) || 0;
+    const discountFixed = parseFloat(item.discount) || 0;
+    const discountPercent = parseFloat(item.discountPercent) || 0;
+    const taxRate = parseFloat(item.taxRate) || 0;
+    const taxable = item.taxable !== false;
+
+    const subtotal = qty * unitPrice;
+    const discountAmount = subtotal * (discountPercent / 100) + discountFixed;
+    const lineTotal = subtotal - discountAmount;
+    const taxAmount = taxable ? lineTotal * (taxRate / 100) : 0;
+    const netAmount = lineTotal;
+
+    return { lineTotal, taxAmount, netAmount };
+  }
+
   // Calculate invoice totals from items
   calculateInvoiceTotals(items) {
     let subtotal = 0;
@@ -454,23 +476,26 @@ class InvoiceController {
             createdById,
             approvedById,
             items: {
-              create: items.map((item) => ({
-                soItemId: item.soItemId,
-                itemCode: item.itemCode,
-                name: item.name,
-                description: item.description,
-                uom: item.uom,
-                qty: item.qty,
-                unitPrice: item.unitPrice,
-                discount: item.discount || 0,
-                discountPercent: item.discountPercent || 0,
-                taxRate: item.taxRate || 0,
-                taxCode: item.taxCode,
-                taxable: item.taxable !== false,
-                lineTotal: item.lineTotal,
-                taxAmount: item.taxAmount,
-                netAmount: item.netAmount,
-              })),
+              create: items.map((item) => {
+                const { lineTotal, taxAmount, netAmount } = this.calculateItemTotals(item);
+                return {
+                  soItemId: item.soItemId,
+                  itemCode: item.itemCode,
+                  name: item.name,
+                  description: item.description,
+                  uom: item.uom,
+                  qty: item.qty,
+                  unitPrice: item.unitPrice,
+                  discount: item.discount || 0,
+                  discountPercent: item.discountPercent || 0,
+                  taxRate: item.taxRate || 0,
+                  taxCode: item.taxCode,
+                  taxable: item.taxable !== false,
+                  lineTotal,
+                  taxAmount,
+                  netAmount,
+                };
+              }),
             },
           },
           include: {
@@ -493,6 +518,7 @@ class InvoiceController {
 
           // Gunakan itemCode sebagai productId
           if (item.soItemId && item.itemCode && salesOrderId) {
+            const soItemTotals = this.calculateItemTotals(item);
             try {
               // OPTION 1: Update menggunakan soItemId, salesOrderId, dan productId (itemCode)
               const updateResult = await tx.salesOrderItem.updateMany({
@@ -506,7 +532,7 @@ class InvoiceController {
                   unitPrice: item.unitPrice,
                   discount: item.discount || 0,
                   taxRate: item.taxRate || 0,
-                  lineTotal: item.lineTotal,
+                  lineTotal: soItemTotals.lineTotal,
                 },
               });
 
@@ -532,7 +558,7 @@ class InvoiceController {
                     unitPrice: item.unitPrice,
                     discount: item.discount || 0,
                     taxRate: item.taxRate || 0,
-                    lineTotal: item.lineTotal,
+                    lineTotal: soItemTotals.lineTotal,
                   },
                 });
                 // ;(() => {})(`Fallback update successful:`, fallbackResult);
@@ -555,7 +581,7 @@ class InvoiceController {
                     unitPrice: item.unitPrice,
                     discount: item.discount || 0,
                     taxRate: item.taxRate || 0,
-                    lineTotal: item.lineTotal,
+                    lineTotal: soItemTotals.lineTotal,
                   },
                 });
                 // ;(() => {})(`Last resort update successful:`, lastResortResult);
@@ -2104,7 +2130,23 @@ class InvoiceController {
 
         // D. Credit Tax (PPN)
         let taxLine = null;
-        const taxAmount = parseFloat(invoice.taxTotal) || 0;
+        let taxAmount = parseFloat(invoice.taxTotal) || 0;
+        
+        // Fallback: Recalculate tax from items if taxTotal is 0 but items have tax rates
+        if (taxAmount === 0 && invoice.items.length > 0) {
+          taxAmount = invoice.items.reduce((sum, item) => {
+            const lineTotal = parseFloat(item.lineTotal) || 0;
+            const taxRate = parseFloat(item.taxRate) || 0;
+            const taxable = item.taxable !== false; // default true
+            if (taxable && taxRate > 0 && lineTotal > 0) {
+              return sum + (lineTotal * taxRate / 100);
+            }
+            return sum;
+          }, 0);
+          if (taxAmount > 0) {
+            console.warn(`[POSTING] ⚠️ taxTotal was 0 on invoice, recalculated from items: ${taxAmount}`);
+          }
+        }
         
         if (taxAmount > 0) {
            if (!vatOutAccount) throw new Error("VAT Account (PPN Keluaran) not found");
