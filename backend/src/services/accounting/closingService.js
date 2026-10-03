@@ -91,32 +91,36 @@ class ClosingService {
     async rolloverTrialBalances(tx, currentPeriodId, nextPeriodId) {
         ;(() => {})(`[CLOSING] Rolling over Trial Balances from ${currentPeriodId} to ${nextPeriodId}...`);
 
-        const currentPeriod = await tx.accountingPeriod.findUnique({ where: { id: currentPeriodId } });
-        const nextPeriod = await tx.accountingPeriod.findUnique({ where: { id: nextPeriodId } });
+        const [currentPeriod, nextPeriod, currentTBs, existingNextTBs] = await Promise.all([
+            tx.accountingPeriod.findUnique({ where: { id: currentPeriodId } }),
+            tx.accountingPeriod.findUnique({ where: { id: nextPeriodId } }),
+            tx.trialBalance.findMany({
+                where: { periodId: currentPeriodId },
+                include: { coa: true }
+            }),
+            tx.trialBalance.findMany({
+                where: { periodId: nextPeriodId }
+            })
+        ]);
         
         const isFiscalYearReset = currentPeriod.fiscalYear !== nextPeriod.fiscalYear;
+        const nextTBMap = new Map(existingNextTBs.map(tb => [tb.coaId, tb]));
 
-        // Get all accounts that have balances
-        const currentTBs = await tx.trialBalance.findMany({
-            where: { periodId: currentPeriodId },
-            include: { coa: true }
-        });
+        const nextToCreate = [];
+        const nextToUpdate = [];
 
         for (const tb of currentTBs) {
             let openingDebit = Number(tb.endingDebit);
             let openingCredit = Number(tb.endingCredit);
             
-            const isNominalAccount = ['REVENUE', 'EXPENSE', 'HPP', 'OTHER_INCOME', 'OTHER_EXPENSE'].includes(tb.coa.type);
+            const isNominalAccount = ['PENDAPATAN', 'HPP', 'BEBAN', 'REVENUE', 'EXPENSE', 'OTHER_INCOME', 'OTHER_EXPENSE'].includes(tb.coa.type);
             
             if (isFiscalYearReset && isNominalAccount) {
                  openingDebit = 0;
                  openingCredit = 0;
             }
 
-            // Upsert ke Next Period
-            const existingNext = await tx.trialBalance.findUnique({
-                where: { periodId_coaId: { periodId: nextPeriodId, coaId: tb.coaId } }
-            });
+            const existingNext = nextTBMap.get(tb.coaId);
 
             if (existingNext) {
                 const currentPeriodD = Number(existingNext.periodDebit);
@@ -131,35 +135,51 @@ class ClosingService {
                     if (net >= 0) endD = net; else endC = Math.abs(net);
                 } else {
                     const net = totalC - totalD;
-                    if (net >= 0) endC = net; else endD = Math.abs(net);
+                    if (net >= 0) endD = net; else endC = Math.abs(net);
                 }
 
-                await tx.trialBalance.update({
-                    where: { id: existingNext.id },
-                    data: {
-                        openingDebit: openingDebit,
-                        openingCredit: openingCredit,
-                        endingDebit: endD,
-                        endingCredit: endC,
-                        calculatedAt: new Date()
-                    }
+                nextToUpdate.push({
+                    id: existingNext.id,
+                    openingDebit,
+                    openingCredit,
+                    endingDebit: endD,
+                    endingCredit: endC
                 });
             } else {
-                await tx.trialBalance.create({
-                    data: {
-                        periodId: nextPeriodId,
-                        coaId: tb.coaId,
-                        openingDebit: openingDebit,
-                        openingCredit: openingCredit,
-                        periodDebit: 0,
-                        periodCredit: 0,
-                        endingDebit: openingDebit,
-                        endingCredit: openingCredit,
-                        currency: 'IDR',
-                        calculatedAt: new Date()
-                    }
+                nextToCreate.push({
+                    periodId: nextPeriodId,
+                    coaId: tb.coaId,
+                    openingDebit: openingDebit,
+                    openingCredit: openingCredit,
+                    periodDebit: 0,
+                    periodCredit: 0,
+                    endingDebit: openingDebit,
+                    endingCredit: openingCredit,
+                    currency: 'IDR',
+                    calculatedAt: new Date()
                 });
             }
+        }
+
+        if (nextToCreate.length > 0) {
+            await tx.trialBalance.createMany({
+                data: nextToCreate,
+                skipDuplicates: true
+            });
+        }
+
+        for (let i = 0; i < nextToUpdate.length; i += 25) {
+            const chunk = nextToUpdate.slice(i, i + 25);
+            await Promise.all(chunk.map(item => tx.trialBalance.update({
+                where: { id: item.id },
+                data: {
+                    openingDebit: item.openingDebit,
+                    openingCredit: item.openingCredit,
+                    endingDebit: item.endingDebit,
+                    endingCredit: item.endingCredit,
+                    calculatedAt: new Date()
+                }
+            })));
         }
     }
 
@@ -270,6 +290,7 @@ class ClosingService {
             }
         }
     }
+
     /**
      * Validasi data sebelum tutup buku
      */
@@ -389,8 +410,6 @@ class ClosingService {
                 const nextComp = this.getJakartaComponents(nextStart);
                 
                 // End of next month in Jakarta time
-                // next month = nextComp.month (1-indexed)
-                // date 0 of month + 2 is end of month + 1
                 const day0 = new Date(Date.UTC(nextComp.year, nextComp.month, 0));
                 const nextEnd = new Date(Date.UTC(nextComp.year, nextComp.month - 1, day0.getUTCDate(), 16, 59, 59, 999));
                 
@@ -416,41 +435,52 @@ class ClosingService {
             }
 
             // 1. Hitung Saldo Akhir semua COA untuk periode ini
-            const coas = await tx.chartOfAccounts.findMany({
-                where: { postingType: 'POSTING' }
-            });
-
-            for (const coa of coas) {
-                // Hitung mutasi debit/credit di periode ini
-                const mutation = await tx.ledgerLine.aggregate({
+            const [coas, mutations, currentTBs] = await Promise.all([
+                tx.chartOfAccounts.findMany({
+                    where: { postingType: 'POSTING' }
+                }),
+                tx.ledgerLine.groupBy({
+                    by: ['coaId'],
                     where: {
-                        coaId: coa.id,
                         ledger: { periodId: periodId, status: 'POSTED' }
                     },
                     _sum: {
                         debitAmount: true,
                         creditAmount: true
                     }
+                }),
+                tx.trialBalance.findMany({
+                    where: { periodId: periodId }
+                })
+            ]);
+
+            const mutationMap = new Map();
+            for (const m of mutations) {
+                mutationMap.set(m.coaId, {
+                    debit: Number(m._sum.debitAmount || 0),
+                    credit: Number(m._sum.creditAmount || 0)
                 });
+            }
 
-                const periodDebit = mutation._sum.debitAmount || 0;
-                const periodCredit = mutation._sum.creditAmount || 0;
+            const currentTBMap = new Map(currentTBs.map(tb => [tb.coaId, tb]));
+            const currentTBsToCreate = [];
+            const currentTBsToUpdate = [];
 
-                // Ambil saldo awal (opening) periode ini
-                const currentTB = await tx.trialBalance.findUnique({
-                    where: { periodId_coaId: { periodId, coaId: coa.id } }
-                });
+            for (const coa of coas) {
+                const mut = mutationMap.get(coa.id) || { debit: 0, credit: 0 };
+                const periodDebit = mut.debit;
+                const periodCredit = mut.credit;
 
-                const openingDebit = currentTB?.openingDebit || 0;
-                const openingCredit = currentTB?.openingCredit || 0;
+                const currentTB = currentTBMap.get(coa.id);
+                const openingDebit = Number(currentTB?.openingDebit || 0);
+                const openingCredit = Number(currentTB?.openingCredit || 0);
 
                 // Hitung Saldo Akhir
-                // Formula: (Open + Period) - Other side
                 let endingDebit = 0;
                 let endingCredit = 0;
 
-                const netDebit = (openingDebit + periodDebit);
-                const netCredit = (openingCredit + periodCredit);
+                const netDebit = openingDebit + periodDebit;
+                const netCredit = openingCredit + periodCredit;
 
                 if (coa.normalBalance === 'DEBIT') {
                     endingDebit = netDebit - netCredit;
@@ -466,17 +496,16 @@ class ClosingService {
                     }
                 }
 
-                // Update TrialBalance periode ini (Final Seal)
-                await tx.trialBalance.upsert({
-                    where: { periodId_coaId: { periodId, coaId: coa.id } },
-                    update: {
+                if (currentTB) {
+                    currentTBsToUpdate.push({
+                        id: currentTB.id,
                         periodDebit,
                         periodCredit,
                         endingDebit,
-                        endingCredit,
-                        calculatedAt: new Date()
-                    },
-                    create: {
+                        endingCredit
+                    });
+                } else {
+                    currentTBsToCreate.push({
                         periodId,
                         coaId: coa.id,
                         openingDebit,
@@ -485,40 +514,32 @@ class ClosingService {
                         periodCredit,
                         endingDebit,
                         endingCredit,
+                        currency: 'IDR',
                         calculatedAt: new Date()
-                    }
-                });
-
-                // Roll-over ke periode berikutnya jika ada
-                if (nextPeriod) {
-                    // Check if it's a new fiscal year
-                    const isNewFiscalYear = nextPeriod.fiscalYear !== period.fiscalYear;
-                    const isIncomeStatementAccount = ['PENDAPATAN', 'HPP', 'BEBAN'].includes(coa.type);
-                    
-                    // Reset IS accounts to zero at year-end rollover
-                    const rolloverDebit = (isNewFiscalYear && isIncomeStatementAccount) ? 0 : endingDebit;
-                    const rolloverCredit = (isNewFiscalYear && isIncomeStatementAccount) ? 0 : endingCredit;
-
-                    await tx.trialBalance.upsert({
-                        where: { periodId_coaId: { periodId: nextPeriod.id, coaId: coa.id } },
-                        update: {
-                            openingDebit: rolloverDebit,
-                            openingCredit: rolloverCredit,
-                            calculatedAt: new Date()
-                        },
-                        create: {
-                            periodId: nextPeriod.id,
-                            coaId: coa.id,
-                            openingDebit: rolloverDebit,
-                            openingCredit: rolloverCredit,
-                            periodDebit: 0,
-                            periodCredit: 0,
-                            endingDebit: 0,
-                            endingCredit: 0,
-                            calculatedAt: new Date()
-                        }
                     });
                 }
+            }
+
+            // Update & create TrialBalances periode ini
+            if (currentTBsToCreate.length > 0) {
+                await tx.trialBalance.createMany({
+                    data: currentTBsToCreate,
+                    skipDuplicates: true
+                });
+            }
+
+            for (let i = 0; i < currentTBsToUpdate.length; i += 25) {
+                const chunk = currentTBsToUpdate.slice(i, i + 25);
+                await Promise.all(chunk.map(item => tx.trialBalance.update({
+                    where: { id: item.id },
+                    data: {
+                        periodDebit: item.periodDebit,
+                        periodCredit: item.periodCredit,
+                        endingDebit: item.endingDebit,
+                        endingCredit: item.endingCredit,
+                        calculatedAt: new Date()
+                    }
+                })));
             }
 
             // 1.5. Rollover StockBalance
@@ -532,9 +553,7 @@ class ClosingService {
             ;(() => {})('[CLOSING] Next Period Start:', nextPeriodStart);
 
             if (nextPeriodStart) {
-                // A. Hapus "data stock sampah" di periode berikutnya
-                // Sampah = data yang TIDAK PUNYA STOCK dan tidak ada mutasi
-                // FIXED: Don't delete records that have stock (stockAkhir > 0) even if no mutations
+                // A. Hapus data stock sampah di periode berikutnya
                 await tx.stockBalance.deleteMany({
                     where: {
                         period: nextPeriodStart,
@@ -542,8 +561,8 @@ class ClosingService {
                         stockOut: 0,
                         justIn: 0,
                         justOut: 0,
-                        stockAkhir: 0, // ONLY delete if no stock at all
-                        stockAwal: 0   // AND no opening stock
+                        stockAkhir: 0,
+                        stockAwal: 0
                     }
                 });
 
@@ -554,24 +573,25 @@ class ClosingService {
 
                 ;(() => {})(`[CLOSING] Found ${currentStockBalances.length} stock records to rollover from ${period.periodName}`);
 
+                const existingNextSBs = await tx.stockBalance.findMany({
+                    where: { period: nextPeriodStart }
+                });
+                const nextSBMap = new Map();
+                for (const nsb of existingNextSBs) {
+                    nextSBMap.set(`${nsb.productId}_${nsb.warehouseId}`, nsb);
+                }
+
+                const sbsToCreate = [];
+                const sbsToUpdate = [];
+
                 for (const sb of currentStockBalances) {
-                    // VALIDATE current period stock before rollover
                     const validation = this.validateStockBalance(sb, `CLOSING ${period.periodName}`);
                     if (!validation.isValid) {
                         console.warn(`⚠️  Auto-fixing stock balance for Product ${sb.productId}, Warehouse ${sb.warehouseId}`);
-                        // Auto-fix: use calculated value
                         sb.stockAkhir = validation.expected;
                     }
 
-                    const nextSB = await tx.stockBalance.findUnique({
-                        where: {
-                            productId_warehouseId_period: {
-                                productId: sb.productId,
-                                warehouseId: sb.warehouseId,
-                                period: nextPeriodStart
-                            }
-                        }
-                    });
+                    const nextSB = nextSBMap.get(`${sb.productId}_${sb.warehouseId}`);
 
                     const nStockAwal = Number(sb.stockAkhir);
                     const nOnPR = Number(sb.onPR);
@@ -579,61 +599,64 @@ class ClosingService {
                     const nValue = Number(sb.inventoryValue);
 
                     if (nextSB) {
-                        // Jika sudah ada, kita perlu recalculate semua field
-                        // Karena ini bisa jadi re-close, kita harus SET ulang, bukan INCREMENT
-                        
-                        const oldStockAwal = Number(nextSB.stockAwal);
-                        const diffStock = nStockAwal - oldStockAwal;
-                        
-                        // Hitung mutasi yang sudah terjadi di periode berikutnya
                         const nextStockIn = Number(nextSB.stockIn);
                         const nextStockOut = Number(nextSB.stockOut);
                         const nextJustIn = Number(nextSB.justIn);
                         const nextJustOut = Number(nextSB.justOut);
-                        
-                        // Stock Akhir = Stock Awal (baru) + Mutasi periode berikutnya
                         const newStockAkhir = nStockAwal + nextStockIn - nextStockOut + nextJustIn - nextJustOut;
-                        
-                        // Available Stock = Stock Akhir - Booked Stock (min 0)
                         const newAvailableStock = Math.max(0, newStockAkhir - nBooked);
 
-                        await tx.stockBalance.update({
-                            where: { id: nextSB.id },
-                            data: {
-                                // SET (overwrite) semua field dari periode sebelumnya
-                                stockAwal: nStockAwal,
-                                onPR: nOnPR,
-                                bookedStock: nBooked,
-                                inventoryValue: nValue,
-                                // Recalculate berdasarkan stock awal baru + mutasi periode ini
-                                stockAkhir: newStockAkhir,
-                                availableStock: newAvailableStock,
-                                // CRITICAL: Ensure stockAkhir calculation is correct
-                                // Add validation comment for future developers
-                                // stockAkhir MUST equal: stockAwal + stockIn - stockOut + justIn - justOut
-                            }
+                        sbsToUpdate.push({
+                            id: nextSB.id,
+                            stockAwal: nStockAwal,
+                            onPR: nOnPR,
+                            bookedStock: nBooked,
+                            inventoryValue: nValue,
+                            stockAkhir: newStockAkhir,
+                            availableStock: newAvailableStock
                         });
                     } else {
-                        // Create new record untuk periode depan
-                        ;(() => {})(`[CLOSING] Creating new stock record for Product ${sb.productId}, Warehouse ${sb.warehouseId}`);
-                        await tx.stockBalance.create({
-                            data: {
-                                productId: sb.productId,
-                                warehouseId: sb.warehouseId,
-                                period: getPeriodDate(nextPeriod?.startDate),
-                                stockAwal: nStockAwal,
-                                stockIn: 0,
-                                stockOut: 0,
-                                justIn: 0,
-                                justOut: 0,
-                                onPR: nOnPR,
-                                bookedStock: nBooked,
-                                stockAkhir: nStockAwal,
-                                availableStock: Math.max(0, nStockAwal - nBooked),
-                                inventoryValue: nValue
-                            }
+                        sbsToCreate.push({
+                            productId: sb.productId,
+                            warehouseId: sb.warehouseId,
+                            period: nextPeriodStart,
+                            stockAwal: nStockAwal,
+                            stockIn: 0,
+                            stockOut: 0,
+                            justIn: 0,
+                            justOut: 0,
+                            onPR: nOnPR,
+                            bookedStock: nBooked,
+                            stockAkhir: nStockAwal,
+                            availableStock: Math.max(0, nStockAwal - nBooked),
+                            inventoryValue: nValue
                         });
                     }
+                }
+
+                if (sbsToCreate.length > 0) {
+                    for (let i = 0; i < sbsToCreate.length; i += 500) {
+                        const chunk = sbsToCreate.slice(i, i + 500);
+                        await tx.stockBalance.createMany({
+                            data: chunk,
+                            skipDuplicates: true
+                        });
+                    }
+                }
+
+                for (let i = 0; i < sbsToUpdate.length; i += 25) {
+                    const chunk = sbsToUpdate.slice(i, i + 25);
+                    await Promise.all(chunk.map(item => tx.stockBalance.update({
+                        where: { id: item.id },
+                        data: {
+                            stockAwal: item.stockAwal,
+                            onPR: item.onPR,
+                            bookedStock: item.bookedStock,
+                            inventoryValue: item.inventoryValue,
+                            stockAkhir: item.stockAkhir,
+                            availableStock: item.availableStock
+                        }
+                    })));
                 }
             }
 
@@ -657,6 +680,9 @@ class ClosingService {
             });
 
             return updatedPeriod;
+        }, {
+            maxWait: 30000,
+            timeout: 120000
         });
     }
 }

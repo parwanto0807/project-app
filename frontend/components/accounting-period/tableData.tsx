@@ -21,6 +21,7 @@ import {
     User,
     AlertTriangle,
     ChevronDown,
+    Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,7 +61,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 
-import { getPeriods, reopenPeriod } from "@/lib/action/accounting/period";
+import { getPeriods, reopenPeriod, deletePeriod } from "@/lib/action/accounting/period";
 import { AccountingPeriod } from "@/schemas/accounting/period";
 import { ClosingWizard } from "./ClosingWizard";
 
@@ -76,6 +77,8 @@ export function PeriodTable() {
     const [selectedPeriod, setSelectedPeriod] = useState<AccountingPeriod | null>(null);
     const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
     const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchPeriods = async () => {
         setIsLoading(true);
@@ -100,10 +103,29 @@ export function PeriodTable() {
         return () => clearTimeout(timer);
     }, [search, page, limit]);
 
-    const handleAction = async (action: 'close' | 'reopen', period: AccountingPeriod) => {
+    const handleAction = async (action: 'close' | 'reopen' | 'delete', period: AccountingPeriod) => {
         setSelectedPeriod(period);
         if (action === 'close') setIsCloseDialogOpen(true);
-        else setIsReopenDialogOpen(true);
+        else if (action === 'reopen') setIsReopenDialogOpen(true);
+        else setIsDeleteDialogOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!selectedPeriod) return;
+        setIsDeleting(true);
+        try {
+            const res = await deletePeriod(selectedPeriod.id);
+            if (res.success) {
+                toast.success(`Period ${selectedPeriod.periodCode} deleted`);
+                setIsDeleteDialogOpen(false);
+                setSelectedPeriod(null);
+                fetchPeriods();
+            }
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to delete period");
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const handleConfirmReopen = async () => {
@@ -276,6 +298,22 @@ export function PeriodTable() {
                                                             {period.isClosed ? 'Reopen Period' : 'Close Period'}
                                                         </TooltipContent>
                                                     </Tooltip>
+
+                                                    {!period.isClosed && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="secondary"
+                                                                    size="icon"
+                                                                    onClick={() => handleAction('delete', period)}
+                                                                    className="h-8 w-8 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 border-red-100/50 border transition-all"
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="bg-slate-800 text-white border-0 font-bold text-[10px]">Delete Period</TooltipContent>
+                                                        </Tooltip>
+                                                    )}
                                                 </TooltipProvider>
                                             </div>
                                         </TableCell>
@@ -343,6 +381,16 @@ export function PeriodTable() {
                                                     {period.isClosed ? <Unlock className="h-3 w-3 mr-1.5" /> : <Lock className="h-3 w-3 mr-1.5" />}
                                                     {period.isClosed ? 'REOPEN' : 'CLOSE'}
                                                 </Button>
+                                                {!period.isClosed && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        className="h-8 w-8 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 border-red-100/50 border shadow-none p-0 flex-shrink-0"
+                                                        onClick={() => handleAction('delete', period)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
                                     </AccordionContent>
@@ -381,6 +429,41 @@ export function PeriodTable() {
                     <AlertDialogFooter className="mt-4 gap-2">
                         <AlertDialogCancel className="rounded-xl h-10 border-gray-100 font-bold text-xs flex-1">Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleConfirmReopen} className="rounded-xl h-10 bg-emerald-600 hover:bg-emerald-700 font-bold text-xs flex-1">Confirm</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+                if (!isDeleting) setIsDeleteDialogOpen(open);
+            }}>
+                <AlertDialogContent className="rounded-2xl max-w-[90vw] md:max-w-md">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="h-12 w-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-3">
+                            <Trash2 className="h-6 w-6" />
+                        </div>
+                        <AlertDialogTitle className="text-xl font-bold">Delete Period?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-xs text-gray-500 mt-1">
+                            Period <strong>{selectedPeriod?.periodCode}</strong> ({selectedPeriod?.periodName}) will be permanently removed. This action cannot be undone.
+                        </AlertDialogDescription>
+                        <div className="mt-3 w-full flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 p-2.5 text-left">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-[10px] font-bold text-amber-700 leading-snug">
+                                Only periods that are not closed can be deleted. Periods with transaction data are blocked.
+                            </p>
+                        </div>
+                    </div>
+                    <AlertDialogFooter className="mt-4 gap-2">
+                        <AlertDialogCancel disabled={isDeleting} className="rounded-xl h-10 border-gray-100 font-bold text-xs flex-1">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={isDeleting}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleConfirmDelete();
+                            }}
+                            className="rounded-xl h-10 bg-red-600 hover:bg-red-700 font-bold text-xs flex-1 disabled:opacity-60"
+                        >
+                            {isDeleting ? "Deleting..." : "Yes, Delete"}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

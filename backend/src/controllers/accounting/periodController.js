@@ -11,6 +11,7 @@ class PeriodController {
     this.getPeriodById = this.getPeriodById.bind(this);
     this.closePeriod = this.closePeriod.bind(this);
     this.reopenPeriod = this.reopenPeriod.bind(this);
+    this.deletePeriod = this.deletePeriod.bind(this);
   }
 
   // Get All Periods
@@ -150,6 +151,41 @@ class PeriodController {
 
       } catch (error) {
         console.error("Update Period Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+      }
+  }
+
+  // Delete Period (only allowed when period is not closed)
+  async deletePeriod(req, res) {
+      try {
+        const { id } = req.params;
+
+        const period = await prisma.accountingPeriod.findUnique({ where: { id } });
+        if (!period) return res.status(404).json({ success: false, message: "Accounting Period not found" });
+
+        if (period.isClosed) {
+          return res.status(400).json({ success: false, message: "Closed period cannot be deleted. Reopen the period first." });
+        }
+
+        const [ledgers, trialBalances, glSummaries, reconciliations, reports, fundTransfers] = await Promise.all([
+          prisma.ledger.count({ where: { periodId: id } }),
+          prisma.trialBalance.count({ where: { periodId: id } }),
+          prisma.generalLedgerSummary.count({ where: { periodId: id } }),
+          prisma.reconciliation.count({ where: { periodId: id } }),
+          prisma.financialReport.count({ where: { periodId: id } }),
+          prisma.fundTransfer.count({ where: { periodId: id } })
+        ]);
+
+        const relatedData = ledgers + trialBalances + glSummaries + reconciliations + reports + fundTransfers;
+        if (relatedData > 0) {
+          return res.status(400).json({ success: false, message: "Period already has transaction/report data and cannot be deleted" });
+        }
+
+        await prisma.accountingPeriod.delete({ where: { id } });
+
+        res.status(200).json({ success: true, message: "Accounting Period deleted" });
+      } catch (error) {
+        console.error("Delete Period Error:", error);
         res.status(500).json({ success: false, message: error.message });
       }
   }

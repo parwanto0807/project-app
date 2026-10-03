@@ -2,9 +2,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { CreatePeriodFormValues, UpdatePeriodFormValues } from "@/schemas/accounting/period";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+async function authHeaders(): Promise<Record<string, string>> {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("accessToken")?.value;
+    return {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+}
 
 async function handleResponse(res: Response) {
     if (!res.ok) {
@@ -101,8 +111,17 @@ export async function getPeriodById(id: string) {
 export async function createPeriod(data: CreatePeriodFormValues) {
     const result = await fetchWithLog(`${API_BASE_URL}/api/accounting/periods`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authHeaders(),
         body: JSON.stringify(data)
+    });
+    revalidatePath("/admin-area/accounting/accounting-period");
+    return result;
+}
+
+export async function deletePeriod(id: string) {
+    const result = await fetchWithLog(`${API_BASE_URL}/api/accounting/periods/${id}`, {
+        method: "DELETE",
+        headers: await authHeaders()
     });
     revalidatePath("/admin-area/accounting/accounting-period");
     return result;

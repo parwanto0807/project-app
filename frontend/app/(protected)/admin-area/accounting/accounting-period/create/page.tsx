@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -30,12 +31,22 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
+import { useSession } from "@/components/clientSessionProvider";
 import { createPeriod } from "@/lib/action/accounting/period";
 import { CreatePeriodSchema, CreatePeriodFormValues } from "@/schemas/accounting/period";
 import Link from "next/link";
 
 export default function CreateAccountingPeriodPage() {
     const router = useRouter();
+    const { user, isLoading: userLoading } = useSession();
+    const isAdmin = user?.role === "admin";
+
+    useEffect(() => {
+        if (!userLoading && user && !isAdmin) {
+            toast.error("Only admin can create an accounting period");
+            router.replace("/admin-area/accounting/accounting-period");
+        }
+    }, [userLoading, user, isAdmin, router]);
 
     const form = useForm<CreatePeriodFormValues>({
         resolver: zodResolver(CreatePeriodSchema),
@@ -201,7 +212,7 @@ export default function CreateAccountingPeriodPage() {
                                     <Link href="/admin-area/accounting/accounting-period">
                                         <Button variant="outline" type="button">Cancel</Button>
                                     </Link>
-                                    <Button type="submit" disabled={form.formState.isSubmitting} className="bg-emerald-600 hover:bg-emerald-700">
+                                    <Button type="submit" disabled={form.formState.isSubmitting || !isAdmin} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60">
                                         {form.formState.isSubmitting && <span className="animate-spin mr-2">⏳</span>}
                                         Create Period
                                     </Button>

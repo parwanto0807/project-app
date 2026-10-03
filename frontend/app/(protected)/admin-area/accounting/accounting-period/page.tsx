@@ -17,8 +17,11 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function AccountingPeriodPage() {
+    const { user } = useSession();
+    const isAdmin = user?.role === "admin";
     return (
         <AdminLayout title="Accounting Periods" role="admin">
             <div className="flex flex-col space-y-4 md:space-y-6 p-0 md:p-4 lg:p-6">
@@ -88,14 +91,25 @@ export default function AccountingPeriodPage() {
                         />
                     </div>
 
-                    {/* Create Button */}
+                    {/* Create Button - Admin only */}
                     <div className="flex-shrink-0">
-                        <Link href="/admin-area/accounting/accounting-period/create">
-                            <Button className="w-full lg:w-auto bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm border-0 font-bold px-4 h-9 md:h-10 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-xs md:text-sm">
+                        {isAdmin ? (
+                            <Link href="/admin-area/accounting/accounting-period/create">
+                                <Button className="w-full lg:w-auto bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm border-0 font-bold px-4 h-9 md:h-10 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-xs md:text-sm">
+                                    <Plus className="h-4 w-4" />
+                                    <span>Create Period</span>
+                                </Button>
+                            </Link>
+                        ) : (
+                            <Button
+                                disabled
+                                title="Only admin can create a period"
+                                className="w-full lg:w-auto bg-gray-300 text-gray-500 shadow-sm border-0 font-bold px-4 h-9 md:h-10 rounded-xl flex items-center justify-center gap-2 text-xs md:text-sm cursor-not-allowed opacity-70"
+                            >
                                 <Plus className="h-4 w-4" />
                                 <span>Create Period</span>
                             </Button>
-                        </Link>
+                        )}
                     </div>
                 </div>
 
