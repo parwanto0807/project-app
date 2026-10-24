@@ -227,11 +227,17 @@ Rate limit dapat dilonggarkan melalui konstanta di `backend/src/app.js`.
 
 ## 8. Checklist Deploy (Anda yang eksekusi)
 
-1. Merge `security/hardening` → `main`.
-2. `cd backend && npm ci && npx prisma generate`
-3. `cd backend && npm run test:security` (opsional, butuh app berjalan)
-4. `cd frontend && npm ci && npm run build`
-5. Restart backend (PM2) & frontend.
-6. Uji: login, 5 halaman utama, upload foto, 1 transaksi.
-7. Uji **mobile app** (Bearer) & mesin absensi `/iclock`.
-8. Pantau log 401/429 24 jam; gunakan kill-switch bila ada integrasi terputus.
+**Prasyarat runtime:** **Node.js >= 22** (disarankan **Node 24 LTS**, sudah diuji).
+`firebase-admin@14` mensyaratkan Node >=22 dan `sharp` >=20.9.
+
+1. Pastikan `node -v` di server **>=22**; jika masih 18/20, upgrade dulu
+   (`nvm install 24 && nvm use 24` atau paket Node resmi).
+2. Merge `security/hardening` → `main`.
+3. `cd backend && rm -rf node_modules && npm ci && npx prisma generate`
+   (wajib reinstall agar binary native `sharp` sesuai versi Node baru)
+4. `cd backend && npm run test:security` (opsional, butuh app berjalan)
+5. `cd frontend && rm -rf node_modules && npm ci && npm run build`
+6. Restart backend (PM2) & frontend.
+7. Uji: login, 5 halaman utama, upload foto, 1 transaksi.
+8. Uji **mobile app** (Bearer) & mesin absensi `/iclock`.
+9. Pantau log 401/429 24 jam; gunakan kill-switch bila ada integrasi terputus.
