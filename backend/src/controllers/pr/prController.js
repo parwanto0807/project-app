@@ -1,4 +1,4 @@
-// import { PrismaClient } from "@prisma/client";
+﻿// import { PrismaClient } from "@prisma/client";
 // const prisma = new PrismaClient();
 
 import { prisma } from "../../config/db.js";
@@ -221,7 +221,7 @@ export class PurchaseRequestController {
         return res.status(400).json({
           success: false,
           message: "Invalid ID format",
-          error: validationResult.error.errors,
+          error: validationResult.error.issues,
         });
       }
       const { id } = validationResult.data;
@@ -286,9 +286,9 @@ export class PurchaseRequestController {
    */
   async createPurchaseRequest(req, res) {
     try {
-      ;(() => {})("📥 [Backend] Received req.body:", req.body);
+      ;(() => {})("ðŸ“¥ [Backend] Received req.body:", req.body);
       const validatedData = createPurchaseRequestSchema.parse(req.body);
-      ;(() => {})("✅ [Backend] Validated data:", {
+      ;(() => {})("âœ… [Backend] Validated data:", {
         spkId: validatedData.spkId,
         parentPrId: validatedData.parentPrId,
         projectId: validatedData.projectId
@@ -296,7 +296,7 @@ export class PurchaseRequestController {
 
       // Generate nomor PR berdasarkan apakah ada SPK atau tidak
       const hasSPK = !!(validatedData.spkId && validatedData.spkId !== "" && validatedData.spkId !== "no-spk" && validatedData.spkId !== "null" && validatedData.spkId !== "undefined");
-      ;(() => {})("🔍 [Backend] hasSPK (calculated):", hasSPK);
+      ;(() => {})("ðŸ” [Backend] hasSPK (calculated):", hasSPK);
 
       const nomorPr = await generatePRNumber(hasSPK);
 
@@ -313,7 +313,7 @@ export class PurchaseRequestController {
         catatanItem: detail.catatanItem,
       }));
 
-      // ✅ PARENT-CHILD PR VALIDATION
+      // âœ… PARENT-CHILD PR VALIDATION
       const { 
         validateParentPr, 
         calculatePRBudget, 
@@ -350,8 +350,8 @@ export class PurchaseRequestController {
         await validateChildBudget(validatedData.parentPrId, thisPRBudget);
       }
 
-      // ✅ PENTING: Handle nullable spkId and requestedById
-    ;(() => {})("🔍 Backend received validatedData:", {
+      // âœ… PENTING: Handle nullable spkId and requestedById
+    ;(() => {})("ðŸ” Backend received validatedData:", {
       karyawanId: validatedData.karyawanId,
       requestedById: validatedData.requestedById,
       hasRequestedById: !!validatedData.requestedById,
@@ -381,7 +381,7 @@ export class PurchaseRequestController {
       },
     };
 
-    ;(() => {})("💾 Backend will save prData:", {
+    ;(() => {})("ðŸ’¾ Backend will save prData:", {
       karyawanId: prData.karyawanId,
       requestedById: prData.requestedById,
       parentPrId: prData.parentPrId,
@@ -424,7 +424,7 @@ export class PurchaseRequestController {
       },
     });
 
-    // ✅ UPDATE SISA BUDGET PARENT JIKA INI PR CHILD (SPK)
+    // âœ… UPDATE SISA BUDGET PARENT JIKA INI PR CHILD (SPK)
     if (hasSPK && validatedData.parentPrId) {
       const { updateParentRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
       await updateParentRemainingBudget(validatedData.parentPrId);
@@ -441,7 +441,7 @@ export class PurchaseRequestController {
         await updatePRRemainingBudget(purchaseRequest.parentPrId);
       }
 
-      // ✅ TAMBAHKAN: BROADCAST NOTIFICATION KE ADMIN & PIC
+      // âœ… TAMBAHKAN: BROADCAST NOTIFICATION KE ADMIN & PIC
       try {
         // Dapatkan semua user dengan role admin dan pic
         const adminUsers = await prisma.user.findMany({
@@ -458,7 +458,7 @@ export class PurchaseRequestController {
         });
 
         ;(() => {})(
-          `📢 Sending Purchase Request notification to ${adminUsers.length} admin/pic users`
+          `ðŸ“¢ Sending Purchase Request notification to ${adminUsers.length} admin/pic users`
         );
 
         // Hitung total estimasi budget
@@ -490,7 +490,7 @@ export class PurchaseRequestController {
         // Kirim notifikasi ke setiap admin dan pic
         for (const admin of adminUsers) {
           await NotificationService.sendToUser(admin.id, {
-            title: "Purchase Request Baru Dibuat 📝",
+            title: "Purchase Request Baru Dibuat ðŸ“",
             body: `PR ${nomorPr}${spkInfo} dengan total estimasi ${formattedBudget} berhasil dibuat oleh ${karyawanName}`,
             data: {
               type: "purchase_request_created",
@@ -508,13 +508,13 @@ export class PurchaseRequestController {
           });
 
           ;(() => {})(
-            `✅ Purchase Request notification sent to ${admin.role}: ${admin.email}`
+            `âœ… Purchase Request notification sent to ${admin.role}: ${admin.email}`
           );
         }
       } catch (notificationError) {
         // Jangan gagalkan create PR jika notifikasi gagal
         console.error(
-          "❌ Error sending Purchase Request notification:",
+          "âŒ Error sending Purchase Request notification:",
           notificationError
         );
       }
@@ -534,7 +534,7 @@ export class PurchaseRequestController {
         return res.status(400).json({
           success: false,
           message: "Validation error",
-          error: error.errors,
+          error: error.issues,
         });
       }
 
@@ -564,7 +564,7 @@ export class PurchaseRequestController {
         }
       }
 
-      // ✅ Handle parent-child validation errors
+      // âœ… Handle parent-child validation errors
       if (error.message.includes("Parent PR")) {
         return res.status(400).json({
           success: false,
@@ -623,18 +623,18 @@ export class PurchaseRequestController {
       delete updateData.details;
 
       // Debug log
-      ;(() => {})("🔍 Backend UPDATE received validatedData:", {
+      ;(() => {})("ðŸ” Backend UPDATE received validatedData:", {
         requestedById: validatedData.requestedById,
         hasRequestedById: !!validatedData.requestedById
       });
 
-      // ✅ PENTING: Handle nullable spkId untuk update
+      // âœ… PENTING: Handle nullable spkId untuk update
       if (updateData.spkId !== undefined) {
         // Jika spkId diubah menjadi string kosong, set null
         updateData.spkId = updateData.spkId || null;
       }
 
-      ;(() => {})("💾 Backend will UPDATE with data:", {
+      ;(() => {})("ðŸ’¾ Backend will UPDATE with data:", {
         requestedById: updateData.requestedById,
         willSave: updateData.requestedById
       });
@@ -652,7 +652,7 @@ export class PurchaseRequestController {
           include: {
             project: true,
             karyawan: true,
-            requestedBy: true, // ✅ Include requester
+            requestedBy: true, // âœ… Include requester
             spk: true,
             details: {
               include: {
@@ -696,7 +696,7 @@ export class PurchaseRequestController {
             include: {
               project: true,
               karyawan: true,
-              requestedBy: true, // ✅ Include requester
+              requestedBy: true, // âœ… Include requester
               spk: true,
               details: {
                 include: {
@@ -711,7 +711,7 @@ export class PurchaseRequestController {
         return updatedPR;
       });
 
-      // ✅ Kirim notifikasi update jika perlu
+      // âœ… Kirim notifikasi update jika perlu
       try {
         if (updateData.spkId === null && existingPR.spkId) {
           // Notifikasi jika SPK dihapus
@@ -746,7 +746,7 @@ export class PurchaseRequestController {
         console.error("Error sending update notification:", notificationError);
       }
 
-      // ✅ Update Sisa Budget
+      // âœ… Update Sisa Budget
       const { updatePRRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
       await updatePRRemainingBudget(id);
       if (existingPR.parentPrId) {
@@ -769,11 +769,11 @@ export class PurchaseRequestController {
         return res.status(400).json({
           success: false,
           message: "Validation error",
-          error: error.errors,
+          error: error.issues,
         });
       }
 
-      // ✅ Tambahkan handling untuk foreign key error
+      // âœ… Tambahkan handling untuk foreign key error
       if (error.code === "P2003") {
         const field = error.meta?.field_name || "";
         if (field.includes("spkId")) {
@@ -784,7 +784,7 @@ export class PurchaseRequestController {
         }
       }
 
-      // ✅ Handle custom validation error dari transaction
+      // âœ… Handle custom validation error dari transaction
       if (error.message === "Item dengan tipe JASA memerlukan referensi SPK") {
         return res.status(400).json({
           success: false,
@@ -830,7 +830,7 @@ export class PurchaseRequestController {
       const validTransitions = {
         DRAFT: ["SUBMITTED"],
         SUBMITTED: ["APPROVED", "REJECTED", "REVISION_NEEDED"], // REMOVE REVISION_NEEDED sementara
-        APPROVED: ["COMPLETED", "SUBMITTED"], // Allow cancel approve (APPROVED → SUBMITTED)
+        APPROVED: ["COMPLETED", "SUBMITTED"], // Allow cancel approve (APPROVED â†’ SUBMITTED)
         REJECTED: ["SUBMITTED"],
         REVISION_NEEDED: ["SUBMITTED", "DRAFT"],
         COMPLETED: [],
@@ -843,7 +843,7 @@ export class PurchaseRequestController {
         });
       }
 
-      // ✅ PARENT-CHILD STATUS VALIDATION
+      // âœ… PARENT-CHILD STATUS VALIDATION
       // Import helper functions
       const { cascadeStatusToChildren } = await import("../../utils/prParentChildHelpers.js");
 
@@ -905,7 +905,7 @@ export class PurchaseRequestController {
         // 2. Cascade status to children if parent is rejected
         if (status === "REJECTED" && pr.childPrs && pr.childPrs.length > 0) {
           const cascadedCount = await cascadeStatusToChildren(id, status, tx);
-          ;(() => {})(`✅ Cascaded REJECTED status to ${cascadedCount} child PRs`);
+          ;(() => {})(`âœ… Cascaded REJECTED status to ${cascadedCount} child PRs`);
         }
 
         // 2. Handle Split Items (created when stock is insufficient)
@@ -994,7 +994,7 @@ export class PurchaseRequestController {
         // (MR creation now happens after warehouse allocations are saved,
         //  so we can read the correct allocatedQty from warehouseAllocation JSON)
 
-        // 2c. Handle Cancel Approve (APPROVED → SUBMITTED)
+        // 2c. Handle Cancel Approve (APPROVED â†’ SUBMITTED)
         // Validate: Check if any related PO or MR is already approved or beyond
         if (existingPR.status === 'APPROVED' && status === 'SUBMITTED') {
           // Check if any related Purchase Order is APPROVED or higher status
@@ -1192,7 +1192,7 @@ export class PurchaseRequestController {
                              po.supplierInvoices.length === 0;
 
             if (canDelete) {
-              // ✅ Handle StockBalance reversal if PO was APPROVED
+              // âœ… Handle StockBalance reversal if PO was APPROVED
               if (po.status === 'APPROVED') {
                 const currentPeriod = new Date();
                 currentPeriod.setDate(1);
@@ -1238,7 +1238,7 @@ export class PurchaseRequestController {
                 where: { id: po.id }
               });
 
-              ;(() => {})(`✅ Deleted PO ${po.poNumber} during cancel approve`);
+              ;(() => {})(`âœ… Deleted PO ${po.poNumber} during cancel approve`);
             } else {
               // Log warning but don't block the cancel approve
               console.warn(
@@ -1307,7 +1307,7 @@ export class PurchaseRequestController {
                   where: { id: mr.id }
                 });
 
-                ;(() => {})(`✅ Deleted MaterialRequisition ${mr.mrNumber} during cancel approve`);
+                ;(() => {})(`âœ… Deleted MaterialRequisition ${mr.mrNumber} during cancel approve`);
               }
 
               // Delete related GoodsReceipts (auto-generated for transfer)
@@ -1340,7 +1340,7 @@ export class PurchaseRequestController {
                   where: { id: gr.id }
                 });
 
-                ;(() => {})(`✅ Deleted GoodsReceipt ${gr.grNumber} during cancel approve`);
+                ;(() => {})(`âœ… Deleted GoodsReceipt ${gr.grNumber} during cancel approve`);
               }
 
               // Delete transfer items first (foreign key constraint)
@@ -1353,7 +1353,7 @@ export class PurchaseRequestController {
                 where: { id: transfer.id }
               });
 
-              ;(() => {})(`✅ Deleted StockTransfer ${transfer.transferNumber} during cancel approve`);
+              ;(() => {})(`âœ… Deleted StockTransfer ${transfer.transferNumber} during cancel approve`);
             }
           }
 
@@ -1402,7 +1402,7 @@ export class PurchaseRequestController {
                   }
                 });
 
-                ;(() => {})(`✅ Reversed StaffLedger entry for karyawan ${karyawanId}: ` +
+                ;(() => {})(`âœ… Reversed StaffLedger entry for karyawan ${karyawanId}: ` +
                   `SaldoAwal: Rp ${saldoAwal.toLocaleString('id-ID')}, ` +
                   `DEBIT: Rp ${originalKredit.toLocaleString('id-ID')}, ` +
                   `SaldoAkhir: Rp ${saldoAkhir.toLocaleString('id-ID')}`);
@@ -1433,7 +1433,7 @@ export class PurchaseRequestController {
                     }
                   });
 
-                  ;(() => {})(`✅ Reversed StaffBalance for karyawan ${karyawanId}: ` +
+                  ;(() => {})(`âœ… Reversed StaffBalance for karyawan ${karyawanId}: ` +
                     `totalOut -Rp ${originalKredit.toLocaleString('id-ID')}, ` +
                     `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
                 }
@@ -1532,7 +1532,7 @@ export class PurchaseRequestController {
                   orderBy: { createdAt: 'asc' }
                 });
 
-                // ✅ VALIDATION: Check if physical batches are sufficient
+                // âœ… VALIDATION: Check if physical batches are sufficient
                 // Mirror MR logic: hard-fail only when BOTH StockBalance AND physical batches are short.
                 // When balance availableStock is enough, trust the ledger (batches may be stale).
                 const totalPhysicalStock = batches.reduce((sum, b) => sum + Number(b.residualQty), 0);
@@ -1778,9 +1778,9 @@ export class PurchaseRequestController {
             });
 
             if (!wipWarehouse) {
-              console.warn('⚠️ No WIP warehouse found. Skipping StockTransfer creation.');
+              console.warn('âš ï¸ No WIP warehouse found. Skipping StockTransfer creation.');
             } else if (!pr.karyawanId) {
-              console.warn('⚠️ PR has no karyawan. Skipping StockTransfer creation.');
+              console.warn('âš ï¸ PR has no karyawan. Skipping StockTransfer creation.');
             } else {
               // Generate Transfer Number (Format: TF-YYYYMM-XXXX)
               const now = new Date();
@@ -1871,7 +1871,7 @@ export class PurchaseRequestController {
                   });
                 }
 
-                ;(() => {})(`✅ Created StockTransfer ${transferNumber} from warehouse ${fromWarehouseId} to WIP warehouse ${wipWarehouse.id}`);
+                ;(() => {})(`âœ… Created StockTransfer ${transferNumber} from warehouse ${fromWarehouseId} to WIP warehouse ${wipWarehouse.id}`);
 
                 // 5a. Create MaterialRequisition (MR) for stock withdrawal from source warehouse
                 // Generate MR Number
@@ -1918,7 +1918,7 @@ export class PurchaseRequestController {
                   });
                 }
 
-                ;(() => {})(`✅ Created MaterialRequisition ${mrNumber} for warehouse ${fromWarehouseId}`);
+                ;(() => {})(`âœ… Created MaterialRequisition ${mrNumber} for warehouse ${fromWarehouseId}`);
 
                 // 5b. Create GoodsReceipt (GR) for receiving at WIP warehouse
                 // Generate GR Number
@@ -1948,7 +1948,7 @@ export class PurchaseRequestController {
                 const receivedByUserId = karyawan?.user?.id || karyawan?.userId;
 
                 if (!receivedByUserId) {
-                  console.warn('⚠️ Cannot find user for karyawan. Skipping GoodsReceipt creation.');
+                  console.warn('âš ï¸ Cannot find user for karyawan. Skipping GoodsReceipt creation.');
                   continue;
                 }
 
@@ -1984,7 +1984,7 @@ export class PurchaseRequestController {
                   });
                 }
 
-                ;(() => {})(`✅ Created GoodsReceipt ${grNumber} for WIP warehouse ${wipWarehouse.id}`);
+                ;(() => {})(`âœ… Created GoodsReceipt ${grNumber} for WIP warehouse ${wipWarehouse.id}`);
               }
             }
           }
@@ -2010,7 +2010,7 @@ export class PurchaseRequestController {
             const requesterId = pr.requestedById || pr.karyawanId;
             
             if (!requesterId) {
-              console.warn('⚠️ No karyawan found for PR. Skipping StaffLedger creation.');
+              console.warn('âš ï¸ No karyawan found for PR. Skipping StaffLedger creation.');
             } else {
               // Calculate total operational cost
               let totalOperationalCost = 0;
@@ -2059,7 +2059,7 @@ export class PurchaseRequestController {
                   }
                 });
 
-                ;(() => {})(`✅ Created StaffLedger entry for karyawan ${requesterId}: ` +
+                ;(() => {})(`âœ… Created StaffLedger entry for karyawan ${requesterId}: ` +
                   `SaldoAwal: Rp ${saldoAwal.toLocaleString('id-ID')}, ` +
                   `KREDIT: Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
                   `SaldoAkhir: Rp ${saldoAkhir.toLocaleString('id-ID')} ` +
@@ -2092,7 +2092,7 @@ export class PurchaseRequestController {
                     }
                   });
 
-                  ;(() => {})(`✅ Updated StaffBalance for karyawan ${requesterId}: ` +
+                  ;(() => {})(`âœ… Updated StaffBalance for karyawan ${requesterId}: ` +
                     `totalOut +Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
                     `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
                 } else {
@@ -2107,7 +2107,7 @@ export class PurchaseRequestController {
                     }
                   });
 
-                  ;(() => {})(`✅ Created StaffBalance for karyawan ${requesterId}: ` +
+                  ;(() => {})(`âœ… Created StaffBalance for karyawan ${requesterId}: ` +
                     `totalOut = Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
                     `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
                 }
@@ -2151,7 +2151,7 @@ export class PurchaseRequestController {
             }
           } catch (poError) {
             // Log error and THROW to roll back the PR status update
-            console.error('❌ Failed to auto-create PO from approved PR. Rolling back PR approval:', poError);
+            console.error('âŒ Failed to auto-create PO from approved PR. Rolling back PR approval:', poError);
             throw new Error(`PR approved successfully, but PO creation failed: ${poError.message}`);
           }
         }
@@ -2159,7 +2159,7 @@ export class PurchaseRequestController {
         return pr;
       }, { timeout: 20000 });
 
-      // ✅ Update Sisa Budget after status update
+      // âœ… Update Sisa Budget after status update
       try {
         const { updatePRRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
         await updatePRRemainingBudget(id);
@@ -2167,7 +2167,7 @@ export class PurchaseRequestController {
           await updatePRRemainingBudget(existingPR.parentPrId);
         }
       } catch (budgetError) {
-        console.error("❌ Failed to update budget after status change:", budgetError);
+        console.error("âŒ Failed to update budget after status change:", budgetError);
       }
 
       res.json({
@@ -2182,7 +2182,7 @@ export class PurchaseRequestController {
         return res.status(400).json({
           success: false,
           message: "Validation error",
-          error: error.errors,
+          error: error.issues,
         });
       }
 
@@ -2245,7 +2245,7 @@ export class PurchaseRequestController {
         return res.status(400).json({
           success: false,
           message: "Invalid ID format",
-          error: error.errors,
+          error: error.issues,
         });
       }
 

@@ -1,4 +1,4 @@
-// import { PrismaClient } from "@prisma/client";
+﻿// import { PrismaClient } from "@prisma/client";
 // const prisma = new PrismaClient();
 
 
@@ -158,7 +158,7 @@ export const createRab = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Validation failed",
-        errors: validation.error.errors.map((err) => ({
+        errors: validation.error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,
         })),
@@ -171,7 +171,7 @@ export const createRab = async (req, res) => {
     // DEBUG: Log parsed data
     ;(() => {})("Parsed createdById from validation:", createdById);
 
-    // ⚠️ HAPUS SEMUA HARDCODED 'temp-user-id' DI SINI!
+    // âš ï¸ HAPUS SEMUA HARDCODED 'temp-user-id' DI SINI!
     // Gunakan createdById yang diterima dari frontend
     const finalCreatedById = createdById; // Jangan diubah!
 
@@ -292,7 +292,7 @@ export const updateRab = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Validation failed",
-        errors: validation.error.errors.map((err) => ({
+        errors: validation.error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,
         })),

@@ -10,7 +10,8 @@
     "dev": "nodemon src/server.js",
     "build": "tsc",
     "start": "node src/server.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
+    "test:security": "node scripts/security-smoke.mjs"
   },
   "dependencies": {
     "@quixo3/prisma-session-store": "^3.1.20",
@@ -27,7 +28,7 @@
     "express-rate-limit": "^8.7.1",
     "express-session": "^1.19.0",
     "express-validator": "^7.2.1",
-    "firebase-admin": "^13.6.0",
+    "firebase-admin": "^14.5.0",
     "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
@@ -40,7 +41,7 @@
     "resend": "^6.6.0",
     "sharp": "^0.35.5",
     "speakeasy": "^2.0.0",
-    "zod": "^3.24.4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@prisma/client": "^6.7.0",

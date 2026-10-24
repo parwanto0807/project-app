@@ -182,6 +182,28 @@ app.use(
   loginLimiter
 );
 
+// CSRF mitigation: request mutasi dari browser harus berasal dari origin
+// yang diizinkan. Request tanpa Origin (mobile/server-to-server) tetap
+// dilayani karena tidak memakai cookie browser.
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+app.use((req, res, next) => {
+  if (SAFE_METHODS.has(req.method)) return next();
+
+  const originHeader = req.headers.origin || req.headers.referer;
+  if (!originHeader) return next();
+
+  try {
+    const origin = new URL(originHeader).origin;
+    if (allowedOrigins.includes(origin)) return next();
+  } catch {
+    /* URL tidak valid -> tolak di bawah */
+  }
+
+  return res
+    .status(403)
+    .json({ success: false, error: "Origin tidak diizinkan." });
+});
+
 import { PrismaSessionStore } from '@quixo3/prisma-session-store';
 import { prisma } from './config/db.js';
 import { requireApiAuth } from "./middleware/requireApiAuth.js";

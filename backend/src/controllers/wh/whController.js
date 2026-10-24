@@ -1,4 +1,4 @@
-import { prisma } from "../../config/db.js";
+﻿import { prisma } from "../../config/db.js";
 import { warehouseSchema } from "../../validations/warehouseValidator.js";
 
 /**
@@ -23,7 +23,7 @@ const errorResponse = (res, status, error, message, details) => {
 
 /**
  * CREATE Warehouse
- * Jika isMain = true → reset gudang utama lain
+ * Jika isMain = true â†’ reset gudang utama lain
  */
 export const createWarehouse = async (req, res) => {
   try {
@@ -52,7 +52,7 @@ export const createWarehouse = async (req, res) => {
       400,
       "WAREHOUSE_CREATE_FAILED",
       error.message,
-      error.errors
+      error.issues
     );
   }
 };
@@ -175,7 +175,7 @@ export const updateWarehouse = async (req, res) => {
       400,
       "WAREHOUSE_UPDATE_FAILED",
       error.message,
-      error.errors
+      error.issues
     );
   }
 };
