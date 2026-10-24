@@ -33,7 +33,7 @@ export default function CreateProductPageAdmin() {
       router.replace("/not-authorized");
       return;
     }
-    fetch("/api/product/generate-code")
+    fetch("/api/product/generate-code", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => setCode(data.code));
   }, [isLoading, user, router]);

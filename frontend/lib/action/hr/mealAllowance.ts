@@ -8,7 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const c = await cookies();
   const cookieHeader = c.toString();
-  const res = await fetch(`${API_URL}/api${endpoint}`, {
+  const res = await fetch(`${API_URL}/api${endpoint}`, { credentials: "include",
     ...options,
     headers: {
       "Content-Type": "application/json",

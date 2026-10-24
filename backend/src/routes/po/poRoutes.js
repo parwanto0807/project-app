@@ -1,6 +1,6 @@
 import express from 'express';
-import multer from 'multer';
-const upload = multer({ storage: multer.memoryStorage() });
+import { createDocumentUpload } from '../../utils/secureUpload.js';
+const upload = createDocumentUpload(10, 3);
 import { 
   getAllPO, 
   getPODetail, 

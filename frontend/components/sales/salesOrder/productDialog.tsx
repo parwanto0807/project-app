@@ -95,7 +95,7 @@ export function ProductCreateDialog({ onCreated, createEndpoint, trigger }: Base
 
     useEffect(() => {
         if (dialogOpen) {
-            fetch("/api/product/generate-code")
+            fetch("/api/product/generate-code", { credentials: "include" })
                 .then((res) => res.json())
                 .then((data) => {
                     form.setValue("code", data.code); // ✅ set ke form

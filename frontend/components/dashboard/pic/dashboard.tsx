@@ -161,7 +161,7 @@ export default function PICDashboard({ role }: { role: string }) {
 
     const fetchRecentSPK = async () => {
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/spk/getAllSPK`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/spk/getAllSPK`, { credentials: "include" });
             if (!response.ok) throw new Error('Failed to fetch SPK data');
             const data = await response.json();
             setSpkData(data);
@@ -192,10 +192,10 @@ export default function PICDashboard({ role }: { role: string }) {
                 salesOrderCountRes,
                 recentSalesOrdersRes
             ] = await Promise.all([
-                fetch(ENDPOINTS.customerCount),
-                fetch(ENDPOINTS.productCount),
-                fetch(ENDPOINTS.salesOrderCount),
-                fetch(ENDPOINTS.recentSalesOrders)
+                fetch(ENDPOINTS.customerCount, { credentials: "include" }),
+                fetch(ENDPOINTS.productCount, { credentials: "include" }),
+                fetch(ENDPOINTS.salesOrderCount, { credentials: "include" }),
+                fetch(ENDPOINTS.recentSalesOrders, { credentials: "include" })
             ]);
 
             if (!customerCountRes.ok || !productCountRes.ok || !salesOrderCountRes.ok || !recentSalesOrdersRes.ok) {

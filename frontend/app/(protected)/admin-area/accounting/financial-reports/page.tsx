@@ -39,7 +39,7 @@ import {
 // Helper to fetch Sales Orders for filter
 async function getSalesOrders() {
     try {
-        const res = await fetch("/api/salesOrder?page=1&pageSize=100&status=INVOICED");
+        const res = await fetch("/api/salesOrder?page=1&pageSize=100&status=INVOICED", { credentials: "include" });
         const data = await res.json();
         const orders = data.data || [];
 
@@ -111,7 +111,7 @@ export default function FinancialReportsPage() {
                 params.append("salesOrderId", salesOrderId);
             }
 
-            const response = await fetch(`/api/accounting/reports/income-statement?${params.toString()}`);
+            const response = await fetch(`/api/accounting/reports/income-statement?${params.toString()}`, { credentials: "include" });
             const result = await response.json();
 
             if (result.success) {

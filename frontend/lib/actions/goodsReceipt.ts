@@ -12,7 +12,7 @@ export async function getGoodsReceipts(query: { purchaseOrderId?: string; page?:
         if (query.page) params.append("page", query.page.toString());
         if (query.limit) params.append("limit", query.limit.toString());
 
-        const response = await fetch(`${API_URL}/api/gr?${params.toString()}`, {
+        const response = await fetch(`${API_URL}/api/gr?${params.toString()}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

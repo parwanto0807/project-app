@@ -208,7 +208,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     setIsDeleting(true);
     try {
       // Panggil API untuk menghapus karyawan
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/deleteKaryawan/${employeeToDelete.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/deleteKaryawan/${employeeToDelete.id}`, { credentials: "include",
         method: 'DELETE',
       });
 

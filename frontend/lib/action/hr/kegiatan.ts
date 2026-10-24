@@ -18,7 +18,7 @@ export async function fetchAllKegiatan(filters: {
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/kegiatan-absensi?${queryParams.toString()}`,
-      {
+      { credentials: "include",
         method: "GET",
         headers: { Cookie: cookieStore.toString() },
         cache: "no-store",
@@ -36,7 +36,7 @@ export async function fetchAllKegiatan(filters: {
 export async function deleteKegiatan(id: string) {
   try {
     const cookieStore = await cookies();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/kegiatan-absensi/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/kegiatan-absensi/${id}`, { credentials: "include",
       method: "DELETE",
       headers: { "Content-Type": "application/json", Cookie: cookieStore.toString() },
     });

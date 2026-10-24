@@ -413,7 +413,7 @@ export async function sendPurchaseOrderEmail(
 
         const response = await fetch(
             `${API_BASE_URL}/api/po/${id}/send-email`,
-            {
+            { credentials: "include",
                 method: 'POST',
                 headers: authHeaders,
                 body: formData,

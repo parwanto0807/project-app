@@ -142,7 +142,7 @@ export function SettleBudgetDialog({
                                 onClick={async () => {
                                     setIsSubmitting(true);
                                     try {
-                                        const res = await fetch(`/api/pr/recalculateSisaBudget/${pr.id}`, {
+                                        const res = await fetch(`/api/pr/recalculateSisaBudget/${pr.id}`, { credentials: "include",
                                             method: 'PUT'
                                         });
                                         const result = await res.json();

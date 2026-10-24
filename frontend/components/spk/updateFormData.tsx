@@ -305,7 +305,7 @@ export default function FormUpdateSpk({
 
     const updateSpkAction = async (payload: SpkApiPayload) => {
         try {
-            const response = await fetch(`${API_URL}/api/spk/updateSPK/${spk.id}`, {
+            const response = await fetch(`${API_URL}/api/spk/updateSPK/${spk.id}`, { credentials: "include",
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),

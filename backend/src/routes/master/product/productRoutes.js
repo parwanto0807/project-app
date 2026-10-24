@@ -1,6 +1,5 @@
 import express from "express";
-import multer from "multer";
-import path from "path";
+import { createImageUpload } from "../../../utils/secureUpload.js";
 import {
   getAllProducts,
   getProductById,
@@ -12,17 +11,8 @@ import {
   getAllProductsOpname,
 } from "../../../controllers/master/product/productController.js";
 
-// 1. Konfigurasi Multer untuk menyimpan image di /public/images
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(process.cwd(), "public/images"));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
-const upload = multer({ storage });
+// Upload gambar produk: maks 5 MB, hanya JPG/PNG/WebP.
+const upload = createImageUpload("images", 5, 2);
 
 const router = express.Router();
 

@@ -157,7 +157,7 @@ export default function TeamPageAdmin() {
     /** 🔄 Delete Team Handler */
     const handleDeleteTeam = async (team: Team) => {
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${team.id}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${team.id}`, { credentials: "include",
                 method: 'DELETE',
             });
 

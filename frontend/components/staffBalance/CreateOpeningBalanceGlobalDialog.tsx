@@ -65,7 +65,7 @@ export function CreateOpeningBalanceGlobalDialog({
     const fetchKaryawan = async () => {
         setIsLoadingKaryawan(true);
         try {
-            const response = await fetch("/api/karyawan/getAllKaryawan");
+            const response = await fetch("/api/karyawan/getAllKaryawan", { credentials: "include" });
             const result = await response.json();
 
             if (Array.isArray(result)) {

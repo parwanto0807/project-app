@@ -31,7 +31,7 @@ async function fetchAPI<T>(
     options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
     try {
-        const response = await fetch(`${API_URL}${endpoint}`, {
+        const response = await fetch(`${API_URL}${endpoint}`, { credentials: "include",
             ...options,
             headers: {
                 'Content-Type': 'application/json',
@@ -556,7 +556,7 @@ export async function createGoodsReceiptFromPOAction(
 
         // Call backend endpoint directly (client-side fetch)
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_URL}/api/gr/from-po/${purchaseOrderId}`, {
+        const response = await fetch(`${API_URL}/api/gr/from-po/${purchaseOrderId}`, { credentials: "include",
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -3,6 +3,8 @@ import express from "express";
 import session from "express-session";
 import cors from "cors";
 import helmet from "helmet"; // Tambahkan untuk security headers
+import compression from "compression";
+import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth/authRoutes.js";
 import iclockRoutes from "./routes/iclock/iclockRoutes.js";
 import "./config/passport.js";
@@ -69,7 +71,11 @@ import assemblyRoutes from './routes/assembly/assemblyRoutes.js';
 import path from "path";
 
 const app = express();
-app.set("trust proxy", true); // Handle Cloudflare/Apache proxy headers
+// Jumlah hop proxy di depan app (Cloudflare/Nginx). Nilai numerik mencegah
+// rate-limit memakai X-Forwarded-For sembarangan. Override via env TRUST_PROXY.
+const TRUST_PROXY = Number(process.env.TRUST_PROXY || 1);
+app.set("trust proxy", Number.isFinite(TRUST_PROXY) ? TRUST_PROXY : 1);
+app.disable("x-powered-by");
 import cookieParser from "cookie-parser";
 import { allowedOrigins } from "./config/env.js";
 
@@ -129,12 +135,56 @@ app.use(
   })
 );
 
-// Body Parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body Parser (batasi ukuran payload untuk mencegah DoS)
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+
+// Kompresi response (hemat bandwidth; payload besar seperti daftar produk/menu)
+app.use(compression());
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300, // 300 request/menit/IP
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { success: false, error: "Terlalu banyak permintaan. Coba lagi nanti." },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100, // endpoint auth (cek sesi, refresh, dll.)
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { success: false, error: "Terlalu banyak permintaan autentikasi." },
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10, // brute-force protection pada login/register/verifikasi
+  skipSuccessfulRequests: true,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { success: false, error: "Terlalu banyak percobaan. Coba lagi 15 menit lagi." },
+});
+
+app.use("/api", apiLimiter);
+app.use("/api/auth", authLimiter);
+app.use(
+  [
+    "/api/auth/admin/login",
+    "/api/auth/admin/loginAdmin",
+    "/api/auth/admin/register",
+    "/api/auth/admin/registerEmail",
+    "/api/auth/mfa/verify",
+    "/api/auth/mfa/newVerify",
+  ],
+  loginLimiter
+);
 
 import { PrismaSessionStore } from '@quixo3/prisma-session-store';
 import { prisma } from './config/db.js';
+import { requireApiAuth } from "./middleware/requireApiAuth.js";
 
 // Session Configuration
 app.use(
@@ -170,11 +220,12 @@ app.use((req, res, next) => {
   next();
 });
 app.use((req, res, next) => {
-  global.currentUserId = req.user?.id;
   next();
 });
 
-// Routes
+// Routes (semua /api wajib terautentikasi kecuali allowlist di requireApiAuth)
+app.use(requireApiAuth);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/sessions", sessionRoute);
 app.use("/api/master/customer", customerRoutes);
@@ -244,6 +295,28 @@ app.get("/api/health", (req, res) => {
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
+  // Error dari multer (file terlalu besar / tipe tidak diizinkan)
+  if (err?.name === "MulterError") {
+    const msg =
+      err.code === "LIMIT_FILE_SIZE"
+        ? "Ukuran file melebihi batas yang diizinkan."
+        : err.code === "LIMIT_FILE_COUNT"
+          ? "Jumlah file melebihi batas."
+          : "Upload file gagal.";
+    return res.status(400).json({ success: false, error: msg });
+  }
+  if (err?.message === "INVALID_FILE_TYPE") {
+    return res
+      .status(400)
+      .json({ success: false, error: "Tipe file tidak diizinkan." });
+  }
+  // Validasi request/Prisma yang gagal -> 400 (bukan 500)
+  if (err?.name === "PrismaClientValidationError") {
+    return res
+      .status(400)
+      .json({ success: false, error: "Data permintaan tidak valid." });
+  }
+
   console.error(err.stack);
   res.status(500).json({
     error: "Internal Server Error",

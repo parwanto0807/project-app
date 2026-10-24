@@ -58,7 +58,7 @@ export default function CashFlowPage() {
             // Update URL
             router.push(`?${params.toString()}`, { scroll: false });
 
-            const res = await fetch(`/api/accounting/reports/cash-flow?${params.toString()}`);
+            const res = await fetch(`/api/accounting/reports/cash-flow?${params.toString()}`, { credentials: "include" });
             const data = await res.json();
 
             if (data.success) {

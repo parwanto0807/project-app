@@ -9,7 +9,7 @@ export const stockOpnameController = {
     try {
       const { nomorOpname, type, warehouseId, keterangan, items } = req.body;
       
-      const currentUserId = req.user?.id || global.currentUserId; 
+      const currentUserId = req.user?.id; 
 
       if (!currentUserId) {
         return res.status(401).json({ success: false, message: "User not authenticated" });

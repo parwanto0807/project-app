@@ -16,7 +16,7 @@ export async function fetchAllLoans(filters: {
 
     const res = await fetch(
       `${API_URL}/api/loans/pinjaman?${queryParams.toString()}`,
-      {
+      { credentials: "include",
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -37,7 +37,7 @@ export async function fetchAllLoans(filters: {
 
 export async function createLoan(formData: any) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman`, {
+    const res = await fetch(`${API_URL}/api/loans/pinjaman`, { credentials: "include",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -60,7 +60,7 @@ export async function createLoan(formData: any) {
 
 export async function postLoan(loanId: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}/post`, {
+    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}/post`, { credentials: "include",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export async function postLoan(loanId: string) {
 
 export async function updateLoan(loanId: string, formData: any) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}`, {
+    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}`, { credentials: "include",
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -105,7 +105,7 @@ export async function updateLoan(loanId: string, formData: any) {
 
 export async function deleteLoan(loanId: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}`, {
+    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}`, { credentials: "include",
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -127,7 +127,7 @@ export async function deleteLoan(loanId: string) {
 
 export async function recordRepayment(detailId: string, formData: any) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman/repayment/${detailId}`, {
+    const res = await fetch(`${API_URL}/api/loans/pinjaman/repayment/${detailId}`, { credentials: "include",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -150,7 +150,7 @@ export async function recordRepayment(detailId: string, formData: any) {
 
 export async function fetchAllEmployees() {
   try {
-    const res = await fetch(`${API_URL}/api/karyawan/getAllKaryawan`, {
+    const res = await fetch(`${API_URL}/api/karyawan/getAllKaryawan`, { credentials: "include",
       method: "GET",
       cache: "no-store",
     });
@@ -164,7 +164,7 @@ export async function fetchAllEmployees() {
 
 export async function fetchBankAccounts() {
   try {
-    const res = await fetch(`${API_URL}/api/master/banks/getAllBankAccounts`, {
+    const res = await fetch(`${API_URL}/api/master/banks/getAllBankAccounts`, { credentials: "include",
       method: "GET",
       cache: "no-store",
     });
@@ -190,7 +190,7 @@ export async function fetchAllKasbon(filters: {
 
     const res = await fetch(
       `${API_URL}/api/loans/kasbon?${queryParams.toString()}`,
-      { method: "GET", cache: "no-store" }
+      { credentials: "include", method: "GET", cache: "no-store" }
     );
     if (!res.ok) throw new Error(`Gagal fetch kasbon: ${res.status}`);
     const data = await res.json();
@@ -210,7 +210,7 @@ export async function createKasbon(formData: {
   catatan?: string;
 }) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon`, {
+    const res = await fetch(`${API_URL}/api/loans/kasbon`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
@@ -230,7 +230,7 @@ export async function createKasbon(formData: {
 
 export async function approveKasbon(id: string, approvedBy?: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/approve`, {
+    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/approve`, { credentials: "include",
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approvedBy: approvedBy || "Admin" }),
@@ -249,7 +249,7 @@ export async function approveKasbon(id: string, approvedBy?: string) {
 
 export async function postKasbon(id: string, cashAccountKey?: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/post`, {
+    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/post`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cashAccountKey: cashAccountKey || "PETTY_CASH" }),
@@ -268,7 +268,7 @@ export async function postKasbon(id: string, cashAccountKey?: string) {
 
 export async function rejectKasbon(id: string, rejectedReason: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/reject`, {
+    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/reject`, { credentials: "include",
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rejectedReason }),
@@ -287,7 +287,7 @@ export async function rejectKasbon(id: string, rejectedReason: string) {
 
 export async function settleKasbon(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/settle`, {
+    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/settle`, { credentials: "include",
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
     });
@@ -305,7 +305,7 @@ export async function settleKasbon(id: string) {
 
 export async function deleteKasbon(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}`, {
+    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}`, { credentials: "include",
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
     });
@@ -331,7 +331,7 @@ export async function updateKasbon(
   }
 ) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}`, {
+    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}`, { credentials: "include",
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),

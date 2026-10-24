@@ -31,7 +31,7 @@ export async function getDataMr(
         }).toString();
 
         // 2. Memanggil API Backend
-        const response = await fetch(`${API_URL}/api/mr?${queryString}`, {
+        const response = await fetch(`${API_URL}/api/mr?${queryString}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -74,7 +74,7 @@ export async function issueMR(
     ;((...args: any[]) => {})("API URL:", `${API_URL}/api/mr/issue-scan`)
 
     try {
-        const response = await fetch(`${API_URL}/api/mr/issue-scan`, {
+        const response = await fetch(`${API_URL}/api/mr/issue-scan`, { credentials: "include",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -117,7 +117,7 @@ export async function createMRFromPOAction(
     requestedById?: string
 ): Promise<ApiResponse<any>> {
     try {
-        const response = await fetch(`${API_URL}/api/mr/from-po/${poId}`, {
+        const response = await fetch(`${API_URL}/api/mr/from-po/${poId}`, { credentials: "include",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -159,7 +159,7 @@ export async function validateMRForApproval(
     sourceType?: string;
 }>> {
     try {
-        const response = await fetch(`${API_URL}/api/mr/validate-approval/${mrId}`, {
+        const response = await fetch(`${API_URL}/api/mr/validate-approval/${mrId}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -194,7 +194,7 @@ export async function bulkIssueMR(
     issuedById: string
 ): Promise<ApiResponse<any>> {
     try {
-        const response = await fetch(`${API_URL}/api/mr/bulk-issue`, {
+        const response = await fetch(`${API_URL}/api/mr/bulk-issue`, { credentials: "include",
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ issuedById })
@@ -214,7 +214,7 @@ export async function postMRJournal(
     mrId: string
 ): Promise<ApiResponse<any>> {
     try {
-        const response = await fetch(`${API_URL}/api/mr/post-journal`, {
+        const response = await fetch(`${API_URL}/api/mr/post-journal`, { credentials: "include",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -262,7 +262,7 @@ export async function createDirectMRAction(
     params: CreateDirectMrParams
 ): Promise<ApiResponse<any>> {
     try {
-        const response = await fetch(`${API_URL}/api/mr/create-direct`, {
+        const response = await fetch(`${API_URL}/api/mr/create-direct`, { credentials: "include",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

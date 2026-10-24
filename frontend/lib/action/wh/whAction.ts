@@ -34,7 +34,7 @@ export const generateSimpleCode = (name?: string): string => {
 export async function createWarehouse(
   payload: CreateWarehouseInput
 ): Promise<ApiResponse<Warehouse>> {
-  const res = await fetch(ENDPOINT, {
+  const res = await fetch(ENDPOINT, { credentials: "include",
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -50,7 +50,7 @@ export async function createWarehouse(
 }
 
 export async function getWarehouses(): Promise<ApiResponse<ListResponse<Warehouse>>> {
-  const res = await fetch(ENDPOINT, {
+  const res = await fetch(ENDPOINT, { credentials: "include",
     method: "GET",
     cache: "no-store",
   });
@@ -66,7 +66,7 @@ export async function getWarehouses(): Promise<ApiResponse<ListResponse<Warehous
 export async function getWarehouseById(
   id: string
 ): Promise<ApiResponse<Warehouse>> {
-  const res = await fetch(`${ENDPOINT}/${id}`, {
+  const res = await fetch(`${ENDPOINT}/${id}`, { credentials: "include",
     method: "GET",
     cache: "no-store",
   });
@@ -83,7 +83,7 @@ export async function updateWarehouse(
   id: string,
   payload: UpdateWarehouseInput
 ): Promise<ApiResponse<Warehouse>> {
-  const res = await fetch(`${ENDPOINT}/${id}`, {
+  const res = await fetch(`${ENDPOINT}/${id}`, { credentials: "include",
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -102,7 +102,7 @@ export async function updateWarehouse(
 export async function deleteWarehouse(
   id: string
 ): Promise<ApiResponse<null>> {
-  const res = await fetch(`${ENDPOINT}/${id}`, {
+  const res = await fetch(`${ENDPOINT}/${id}`, { credentials: "include",
     method: "DELETE",
   });
 

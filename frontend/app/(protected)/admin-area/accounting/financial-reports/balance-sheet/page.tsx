@@ -54,7 +54,7 @@ export default function BalanceSheetPage() {
             // Update URL
             router.push(`?${params.toString()}`, { scroll: false });
 
-            const res = await fetch(`/api/accounting/reports/balance-sheet?${params.toString()}`);
+            const res = await fetch(`/api/accounting/reports/balance-sheet?${params.toString()}`, { credentials: "include" });
             const data = await res.json();
 
             if (data.success) {

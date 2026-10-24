@@ -1,7 +1,5 @@
 import express from "express";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { createImageUpload } from "../../utils/secureUpload.js";
 import {
   startKegiatan,
   endKegiatan,
@@ -14,21 +12,9 @@ import { authenticateToken } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/* ----------------------------- MULTER CONFIG ----------------------------- */
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = path.join(process.cwd(), "public/images/attendance");
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
-const upload = multer({ storage });
+/* ----------------------------- UPLOAD CONFIG ----------------------------- */
+// Foto kegiatan: maks 5 MB, hanya JPG/PNG/WebP.
+const upload = createImageUpload("images/attendance", 5, 2);
 
 /* ----------------------------- USER SUBMISSION ----------------------------- */
 router.post("/start", authenticateToken, upload.single("foto"), startKegiatan);

@@ -303,7 +303,7 @@ export async function duplicateLpp(lppId: string) {
 
 export async function exportLppToPdf(lppId: string) {
   const parsed = lppIdSchema.parse({ id: lppId });
-  const res = await fetch(`${API_BASE_URL}/api/lpp/${parsed.id}/export/pdf`, {
+  const res = await fetch(`${API_BASE_URL}/api/lpp/${parsed.id}/export/pdf`, { credentials: "include",
     method: "GET",
   });
   return res.blob();

@@ -12,7 +12,7 @@ export function useCategories() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/kategory/getAllCategories`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/kategory/getAllCategories`, { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error("Gagal fetch kategori");
         return res.json();

@@ -30,7 +30,7 @@ export default function SetupMfaPage() {
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/auth/mfa/setup`,
-          {
+          { credentials: "include",
             method: "GET",
             headers: {
               Authorization: `Bearer ${token}`,
@@ -86,7 +86,7 @@ export default function SetupMfaPage() {
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/mfa/verify-setup`,
-        {
+        { credentials: "include",
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -66,7 +66,7 @@ async function generateNewSoNumber(): Promise<string> {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders-last`,
-      { cache: "no-store" }
+      { credentials: "include", cache: "no-store" }
     );
     if (res.ok) lastSO = await res.json();
   } catch (e) {
@@ -109,7 +109,7 @@ export async function createSalesOrderAPI(payload: z.infer<typeof formSchema>) {
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/create`,
-      {
+      { credentials: "include",
         method: "POST",
         headers, // ✅ Gunakan headers yang sudah dipersiapkan
         body: JSON.stringify({

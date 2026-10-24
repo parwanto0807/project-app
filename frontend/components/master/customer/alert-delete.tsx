@@ -34,7 +34,7 @@ export default function DeleteCustomerAlert({ id, onDelete }: DeleteCustomerAler
             }
             const res = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/deleteCustomer/${id}`,
-                {
+                { credentials: "include",
                     method: "DELETE",
                 }
             );

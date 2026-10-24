@@ -151,7 +151,7 @@ export function GoodsReceiptForm({ poId, onSuccess, onCancel }: GoodsReceiptForm
     const fetchInitialData = async () => {
         try {
             // Fetch products
-            const productsRes = await fetch('/api/products?limit=100');
+            const productsRes = await fetch('/api/products?limit=100', { credentials: "include" });
             if (productsRes.ok) {
                 const data = await productsRes.json();
                 if (data.success) {
@@ -160,7 +160,7 @@ export function GoodsReceiptForm({ poId, onSuccess, onCancel }: GoodsReceiptForm
             }
 
             // Fetch purchase orders
-            const poRes = await fetch('/api/purchase-orders?status=APPROVED&limit=100');
+            const poRes = await fetch('/api/purchase-orders?status=APPROVED&limit=100', { credentials: "include" });
             if (poRes.ok) {
                 const data = await poRes.json();
                 if (data.success) {
@@ -169,7 +169,7 @@ export function GoodsReceiptForm({ poId, onSuccess, onCancel }: GoodsReceiptForm
             }
 
             // Fetch warehouses
-            const warehouseRes = await fetch('/api/warehouses?limit=100');
+            const warehouseRes = await fetch('/api/warehouses?limit=100', { credentials: "include" });
             if (warehouseRes.ok) {
                 const data = await warehouseRes.json();
                 if (data.success) {
@@ -178,7 +178,7 @@ export function GoodsReceiptForm({ poId, onSuccess, onCancel }: GoodsReceiptForm
             }
 
             // Fetch users
-            const usersRes = await fetch('/api/users?role=WAREHOUSE_STAFF&limit=100');
+            const usersRes = await fetch('/api/users?role=WAREHOUSE_STAFF&limit=100', { credentials: "include" });
             if (usersRes.ok) {
                 const data = await usersRes.json();
                 if (data.success) {

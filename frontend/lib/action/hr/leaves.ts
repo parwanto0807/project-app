@@ -16,7 +16,7 @@ export async function fetchAllLeaves(filters: {
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/hr/leaves?${queryParams.toString()}`,
-      {
+      { credentials: "include",
         method: "GET",
         headers: {
           Cookie: cookieStore.toString(),
@@ -38,7 +38,7 @@ export async function approveLeave(id: string) {
     const cookieStore = await cookies();
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/hr/leaves/${id}/approve`,
-      {
+      { credentials: "include",
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -61,7 +61,7 @@ export async function rejectLeave(id: string, rejectedReason: string) {
     const cookieStore = await cookies();
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/hr/leaves/${id}/reject`,
-      {
+      { credentials: "include",
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

@@ -3,7 +3,7 @@ import { PaymentTerm } from "@/types/quotation";
 
 export async function fetchPaymentTerms(): Promise<{ terms: PaymentTerm[] }> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/master/payment-term/getPaymentTerms`
+    `${process.env.NEXT_PUBLIC_API_URL}/api/master/payment-term/getPaymentTerms`, { credentials: "include" }
   );
   if (!res.ok) throw new Error("Gagal fetch payment terms");
   const terms = await res.json();
@@ -12,7 +12,7 @@ export async function fetchPaymentTerms(): Promise<{ terms: PaymentTerm[] }> {
 
 export async function fetchPaymentTermById(id: string): Promise<PaymentTerm> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/master/payment-term/${id}`
+    `${process.env.NEXT_PUBLIC_API_URL}/api/master/payment-term/${id}`, { credentials: "include" }
   );
   if (!res.ok) throw new Error("Gagal fetch payment term");
   return res.json();

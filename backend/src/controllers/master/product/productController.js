@@ -55,8 +55,9 @@ export const getAllProductsOpname = async (req, res) => {
     if (includePagination === "true") {
       const totalCount = await prisma.product.count({ where: filter });
       
-      const pageNumber = parseInt(page) || 1;
-      const pageSize = parseInt(limit) || 10;
+      const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+      // Batasi ukuran halaman untuk mencegah query/response raksasa.
+      const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 200);
       const skip = (pageNumber - 1) * pageSize;
       const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -116,8 +117,9 @@ export const getAllProducts = async (req, res) => {
         where: filter,
       });
 
-      const pageNumber = parseInt(page) || 1;
-      const pageSize = parseInt(limit) || 10;
+      const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+      // Batasi ukuran halaman untuk mencegah query/response raksasa.
+      const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 200);
       const skip = (pageNumber - 1) * pageSize;
       const totalPages = Math.ceil(totalCount / pageSize);
 

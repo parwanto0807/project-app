@@ -15,7 +15,7 @@ export const makeImageSrcEmployee = (val?: string | null): string => {
 
 export const urlToBase64 = async (url: string): Promise<string> => {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { credentials: "include" });
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

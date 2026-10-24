@@ -9,7 +9,9 @@ import { JWT_SECRET } from "../config/env.js";
 async function verifySessionToken(req, res, next) {
   try {
     const cookies = cookie.parse(req.headers.cookie || "");
-    const sessionToken = cookies.session_token;
+    // Kompatibilitas: setter lama memakai "sessionToken", middleware lama
+    // membaca "session_token". Terima keduanya.
+    const sessionToken = cookies.session_token || cookies.sessionToken;
 
     if (!sessionToken) {
       return res.status(401).json({
@@ -65,7 +67,7 @@ async function verifySessionToken(req, res, next) {
     req.user = session.user;
 
     // ✅ OPTIONAL: Tambahkan session info untuk audit
-    req.session = {
+    req.sessionInfo = {
       id: session.id,
       ipAddress: session.ipAddress,
       userAgent: session.userAgent,
@@ -142,11 +144,8 @@ export const authenticateToken = async (req, res, next) => {
       }
     }
 
-    // 3. Cek dari query string (untuk development)
-    if (!token && req.query && req.query.token) {
-      token = req.query.token;
-      tokenSource = "query_string";
-    }
+    // Catatan keamanan: JANGAN menerima token dari query string (?token=...)
+    // karena mudah bocor lewat log server, histori browser, dan Referer.
 
     if (!token) {
       return res.status(401).json({
