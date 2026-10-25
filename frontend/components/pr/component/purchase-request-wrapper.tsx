@@ -21,39 +21,24 @@ interface PurchaseRequestClientWrapperProps {
 }
 
 export function PurchaseRequestClientWrapper({ initialData }: PurchaseRequestClientWrapperProps) {
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [data, setData] = useState(initialData);
     const { user, isLoading: userLoading } = useSession();
-
-    // Reset initial load setelah component mount dan data tersedia
-    useEffect(() => {
-        if (initialData.purchaseRequests.length > 0) {
-            // Delay kecil untuk memastikan AdminLoading terlihat
-            const timer = setTimeout(() => {
-                setIsInitialLoad(false);
-            }, 800);
-
-            return () => clearTimeout(timer);
-        } else {
-            // Jika tidak ada data, langsung hide loading
-            setIsInitialLoad(false);
-        }
-    }, [initialData.purchaseRequests.length]);
 
     // Update data ketika initialData berubah
     useEffect(() => {
         setData(initialData);
     }, [initialData]);
 
-    // Tampilkan AdminLoading hanya untuk initial load
-    if (isInitialLoad || userLoading) {
+    // Tampilkan AdminLoading hanya saat sesi user masih dicek.
+    // (Delay buatan 800ms dihapus — data sudah tersedia dari server component.)
+    if (userLoading) {
         return (
             <div className="fixed inset-0 z-10 bg-background/95 backdrop-blur-sm flex items-center justify-center">
                 <div className="w-full text-center">
-                    <AdminLoading message="Loading purchase requests..." />
+                    <AdminLoading message="Checking user session..." />
                     <div className="mt-6 space-y-2">
                         <p className="text-sm text-muted-foreground">
-                            {userLoading ? "Checking user session..." : "Loading your data..."}
+                            Checking user session...
                         </p>
                         <div className="flex justify-center space-x-1">
                             {[0, 1, 2].map((i) => (

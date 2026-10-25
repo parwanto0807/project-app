@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import HeaderCard from "@/components/ui/header-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,16 @@ const OperationalExpensePage = () => {
 
     const [createOpen, setCreateOpen] = useState(false);
     const [selectedExpense, setSelectedExpense] = useState<OperationalExpense | null>(null);
+
+    const filteredExpenses = useMemo(
+        () =>
+            expenses.filter(
+                (e) =>
+                    e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    e.expenseNumber.toLowerCase().includes(searchTerm.toLowerCase())
+            ),
+        [expenses, searchTerm]
+    );
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -184,10 +194,7 @@ const OperationalExpensePage = () => {
                             </div>
 
                             <TabelOperationalExpense
-                                data={expenses.filter(e =>
-                                    e.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                    e.expenseNumber.toLowerCase().includes(searchTerm.toLowerCase())
-                                )}
+                                data={filteredExpenses}
                                 isLoading={isLoading}
                                 onRefresh={fetchData}
                             />

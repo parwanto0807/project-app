@@ -1,8 +1,9 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 export async function fetchAllCustomers() {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/getAllCustomers`,
       {
         method: "GET",
@@ -32,7 +33,7 @@ export async function fetchAllCustomers() {
 
 export async function fetchCustomerById(id: string) {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/getCustomerById/${id}`,
       {
         method: "GET",

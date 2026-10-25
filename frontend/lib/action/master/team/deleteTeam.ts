@@ -1,5 +1,6 @@
 'use server';
 
+import { serverFetch } from "@/lib/server-fetch";
 import { revalidatePath } from 'next/cache';
 
 export async function deleteTeam(id: string) {
@@ -8,7 +9,7 @@ export async function deleteTeam(id: string) {
   }
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${id}`, {
+    const res = await serverFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${id}`, {
       method: 'DELETE',
       credentials: "include",
       headers: {

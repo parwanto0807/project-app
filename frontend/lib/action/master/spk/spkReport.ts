@@ -104,28 +104,18 @@ export const createReportFormData = ({
 
   // ✅ Opsional: photos — hanya jika ada
   if (photos && photos.length > 0) {
-    photos.forEach((photo, index) => {
+    photos.forEach((photo) => {
       formData.append("photos", photo);
-      console.log(
-        `🖼️ Ditambahkan foto ${index + 1}:`,
-        photo.name,
-        `(${photo.size} bytes)`
-      );
     });
 
     if (photoCoordinates && photoCoordinates.length > 0) {
       formData.append("photoCoordinates", JSON.stringify(photoCoordinates));
     }
-  } else {
-    console.warn("⚠️ Tidak ada foto yang ditambahkan ke FormData");
   }
 
   // ✅ ✅ ✅ KRITIS: soDetailId — hanya append jika bernilai valid (bukan null/undefined/kosong)
   if (soDetailId && soDetailId.trim() !== "") {
     formData.append("soDetailId", soDetailId.trim());
-    ;;((...args: any[]) => {})("📌 Ditambahkan soDetailId:", soDetailId.trim());
-  } else {
-    ;;((...args: any[]) => {})("➖ Tidak menambahkan soDetailId (tidak dipilih atau kosong)");
   }
 
   // 👇 Debug akhir
@@ -253,6 +243,8 @@ export interface FetchReportsFilters {
   status?: "PENDING" | "APPROVED" | "REJECTED" | "all";
   spkId?: string;
   karyawanId?: string;
+  /** Hanya laporan dari SPK yang belum ditutup (untuk halaman monitoring). */
+  openOnly?: boolean;
 }
 
 /**
@@ -261,7 +253,8 @@ export interface FetchReportsFilters {
  * @returns Promise<ReportHistory[]>
  */
 export async function fetchSPKReports(
-  filters: FetchReportsFilters = {}
+  filters: FetchReportsFilters = {},
+  options: { signal?: AbortSignal } = {}
 ): Promise<ReportHistory[]> {
   const params = new URLSearchParams();
 
@@ -271,12 +264,14 @@ export async function fetchSPKReports(
     params.append("status", filters.status);
   if (filters.spkId) params.append("spkId", filters.spkId);
   if (filters.karyawanId) params.append("karyawanId", filters.karyawanId);
+  if (filters.openOnly) params.append("openOnly", "1");
 
   const url = `${API_BASE_URL}/api/spk/report/getSPKFieldReports?${params.toString()}`;
   const res = await fetch(url, {
     method: "GET",
     credentials: "include", // Kirim cookie/session
     cache: "no-store", // Jangan cache, karena data real-time
+    signal: options.signal,
   });
 
   if (!res.ok) {

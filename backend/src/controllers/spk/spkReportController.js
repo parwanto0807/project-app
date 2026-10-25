@@ -666,7 +666,7 @@ export const deleteReport = async (req, res) => {
  */
 export const getSPKFieldReports = async (req, res) => {
   try {
-    const { date, status, spkId, karyawanId } = req.query;
+    const { date, status, spkId, karyawanId, openOnly } = req.query;
 
     // Validasi input
     if (status && !["PENDING", "APPROVED", "REJECTED"].includes(status)) {
@@ -706,8 +706,16 @@ export const getSPKFieldReports = async (req, res) => {
         spk: {
           ...(spkId ? { id: spkId } : {}),
           ...(req.query.spkNumber ? { spkNumber: req.query.spkNumber } : {}),
+          // Halaman Monitoring Progress hanya menampilkan SPK yang masih
+          // berjalan; tanpa filter ini endpoint menarik seluruh riwayat
+          // (ribuan laporan) yang tidak dipakai halaman.
+          ...(openOnly === "1" || openOnly === "true"
+            ? { spkStatusClose: false }
+            : {}),
         },
       },
+      // Satu query JOIN, bukan satu round-trip per relasi.
+      relationLoadStrategy: "join",
       include: {
         spk: {
           select: {
@@ -718,7 +726,6 @@ export const getSPKFieldReports = async (req, res) => {
                   select: { name: true, address: true, branch: true },
                 },
                 project: { select: { id: true, name: true } },
-                items: true, // ambil semua items dulu
               },
             },
           },
@@ -730,18 +737,8 @@ export const getSPKFieldReports = async (req, res) => {
       orderBy: { reportedAt: "asc" },
     });
 
-    // ✅ Sort salesOrder.items per report berdasarkan lineNo ascending
-    const reportsSortedItems = reports.map((report) => {
-      if (report.spk?.salesOrder?.items) {
-        report.spk.salesOrder.items = report.spk.salesOrder.items
-          .slice()
-          .sort((a, b) => (a.lineNo || 0) - (b.lineNo || 0));
-      }
-      return report;
-    });
-
     // Mapping ke format frontend
-    const formatted = reportsSortedItems.map((report) => ({
+    const formatted = reports.map((report) => ({
       id: report.id,
       spkNumber: report.spk.spkNumber,
       clientName: report.spk.salesOrder.customer.name,
@@ -761,7 +758,6 @@ export const getSPKFieldReports = async (req, res) => {
       email: report.karyawan.email,
       progress: report.progress || 0,
       status: report.status,
-      items: report.spk.salesOrder.items, // items sudah terurut berdasarkan lineNo
     }));
 
     res.json(formatted);

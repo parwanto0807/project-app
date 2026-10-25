@@ -18,7 +18,6 @@ export async function getStaffBalances(params: {
 }): Promise<StaffBalanceResponse> {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get("connect.sid");
 
         const queryParams = new URLSearchParams();
         if (params.page) queryParams.append("page", params.page.toString());
@@ -34,7 +33,7 @@ export async function getStaffBalances(params: {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                    Cookie: cookieStore.toString(),
                 },
                 credentials: "include",
                 cache: "no-store",
@@ -59,7 +58,6 @@ export async function getStaffBalances(params: {
 export async function getStaffBalanceByKaryawan(karyawanId: string) {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get("connect.sid");
 
         const response = await fetch(
             `${API_BASE_URL}/api/staff-balance/karyawan/${karyawanId}`,
@@ -67,7 +65,7 @@ export async function getStaffBalanceByKaryawan(karyawanId: string) {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                    Cookie: cookieStore.toString(),
                 },
                 credentials: "include",
                 cache: "no-store",
@@ -102,7 +100,6 @@ export async function getStaffLedgerByKaryawan(
 ): Promise<StaffLedgerResponse> {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get("connect.sid");
 
         const queryParams = new URLSearchParams();
         if (params.page) queryParams.append("page", params.page.toString());
@@ -118,7 +115,7 @@ export async function getStaffLedgerByKaryawan(
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                    Cookie: cookieStore.toString(),
                 },
                 credentials: "include",
                 cache: "no-store",
@@ -143,7 +140,6 @@ export async function getStaffLedgerByKaryawan(
 export async function getStaffBalanceSummary() {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get("connect.sid");
 
         const response = await fetch(
             `${API_BASE_URL}/api/staff-balance/summary`,
@@ -151,7 +147,7 @@ export async function getStaffBalanceSummary() {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                    Cookie: cookieStore.toString(),
                 },
                 credentials: "include",
                 cache: "no-store",
@@ -182,7 +178,6 @@ export async function createOpeningBalance(data: {
 }) {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get("connect.sid");
 
         const response = await fetch(
             `${API_BASE_URL}/api/staff-balance/opening-balance`,
@@ -190,7 +185,7 @@ export async function createOpeningBalance(data: {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                    Cookie: cookieStore.toString(),
                 },
                 credentials: "include",
                 body: JSON.stringify(data),
@@ -224,7 +219,6 @@ export async function processStaffRefundAction(data: {
 }) {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get("connect.sid");
 
         const response = await fetch(
             `${API_BASE_URL}/api/staff-balance/refund`,
@@ -232,7 +226,7 @@ export async function processStaffRefundAction(data: {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                    Cookie: cookieStore.toString(),
                 },
                 credentials: "include",
                 body: JSON.stringify(data),
@@ -258,7 +252,6 @@ export async function processStaffRefundAction(data: {
 export async function settlePRBudgetAction(prId: string) {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get("connect.sid");
 
         const response = await fetch(
             `${API_BASE_URL}/api/staff-balance/settle-pr`,
@@ -266,7 +259,7 @@ export async function settlePRBudgetAction(prId: string) {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                    Cookie: cookieStore.toString(),
                 },
                 credentials: "include",
                 body: JSON.stringify({ prId }),

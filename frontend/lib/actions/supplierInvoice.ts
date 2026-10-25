@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import {
     SupplierInvoice,
     SupplierInvoiceListResponse,
@@ -17,7 +18,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
  */
 export async function generateSupplierInvoiceNumber(): Promise<{ success: boolean; data: { invoiceNumber: string } }> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-invoices/generate-number`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-invoices/generate-number`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -53,7 +54,7 @@ export async function getSupplierInvoices(
         if (query.startDate) params.append("startDate", format(query.startDate, 'yyyy-MM-dd'));
         if (query.endDate) params.append("endDate", format(query.endDate, 'yyyy-MM-dd'));
 
-        const response = await fetch(`${API_URL}/api/supplier-invoices?${params}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-invoices?${params}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -77,7 +78,7 @@ export async function getSupplierInvoices(
  */
 export async function getSupplierInvoiceById(id: string): Promise<SupplierInvoiceResponse> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-invoices/${id}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-invoices/${id}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -103,7 +104,7 @@ export async function createSupplierInvoice(
     data: CreateSupplierInvoiceInput
 ): Promise<SupplierInvoiceResponse> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-invoices`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-invoices`, { credentials: "include",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -131,7 +132,7 @@ export async function updateSupplierInvoice(
     data: UpdateSupplierInvoiceInput
 ): Promise<SupplierInvoiceResponse> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-invoices/${id}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-invoices/${id}`, { credentials: "include",
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -159,7 +160,7 @@ export async function updateSupplierInvoiceStatus(
     status: string
 ): Promise<SupplierInvoiceResponse> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-invoices/${id}/status`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-invoices/${id}/status`, { credentials: "include",
             method: "PATCH",
             headers: {
                 "Content-Type": "application/json",
@@ -184,7 +185,7 @@ export async function updateSupplierInvoiceStatus(
  */
 export async function deleteSupplierInvoice(id: string): Promise<{ success: boolean; message: string }> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-invoices/${id}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-invoices/${id}`, { credentials: "include",
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",
@@ -211,7 +212,7 @@ export async function getInvoiceSummary(supplierId?: string) {
         const params = new URLSearchParams();
         if (supplierId) params.append("supplierId", supplierId);
 
-        const response = await fetch(`${API_URL}/api/supplier-invoices/summary?${params}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-invoices/summary?${params}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

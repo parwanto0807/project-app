@@ -547,6 +547,7 @@ export const getAllPO = async (req, res) => {
         where,
         skip,
         take: Number(limit),
+        relationLoadStrategy: "join",
         include: { 
           supplier: true, 
           project: true, 
@@ -982,9 +983,7 @@ export const updatePOStatus = async (req, res) => {
             include: { product: true }
           });
 
-          const currentPeriod = new Date();
-          currentPeriod.setDate(1);
-          currentPeriod.setHours(0, 0, 0, 0);
+          const currentPeriod = getPeriodDate();
 
           for (const line of lines) {
             const conversion = parseFloat(line.product?.conversionToStorage) || 1;

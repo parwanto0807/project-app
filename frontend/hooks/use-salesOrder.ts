@@ -26,7 +26,7 @@ export const useSalesOrder = (
 export const useSalesOrderData = () => {
   return useQuery({
     queryKey: ["salesOrdersAll"],
-    queryFn: () => fetchAllSalesOrderSPK(),
+    queryFn: () => fetchAllSalesOrderSPK(true),
     staleTime: 10 * 60 * 1000, // 10 menit
     gcTime: 20 * 60 * 1000,    // 20 menit
   });

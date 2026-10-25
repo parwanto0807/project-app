@@ -25,7 +25,7 @@ export default function CreateQuotationFromSOPage() {
   // Hooks untuk data
   const createQuotationMutation = useCreateQuotation()
   const { data: customersData, isLoading: isCustomersLoading } = useCustomers()
-  const { data: productsData, isLoading: isProductsLoading } = useProducts()
+  const { data: productsData, isLoading: isProductsLoading } = useProducts({ compact: true })
   const { data: taxesData, isLoading: isTaxesLoading } = useTaxes()
   const { data: paymentTermsData, isLoading: isPaymentTermsLoading } = usePaymentTerms()
   const { data: salesOrderData, isLoading: isSalesOrderLoading } = useSalesOrderData()

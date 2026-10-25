@@ -10,6 +10,7 @@ import {
   queryParamsSchema,
 } from "../../validations/prValidations.js";
 import { generatePRNumber } from "../../utils/prGenerateNumber.js";
+import { getPeriodDate } from "../../utils/dateUtils.js";
 import { startOfMonth } from "date-fns";
 
 export class PurchaseRequestController {
@@ -55,100 +56,196 @@ export class PurchaseRequestController {
       const baseWhere = { ...where };
       delete baseWhere.spkId;
 
-      const purchaseRequests = await prisma.purchaseRequest.findMany({
-          where,
-          include: {
-            project: { select: { id: true, name: true } },
-            karyawan: { select: { id: true, namaLengkap: true, jabatan: true } },
-            requestedBy: { select: { id: true, namaLengkap: true, jabatan: true } },
-            spk: {
-              select: {
-                id: true,
-                spkNumber: true,
-                salesOrder: { select: { soNumber: true, soDate: true } },
-              },
+      // Strategi: query dasar + relasi berat dijalankan terpisah secara
+      // paralel. Satu JOIN besar dengan banyak relasi one-to-many membuat
+      // Cartesian product sehingga jauh lebih lambat (4–6s vs ~1–2s).
+      const includeExistingPOs = req.query.includeExistingPOs === "true";
+
+      const basePromise = prisma.purchaseRequest.findMany({
+        where,
+        relationLoadStrategy: "join",
+        include: {
+          project: { select: { id: true, name: true } },
+          karyawan: { select: { id: true, namaLengkap: true, jabatan: true } },
+          requestedBy: {
+            select: { id: true, namaLengkap: true, jabatan: true },
+          },
+          spk: {
+            select: {
+              id: true,
+              spkNumber: true,
+              salesOrder: { select: { soNumber: true, soDate: true } },
             },
-            parentPr: {
-              select: {
-                id: true,
-                nomorPr: true,
-                status: true,
-                sisaBudget: true,
-                details: { select: { estimasiTotalHarga: true } }
-              },
-            },
-            childPrs: {
-              select: {
-                id: true,
-                nomorPr: true,
-                status: true,
-                details: { select: { estimasiTotalHarga: true, sourceProduct: true } },
-                purchaseOrders: {
-                  select: { 
-                    id: true, 
-                    poNumber: true, 
-                    status: true, 
-                    totalAmount: true,
-                    lines: {
-                      select: {
-                        quantity: true,
-                        qtyActual: true,
-                        unitPrice: true,
-                        unitPriceActual: true
-                      }
-                    }
-                  }
-                }
-              },
-            },
-            details: {
-              include: {
-                product: { select: { id: true, name: true, code: true, purchaseUnit: true, storageUnit: true, usageUnit: true, conversionToStorage: true, conversionToUsage: true } },
-                projectBudget: { select: { id: true, description: true, amount: true } },
-              },
-            },
-            uangMuka: {
-              include: {
-                pertanggungjawaban: {
-                  include: {
-                    details: {
-                      include: {
-                        product: { select: { id: true, name: true, code: true } },
-                        fotoBukti: true,
-                      },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      });
+
+      const [
+        purchaseRequestsBase,
+        responseCount,
+        totalAll,
+        totalUmum,
+        totalProject,
+      ] = await Promise.all([
+        basePromise,
+        prisma.purchaseRequest.count({ where }),
+        prisma.purchaseRequest.count({ where: baseWhere }),
+        prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: null } }),
+        prisma.purchaseRequest.count({
+          where: { ...baseWhere, spkId: { not: null } },
+        }),
+      ]);
+
+      const ids = purchaseRequestsBase.map((pr) => pr.id);
+      const parentIds = [
+        ...new Set(
+          purchaseRequestsBase.map((pr) => pr.parentPrId).filter(Boolean)
+        ),
+      ];
+
+      const [details, purchaseOrders, uangMuka, childPrs, parentPrs] =
+        await Promise.all([
+          ids.length
+            ? prisma.purchaseRequestDetail.findMany({
+                where: { purchaseRequestId: { in: ids } },
+                include: {
+                  product: {
+                    select: {
+                      id: true,
+                      name: true,
+                      code: true,
+                      purchaseUnit: true,
+                      storageUnit: true,
+                      usageUnit: true,
+                      conversionToStorage: true,
+                      conversionToUsage: true,
                     },
                   },
+                  projectBudget: {
+                    select: { id: true, description: true, amount: true },
+                  },
                 },
-              },
-            },
-            ...(req.query.includeExistingPOs === 'true' && {
-              purchaseOrders: {
-                select: { 
-                  id: true, 
-                  poNumber: true, 
-                  status: true, 
-                  totalAmount: true, 
+              })
+            : Promise.resolve([]),
+
+          includeExistingPOs && ids.length
+            ? prisma.purchaseOrder.findMany({
+                where: { purchaseRequestId: { in: ids } },
+                select: {
+                  id: true,
+                  poNumber: true,
+                  status: true,
+                  totalAmount: true,
+                  purchaseRequestId: true,
                   supplier: { select: { id: true, name: true } },
                   lines: {
                     select: {
                       quantity: true,
                       qtyActual: true,
                       unitPrice: true,
-                      unitPriceActual: true
-                    }
-                  }
+                      unitPriceActual: true,
+                    },
+                  },
                 },
-              },
-            }),
-          },
-          orderBy: { createdAt: "desc" },
-          skip,
-          take: limit,
-      });
-      const responseCount = await prisma.purchaseRequest.count({ where });
-      const totalAll = await prisma.purchaseRequest.count({ where: baseWhere });
-      const totalUmum = await prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: null } });
-      const totalProject = await prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: { not: null } } });
+              })
+            : Promise.resolve([]),
+
+          ids.length
+            ? prisma.uangMuka.findMany({
+                where: { purchaseRequestId: { in: ids } },
+                include: {
+                  pertanggungjawaban: {
+                    include: {
+                      details: {
+                        include: {
+                          product: { select: { id: true, name: true, code: true } },
+                          fotoBukti: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              })
+            : Promise.resolve([]),
+
+          ids.length
+            ? prisma.purchaseRequest.findMany({
+                where: { parentPrId: { in: ids } },
+                select: {
+                  id: true,
+                  nomorPr: true,
+                  status: true,
+                  parentPrId: true,
+                  details: {
+                    select: {
+                      estimasiTotalHarga: true,
+                      sourceProduct: true,
+                    },
+                  },
+                  purchaseOrders: {
+                    select: {
+                      id: true,
+                      poNumber: true,
+                      status: true,
+                      totalAmount: true,
+                      lines: {
+                        select: {
+                          quantity: true,
+                          qtyActual: true,
+                          unitPrice: true,
+                          unitPriceActual: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              })
+            : Promise.resolve([]),
+
+          parentIds.length
+            ? prisma.purchaseRequest.findMany({
+                where: { id: { in: parentIds } },
+                select: {
+                  id: true,
+                  nomorPr: true,
+                  status: true,
+                  sisaBudget: true,
+                  details: { select: { estimasiTotalHarga: true } },
+                },
+              })
+            : Promise.resolve([]),
+        ]);
+
+      const groupBy = (rows, key) => {
+        const map = new Map();
+        for (const row of rows) {
+          const k = row[key];
+          const list = map.get(k) ?? [];
+          list.push(row);
+          map.set(k, list);
+        }
+        return map;
+      };
+
+      const detailsByPr = groupBy(details, "purchaseRequestId");
+      const poByPr = groupBy(purchaseOrders, "purchaseRequestId");
+      const umByPr = groupBy(uangMuka, "purchaseRequestId");
+      const childByParent = groupBy(childPrs, "parentPrId");
+      const parentById = new Map(parentPrs.map((pr) => [pr.id, pr]));
+
+      const purchaseRequests = purchaseRequestsBase.map((pr) => ({
+        ...pr,
+        details: detailsByPr.get(pr.id) ?? [],
+        ...(includeExistingPOs
+          ? { purchaseOrders: poByPr.get(pr.id) ?? [] }
+          : {}),
+        uangMuka: umByPr.get(pr.id) ?? [],
+        childPrs: childByParent.get(pr.id) ?? [],
+        parentPr: pr.parentPrId ? parentById.get(pr.parentPrId) ?? null : null,
+      }));
 
       res.json({
         success: true,
@@ -1055,7 +1152,7 @@ export class PurchaseRequestController {
           });
 
           const now = new Date();
-          const period = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+          const period = getPeriodDate();
 
           for (const detail of prDetails) {
             // Parse warehouse allocations from JSON field
@@ -1194,9 +1291,7 @@ export class PurchaseRequestController {
             if (canDelete) {
               // âœ… Handle StockBalance reversal if PO was APPROVED
               if (po.status === 'APPROVED') {
-                const currentPeriod = new Date();
-                currentPeriod.setDate(1);
-                currentPeriod.setHours(0, 0, 0, 0);
+                const currentPeriod = getPeriodDate();
 
                 for (const line of po.lines) {
                   // Skip services or items without product
@@ -1487,7 +1582,7 @@ export class PurchaseRequestController {
 
               // Get Current Stock Balance (Start of Month)
               const now = new Date();
-              const period = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+              const period = getPeriodDate();
               
               const stockBalance = await tx.stockBalance.findUnique({
                 where: {

@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import { revalidatePath } from "next/cache";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -11,7 +12,7 @@ export async function fetchAllGaji(filters: { periode?: string; karyawanId?: str
     const q = new URLSearchParams();
     if (filters.periode) q.append("periode", filters.periode);
     if (filters.karyawanId) q.append("karyawanId", filters.karyawanId);
-    const res = await fetch(`${API_URL}/api/payroll/gaji?${q}`, { credentials: "include", cache: "no-store" });
+    const res = await serverFetch(`${API_URL}/api/payroll/gaji?${q}`, { credentials: "include", cache: "no-store" });
     if (!res.ok) throw new Error(`Gagal fetch gaji: ${res.status}`);
     return { gaji: await res.json(), error: null };
   } catch (error) {
@@ -21,7 +22,7 @@ export async function fetchAllGaji(filters: { periode?: string; karyawanId?: str
 
 export async function fetchPayrollSummary(periode: string) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/summary?periode=${periode}`, { credentials: "include", cache: "no-store" });
+    const res = await serverFetch(`${API_URL}/api/payroll/summary?periode=${periode}`, { credentials: "include", cache: "no-store" });
     if (!res.ok) throw new Error(`Gagal fetch summary: ${res.status}`);
     return { data: await res.json(), error: null };
   } catch (error) {
@@ -46,7 +47,7 @@ export async function fetchPayrollPreview(
     if (params.hitungUangMakan !== undefined) q.append("hitungUangMakan", params.hitungUangMakan.toString());
     if (params.hitungUangMakanLembur !== undefined) q.append("hitungUangMakanLembur", params.hitungUangMakanLembur.toString());
 
-    const res = await fetch(
+    const res = await serverFetch(
       `${API_URL}/api/payroll/preview/${karyawanId}?${q}`,
       { credentials: "include", cache: "no-store" }
     );
@@ -73,7 +74,7 @@ export async function createGaji(formData: {
   hitungUangMakanLembur?: boolean;
 }) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/gaji`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/gaji`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
@@ -91,7 +92,7 @@ export async function createGaji(formData: {
 
 export async function deleteGaji(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/gaji/${id}`, { credentials: "include", method: "DELETE" });
+    const res = await serverFetch(`${API_URL}/api/payroll/gaji/${id}`, { credentials: "include", method: "DELETE" });
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.message || "Gagal menghapus slip gaji");
@@ -105,7 +106,7 @@ export async function deleteGaji(id: string) {
 
 export async function fetchBulkPayrollPreview(periode: string) {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${API_URL}/api/payroll/bulk-preview?periode=${periode}`,
       { credentials: "include", cache: "no-store" }
     );
@@ -121,7 +122,7 @@ export async function fetchBulkPayrollPreview(periode: string) {
 
 export async function processBulkPayroll(periode: string) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/bulk-process`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/bulk-process`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ periode }),
@@ -140,7 +141,7 @@ export async function processBulkPayroll(periode: string) {
 
 export async function postGaji(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/gaji/${id}/post`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/gaji/${id}/post`, { credentials: "include",
       method: "POST",
     });
     if (!res.ok) {
@@ -156,7 +157,7 @@ export async function postGaji(id: string) {
 
 export async function postBulkPayroll(periode: string) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/bulk-post`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/bulk-post`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ periode }),
@@ -174,7 +175,7 @@ export async function postBulkPayroll(periode: string) {
 
 export async function voidGaji(id: string, reason: string = "Pembatalan Payroll") {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/gaji/${id}/void`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/gaji/${id}/void`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason }),
@@ -192,7 +193,7 @@ export async function voidGaji(id: string, reason: string = "Pembatalan Payroll"
 
 export async function updateGaji(id: string, data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/gaji/${id}`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/gaji/${id}`, { credentials: "include",
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -209,7 +210,7 @@ export async function updateGaji(id: string, data: any) {
 
 export async function publishGaji(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/gaji/${id}/publish`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/gaji/${id}/publish`, { credentials: "include",
       method: "PATCH",
     });
     if (!res.ok) {
@@ -225,7 +226,7 @@ export async function publishGaji(id: string) {
 
 export async function publishBulkPayroll(periode: string) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/bulk-publish`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/bulk-publish`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ periode }),
@@ -245,7 +246,7 @@ export async function publishBulkPayroll(periode: string) {
 
 export async function fetchPayrollConfigs() {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/config`, { credentials: "include", cache: "no-store" });
+    const res = await serverFetch(`${API_URL}/api/payroll/config`, { credentials: "include", cache: "no-store" });
     if (!res.ok) throw new Error("Gagal fetch config");
     const data = await res.json();
     console.log("[fetchPayrollConfigs] data:", data);
@@ -258,7 +259,7 @@ export async function fetchPayrollConfigs() {
 
 export async function createPayrollConfig(data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/config`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/config`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -273,7 +274,7 @@ export async function createPayrollConfig(data: any) {
 
 export async function updatePayrollConfig(id: string, data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/config/${id}`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/config/${id}`, { credentials: "include",
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -290,7 +291,7 @@ export async function updatePayrollConfig(id: string, data: any) {
 
 export async function fetchGlobalPayrollConfig() {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/global-config`, { credentials: "include", cache: 'no-store' });
+    const res = await serverFetch(`${API_URL}/api/payroll/global-config`, { credentials: "include", cache: 'no-store' });
     if (!res.ok) throw new Error('Gagal fetch global config');
     return { data: await res.json(), error: null };
   } catch (error) {
@@ -300,7 +301,7 @@ export async function fetchGlobalPayrollConfig() {
 
 export async function updateGlobalPayrollConfig(data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/global-config`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/payroll/global-config`, { credentials: "include",
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

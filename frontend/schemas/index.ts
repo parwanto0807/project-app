@@ -115,8 +115,8 @@ export const ProductRegisterSchema = z.object({
   isActive: z.boolean(),
 
   image: z.any().optional(),
-  barcode: z.string().optional(),
-  categoryId: z.string().uuid().optional(),
+  barcode: z.string().nullish().transform((v) => v ?? undefined),
+  categoryId: z.string().uuid().nullish().transform((v) => v ?? undefined),
 });
 
 // Untuk update: semua field optional + id wajib

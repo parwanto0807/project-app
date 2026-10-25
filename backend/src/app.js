@@ -77,7 +77,7 @@ const TRUST_PROXY = Number(process.env.TRUST_PROXY || 1);
 app.set("trust proxy", Number.isFinite(TRUST_PROXY) ? TRUST_PROXY : 1);
 app.disable("x-powered-by");
 import cookieParser from "cookie-parser";
-import { allowedOrigins } from "./config/env.js";
+import { allowedOrigins, isAllowedOrigin } from "./config/env.js";
 
 const isProduction = NODE_ENV === "production";
 
@@ -108,7 +108,7 @@ app.use(
 app.use(
   cors((req, callback) => {
     const origin = req.header("Origin");
-    const isAllowed = !origin || allowedOrigins.includes(origin);
+    const isAllowed = isAllowedOrigin(origin);
 
     if (!isAllowed) {
       console.error(
@@ -194,7 +194,7 @@ app.use((req, res, next) => {
 
   try {
     const origin = new URL(originHeader).origin;
-    if (allowedOrigins.includes(origin)) return next();
+    if (isAllowedOrigin(origin)) return next();
   } catch {
     /* URL tidak valid -> tolak di bawah */
   }

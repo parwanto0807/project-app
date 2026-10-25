@@ -71,7 +71,7 @@ export default function CreateSpkPagePic() {
         // Set loading state sebelum fetch
         setIsDataLoading(true);
 
-        const resultSO = await fetchAllSalesOrder();
+        const resultSO = await fetchAllSalesOrder(1, 50, "", "", true);
 
         // Set data dari response
         setSalesOrders(resultSO.data || []);
@@ -96,7 +96,7 @@ export default function CreateSpkPagePic() {
     fetchDataTeam();
 
     const fetchDataUser = async () => {
-      const resultUserCreated = await fetchAllKaryawan();
+      const resultUserCreated = await fetchAllKaryawan(true);
       setUserCreated(resultUserCreated.karyawan);
     }
     fetchDataUser()

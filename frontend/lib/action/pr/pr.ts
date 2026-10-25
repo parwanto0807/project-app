@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import {
   PurchaseRequest,
   CreatePurchaseRequestData,
@@ -64,7 +65,7 @@ export async function getAllPurchaseRequestBySpkId(
   try {
     const url = `${API_BASE_URL}/api/pr/getPurchaseRequestBySpkId`;
 
-    const response = await fetch(url, {
+    const response = await serverFetch(url, {
       method: "POST", // body karena kita ambil spkId dari form/body
       headers: {
         "Content-Type": "application/json",
@@ -114,7 +115,7 @@ export async function getAllPurchaseRequests(
     const url = `${API_BASE_URL}/api/pr/getAllPurchaseRequests${queryParams.toString() ? `?${queryParams.toString()}` : ""
       }`;
 
-    const response = await fetch(url, {
+    const response = await serverFetch(url, {
       method: "GET",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -145,7 +146,7 @@ export async function getPurchaseRequestsByProject(
   projectId: string
 ): Promise<PurchaseRequest[]> {
   try {
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/pr/getPurchaseRequestsByProject/${projectId}`,
       {
         method: "GET",
@@ -173,7 +174,7 @@ export async function getPurchaseRequestById(
 ): Promise<PurchaseRequest> {
   ;((...args: any[]) => {})("ID", id);
   try {
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/pr/getPurchaseRequestById/${id}`,
       {
         method: "GET",
@@ -219,7 +220,7 @@ export async function createPurchaseRequest(
       spkId: validatedData.spkId || null,
     };
 
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/pr/createPurchaseRequest`,
       {
         method: "POST",
@@ -276,7 +277,7 @@ export async function updatePurchaseRequest(
       updateData.spkId = updateData.spkId || null;
     }
 
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/pr/updatePurchaseRequest/${id}`,
       {
         method: "PUT",
@@ -313,7 +314,7 @@ export async function updatePurchaseRequestStatus(
       }),
     };
 
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/pr/updatePurchaseRequestStatus/${id}/status`,
       {
         method: "PUT",
@@ -335,7 +336,7 @@ export async function updatePurchaseRequestStatus(
 
 export async function deletePurchaseRequest(id: string): Promise<void> {
   try {
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/pr/deletePurchaseRequest/${id}`,
       {
         method: "DELETE",
@@ -358,7 +359,7 @@ export async function getPurchaseRequestsBySPK(
   spkId: string
 ): Promise<PurchaseRequest[]> {
   try {
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/pr/getPurchaseRequestsBySPK/${spkId}`,
       {
         method: "GET",
@@ -383,7 +384,7 @@ export async function getPurchaseRequestsByKaryawan(
   karyawanId: string
 ): Promise<PurchaseRequest[]> {
   try {
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/pr/getPurchaseRequestsByKaryawan/${karyawanId}`,
       {
         method: "GET",
@@ -414,7 +415,7 @@ export async function getApprovedPRsForPO(): Promise<PurchaseRequest[]> {
   try {
     // We fetch both APPROVED and COMPLETED PRs
     const [approvedRes, completedRes] = await Promise.all([
-      fetch(
+      serverFetch(
         `${API_BASE_URL}/api/pr/getAllPurchaseRequests?status=APPROVED&limit=100&includeExistingPOs=true`,
         {
           method: "GET",
@@ -423,7 +424,7 @@ export async function getApprovedPRsForPO(): Promise<PurchaseRequest[]> {
           cache: "no-store",
         }
       ),
-      fetch(
+      serverFetch(
         `${API_BASE_URL}/api/pr/getAllPurchaseRequests?status=COMPLETED&limit=100&includeExistingPOs=true`,
         {
           method: "GET",

@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -588,6 +589,9 @@ model StockOpname {
   petugas       User              @relation("OpnamePetugas", fields: [petugasId], references: [id])
   warehouse     Warehouse         @relation(fields: [warehouseId], references: [id])
   items         StockOpnameItem[]
+
+  @@index([status, tanggalOpname])
+  @@index([warehouseId])
 }
 
 model StockOpnameItem {
@@ -603,6 +607,9 @@ model StockOpnameItem {
   createdAt     DateTime    @default(now())
   product       Product     @relation(fields: [productId], references: [id])
   stockOpname   StockOpname @relation(fields: [stockOpnameId], references: [id], onDelete: Cascade)
+
+  @@index([stockOpnameId])
+  @@index([productId])
 }
 
 model Warehouse {
@@ -649,6 +656,9 @@ model StockBalance {
   warehouse      Warehouse @relation(fields: [warehouseId], references: [id])
 
   @@unique([productId, warehouseId, period])
+
+  @@index([period])
+  @@index([warehouseId, productId])
 }
 
 model SPKProgressLog {
@@ -691,6 +701,10 @@ model StockDetail {
   returns                   StockDetail[]            @relation("ReturnReference")
   product                   Product                  @relation(fields: [productId], references: [id])
   warehouse                 Warehouse                @relation(fields: [warehouseId], references: [id])
+
+  @@index([createdAt])
+  @@index([productId, warehouseId, residualQty])
+  @@index([warehouseId, productId])
 }
 
 model StockTransfer {
@@ -710,6 +724,10 @@ model StockTransfer {
   sender          Karyawan            @relation("Sender", fields: [senderId], references: [id])
   toWarehouse     Warehouse           @relation("ToWarehouse", fields: [toWarehouseId], references: [id])
   items           StockTransferItem[]
+
+  @@index([status, createdAt])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
 }
 
 model StockTransferItem {
@@ -721,6 +739,8 @@ model StockTransferItem {
   cogs       Decimal       @default(0) @db.Decimal(18, 2)
   product    Product       @relation(fields: [productId], references: [id])
   transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
 }
 
 model AssemblyOrder {
@@ -779,6 +799,10 @@ model GoodsReceipt {
   receivedBy         User               @relation("GoodsReceiptReceivedBy", fields: [receivedById], references: [id])
   Warehouse          Warehouse?         @relation(fields: [warehouseId], references: [id])
   items              GoodsReceiptItem[]
+
+  @@index([status])
+  @@index([receivedDate])
+  @@index([purchaseOrderId])
 }
 
 model GoodsReceiptItem {
@@ -802,6 +826,10 @@ model GoodsReceiptItem {
   purchaseOrderLine       PurchaseOrderLine?     @relation(fields: [purchaseOrderLineId], references: [id])
   purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
   stockDetail             StockDetail?           @relation(fields: [stockDetailId], references: [id])
+
+  @@index([goodsReceiptId])
+  @@index([productId])
+  @@index([purchaseOrderLineId])
 }
 
 model MaterialRequisition {
@@ -825,6 +853,9 @@ model MaterialRequisition {
   Warehouse       Warehouse?                @relation(fields: [warehouseId], references: [id])
   expenseAccount  ChartOfAccounts?          @relation("MRExpenseAccount", fields: [expenseAccountId], references: [id])
   items           MaterialRequisitionItem[]
+
+  @@index([status, createdAt])
+  @@index([warehouseId])
 }
 
 model MaterialRequisitionItem {
@@ -841,6 +872,10 @@ model MaterialRequisitionItem {
   purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
   stockAllocations        StockAllocation[]
   StockDetail             StockDetail[]
+
+  @@index([materialRequisitionId])
+  @@index([productId])
+  @@index([purchaseRequestDetailId])
 }
 
 model StockAllocation {
@@ -850,6 +885,9 @@ model StockAllocation {
   qtyTaken      Decimal                 @db.Decimal(18, 4)
   mrItem        MaterialRequisitionItem @relation(fields: [mrItemId], references: [id])
   stockDetail   StockDetail             @relation(fields: [stockDetailId], references: [id])
+
+  @@index([mrItemId])
+  @@index([stockDetailId])
 }
 
 model RAB {
@@ -1139,6 +1177,10 @@ model SPK {
   spkFieldReport  SPKFieldReport[]
   spkProgressLogs SPKProgressLog[]
   uangMuka        UangMuka[]
+
+  @@index([spkStatusClose, createdAt])
+  @@index([teamId])
+  @@index([salesOrderId])
 }
 
 model SPKDetail {
@@ -1152,6 +1194,8 @@ model SPKDetail {
   karyawan         Karyawan?       @relation(fields: [karyawanId], references: [id])
   salesOrderItem   SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id], onDelete: Restrict)
   spk              SPK             @relation(fields: [spkId], references: [id], onDelete: Cascade)
+
+  @@index([spkId])
 }
 
 model SPKFieldReport {
@@ -1170,6 +1214,9 @@ model SPKFieldReport {
   soDetail   SalesOrderItem?       @relation("SPKDetailToFieldReport", fields: [soDetailId], references: [id], onDelete: Restrict)
   spk        SPK                   @relation(fields: [spkId], references: [id], onDelete: Cascade)
   photos     SPKFieldReportPhoto[]
+
+  @@index([spkId])
+  @@index([reportedAt])
 }
 
 model SPKFieldReportPhoto {
@@ -1184,6 +1231,8 @@ model SPKFieldReportPhoto {
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
   report     SPKFieldReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
 }
 
 model BAP {
@@ -1404,6 +1453,11 @@ model PurchaseRequest {
   details            PurchaseRequestDetail[]
   staffLedgers       StaffLedger[]
   uangMuka           UangMuka[]
+
+  @@index([status, createdAt])
+  @@index([spkId])
+  @@index([projectId])
+  @@index([parentPrId])
 }
 
 model PurchaseRequestDetail {
@@ -1430,6 +1484,9 @@ model PurchaseRequestDetail {
   projectBudget             ProjectBudget?              @relation(fields: [projectBudgetId], references: [id])
   purchaseRequest           PurchaseRequest             @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
   rincianPertanggungjawaban RincianPertanggungjawaban[]
+
+  @@index([purchaseRequestId])
+  @@index([productId])
 }
 
 model UangMuka {
@@ -1458,6 +1515,8 @@ model UangMuka {
   purchaseRequest     PurchaseRequest?     @relation(fields: [purchaseRequestId], references: [id])
   salesOrder          SalesOrder?          @relation(fields: [salesOrderId], references: [id])
   spk                 SPK?                 @relation(fields: [spkId], references: [id])
+
+  @@index([purchaseRequestId])
 }
 
 model Pertanggungjawaban {
@@ -1788,6 +1847,10 @@ model PurchaseOrder {
   warehouse            Warehouse                @relation(fields: [warehouseId], references: [id])
   lines                PurchaseOrderLine[]
   supplierInvoices     SupplierInvoice[]
+
+  @@index([status, createdAt])
+  @@index([purchaseRequestId])
+  @@index([supplierId])
 }
 
 model PurchaseOrderLine {
@@ -1812,6 +1875,9 @@ model PurchaseOrderLine {
   prDetail               PurchaseRequestDetail? @relation(fields: [prDetailId], references: [id])
   product                Product                @relation(fields: [productId], references: [id])
   receiptItems           ReceiptItem[]
+
+  @@index([poId])
+  @@index([productId])
 }
 
 model PurchaseExecution {

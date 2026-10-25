@@ -99,7 +99,7 @@ export default function UpdatePurchaseOrderPage() {
                 fetchSuppliers(),
                 getWarehouses(),
                 fetchAllProjects(),
-                fetchAllProducts(),
+                fetchAllProducts({ compact: true }),
                 fetchAllSpkPr(),
             ]);
 

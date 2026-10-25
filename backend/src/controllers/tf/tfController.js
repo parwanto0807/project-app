@@ -396,6 +396,7 @@ export const getAllTransfers = async (req, res) => {
         where,
         skip,
         take: Number(limit),
+        relationLoadStrategy: "join",
         include: {
           fromWarehouse: true,
           toWarehouse: true,
@@ -420,33 +421,37 @@ export const getAllTransfers = async (req, res) => {
       prisma.stockTransfer.count({ where })
     ]);
 
-    // Fetch related Material Requisitions (qrToken) & Goods Receipts
+    // Fetch related Material Requisitions (qrToken) & Goods Receipts (paralel)
     const transferNumbers = transfers.map(t => t.transferNumber);
-    
-    // 1. Find MRs
-    const mrs = await prisma.materialRequisition.findMany({
-      where: {
-        OR: transferNumbers.map(tn => ({
-          notes: { contains: `[${tn}]` }
-        }))
-      },
-      select: {
-        notes: true,
-        qrToken: true
-      }
-    });
 
-    // 2. Find GRs (vendorDeliveryNote matches transferNumber)
-    const grs = await prisma.goodsReceipt.findMany({
-        where: {
-            vendorDeliveryNote: { in: transferNumbers }
-        },
-        select: {
-            id: true,
-            vendorDeliveryNote: true,
-            status: true
-        }
-    });
+    const [mrs, grs] = await Promise.all([
+      transferNumbers.length
+        ? prisma.materialRequisition.findMany({
+            where: {
+              OR: transferNumbers.map(tn => ({
+                notes: { contains: `[${tn}]` }
+              }))
+            },
+            select: {
+              notes: true,
+              qrToken: true
+            }
+          })
+        : Promise.resolve([]),
+
+      transferNumbers.length
+        ? prisma.goodsReceipt.findMany({
+            where: {
+              vendorDeliveryNote: { in: transferNumbers }
+            },
+            select: {
+              id: true,
+              vendorDeliveryNote: true,
+              status: true
+            }
+          })
+        : Promise.resolve([]),
+    ]);
 
     const data = transfers.map(transfer => {
       // Find the MR relevant to this transfer
@@ -560,12 +565,7 @@ export const updateTransfer = async (req, res) => {
         throw new Error('Hanya transfer dengan status DRAFT yang dapat diedit');
       }
 
-      const periodDate = new Date();
-      periodDate.setDate(1);
-      periodDate.setHours(0, 0, 0, 0);
-      periodDate.setMinutes(0);
-      periodDate.setSeconds(0);
-      periodDate.setMilliseconds(0);
+      const periodDate = getPeriodDate();
 
       // 2. Rollback previous stock booking
       for (const oldItem of existingTransfer.items) {

@@ -46,6 +46,29 @@ export async function fetchAllSpk() {
 
 // @/lib/action/master/spk/spk.ts
 
+// ✅ Versi ringan untuk halaman Monitoring Progress SPK (payload lebih kecil)
+export async function fetchAllSpkReport() {
+  try {
+    const res = await fetch(`${API_URL}/api/spk/getAllSPKReport`, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(
+        errorData?.error || `Gagal fetch SPK report: ${res.status}`
+      );
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("fetchAllSpkReport error:", error);
+    throw error;
+  }
+}
+
 export async function fetchAllSpkAdmin(
   params?: FetchSpkParams
 ): Promise<SpkResponse> {

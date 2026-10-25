@@ -197,42 +197,37 @@ export const getAllGoodsReceipts = async (req, res) => {
       };
     }
 
-    // Get total count
-    const totalCount = await prisma.goodsReceipt.count({ where });
-
-    // Get paginated data with related entities
-    const goodsReceipts = await prisma.goodsReceipt.findMany({
-      where,
-      include: {
+    // Count + data paralel (join strategy agar relasi tidak di-query satu per satu)
+    const [totalCount, goodsReceipts] = await Promise.all([
+      prisma.goodsReceipt.count({ where }),
+      prisma.goodsReceipt.findMany({
+        where,
+        relationLoadStrategy: "join",
+        include: {
         PurchaseOrder: {
-          include: {
+          select: {
+            id: true,
+            poNumber: true,
+            orderDate: true,
+            status: true,
             supplier: true,
-            lines: {
-              include: {
-                product: true
-              }
-            }
-          }
+            // Hanya field yang dipakai UI (cek nota lapangan WIP)
+            lines: { select: { checkPurchaseExecution: true } },
+          },
         },
         Warehouse: true,
         items: {
           include: {
-            product: {
-              include: {
-                category: true
-              }
-            },
+            product: true,
             purchaseOrderLine: {
-              include: {
-                purchaseOrder: true
+              select: {
+                id: true,
+                poId: true,
+                productId: true,
+                quantity: true,
+                unitPrice: true,
               }
             },
-            purchaseRequestDetail: {
-              include: {
-                purchaseRequest: true
-              }
-            },
-            stockDetail: true
           }
         },
         _count: {
@@ -246,7 +241,8 @@ export const getAllGoodsReceipts = async (req, res) => {
       },
       skip,
       take: pageSize
-    });
+      }),
+    ]);
 
     // Populate transferStatus for TRANSFER sourceType GRs
     const transferGRs = goodsReceipts.filter(gr => gr.sourceType === 'TRANSFER' && gr.vendorDeliveryNote);
@@ -1575,14 +1571,14 @@ export const deleteGoodsReceipt = async (req, res) => {
 
     // Start transaction for deletion
     await prisma.$transaction(async (tx) => {
-      // Get the period for this GR
-      const period = new Date(goodsReceipt.receivedDate || goodsReceipt.createdAt);
-      period.setDate(1);
-      period.setHours(0, 0, 0, 0);
-
-      // Reverse stock adjustments and delete stock details
+      // Get the period where the stock was posted (approval month).
+      // Gunakan createdAt dari StockDetail agar sama dengan periode saat GR
+      // di-approve — bukan receivedDate (yang bisa beda bulan).
       for (const item of goodsReceipt.items) {
         if (item.stockDetail) {
+          const period = getPeriodDate(
+            item.stockDetail.createdAt || goodsReceipt.createdAt
+          );
           // Reverse product stock
           await tx.product.update({
             where: { id: item.productId },
@@ -1823,103 +1819,81 @@ export const getGoodsReceiptSummary = async (req, res) => {
       };
     }
 
-    // Get counts by status
-    const statusCounts = await prisma.goodsReceipt.groupBy({
-      by: ['status'],
-      where,
-      _count: {
-        id: true
-      }
-    });
+    // Semua statistik dijalankan paralel (sebelumnya berurutan).
+    const monthStart = getPeriodDate();
 
-    // Get QC statistics
-    const qcStats = await prisma.goodsReceiptItem.aggregate({
-      where: {
-        goodsReceipt: where
-      },
-      _sum: {
-        qtyReceived: true,
-        qtyPassed: true,
-        qtyRejected: true
-      },
-      _count: {
-        id: true
-      }
-    });
+    const [
+      statusCounts,
+      qcStats,
+      recentReceipts,
+      monthlyStats,
+      topRejectedProducts,
+    ] = await Promise.all([
+      prisma.goodsReceipt.groupBy({
+        by: ['status'],
+        where,
+        _count: { id: true },
+      }),
 
-    // Get recent GRs
-    const recentReceipts = await prisma.goodsReceipt.findMany({
-      where,
-      include: {
-        Warehouse: true,
-        PurchaseOrder: {
-          include: {
-            supplier: true
-          }
-        }
-      },
-      orderBy: {
-        receivedDate: 'desc'
-      },
-      take: 10
-    });
+      prisma.goodsReceiptItem.aggregate({
+        where: { goodsReceipt: where },
+        _sum: { qtyReceived: true, qtyPassed: true, qtyRejected: true },
+        _count: { id: true },
+      }),
 
-    // Get monthly statistics
-    const currentDate = new Date();
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    
-    const monthlyStats = await prisma.goodsReceipt.aggregate({
-      where: {
-        ...where,
-        receivedDate: {
-          gte: startOfMonth
-        }
-      },
-      _count: {
-        id: true
-      }
-    });
+      prisma.goodsReceipt.findMany({
+        where,
+        include: {
+          Warehouse: true,
+          PurchaseOrder: { include: { supplier: true } },
+        },
+        orderBy: { receivedDate: 'desc' },
+        take: 10,
+      }),
 
-    // Get top products by rejection rate
-    const topRejectedProducts = await prisma.goodsReceiptItem.groupBy({
-      by: ['productId'],
-      where: {
-        goodsReceipt: where,
-        qtyRejected: {
-          gt: 0
-        }
-      },
-      _sum: {
-        qtyReceived: true,
-        qtyRejected: true
-      },
-      orderBy: {
-        _sum: {
-          qtyRejected: 'desc'
-        }
-      },
-      take: 5
-    });
+      prisma.goodsReceipt.aggregate({
+        where: {
+          ...where,
+          receivedDate: { ...(where.receivedDate || {}), gte: monthStart },
+        },
+        _count: { id: true },
+      }),
 
-    // Fetch product names for top rejected products
-    const topRejectedWithNames = await Promise.all(
-      topRejectedProducts.map(async (product) => {
-        const productInfo = await prisma.product.findUnique({
-          where: { id: product.productId },
-          select: { name: true, code: true }
-        });
-        return {
-          productId: product.productId,
-          productName: productInfo?.name || 'Unknown',
-          productCode: productInfo?.code || 'N/A',
-          totalReceived: product._sum.qtyReceived || 0,
-          totalRejected: product._sum.qtyRejected || 0,
-          rejectionRate: product._sum.qtyReceived 
-            ? ((product._sum.qtyRejected || 0) / product._sum.qtyReceived * 100).toFixed(2)
-            : 0
-        };
-      })
-    );
+      prisma.goodsReceiptItem.groupBy({
+        by: ['productId'],
+        where: {
+          goodsReceipt: where,
+          qtyRejected: { gt: 0 },
+        },
+        _sum: { qtyReceived: true, qtyRejected: true },
+        orderBy: { _sum: { qtyRejected: 'desc' } },
+        take: 5,
+      }),
+    ]);
+
+    // Batch product names (hindari N+1 query)
+    const topProductIds = topRejectedProducts.map((p) => p.productId);
+    const topProducts = topProductIds.length
+      ? await prisma.product.findMany({
+          where: { id: { in: topProductIds } },
+          select: { id: true, name: true, code: true },
+        })
+      : [];
+    const topProductMap = new Map(topProducts.map((p) => [p.id, p]));
+
+    const topRejectedWithNames = topRejectedProducts.map((product) => {
+      const productInfo = topProductMap.get(product.productId);
+      return {
+        productId: product.productId,
+        productName: productInfo?.name || 'Unknown',
+        productCode: productInfo?.code || 'N/A',
+        totalReceived: product._sum.qtyReceived || 0,
+        totalRejected: product._sum.qtyRejected || 0,
+        rejectionRate: product._sum.qtyReceived
+          ? ((product._sum.qtyRejected || 0) / product._sum.qtyReceived * 100).toFixed(2)
+          : 0
+      };
+    });
 
     const response = new ApiResponse({
       success: true,

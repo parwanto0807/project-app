@@ -1,5 +1,5 @@
 import { getUserFromToken } from "@/lib/auth";
-import { getInventoryMonitoring } from "@/lib/action/inventory/inventoryAction";
+import { getInventoryMonitoring, getAllWarehouses } from "@/lib/action/inventory/inventoryAction";
 import DashboardClient from "./DashboardClient";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import HeaderCard from "@/components/ui/header-card";
@@ -19,26 +19,25 @@ import { Badge } from "@/components/ui/badge";
 export const dynamic = 'force-dynamic';
 
 export default async function InventoryPage() {
-    const user = await getUserFromToken();
-
     // 1. Logika Periode Default
     const now = new Date();
     const defaultPeriod = format(now, "yyyy-MM");
 
-    // 2. Fetch Data Awal
-    const res = await getInventoryMonitoring({
-        period: defaultPeriod,
-        page: 1,
-        limit: 10
-    });
+    // 2. Fetch data secara paralel (user, monitoring, warehouse)
+    const [user, res, allWarehouses] = await Promise.all([
+        getUserFromToken(),
+        getInventoryMonitoring({
+            period: defaultPeriod,
+            page: 1,
+            limit: 10
+        }),
+        getAllWarehouses(),
+    ]);
 
     const initialData = res.success && res.data ? res.data.data : [];
     const initialPagination = res.success && res.data ? res.data.pagination : {
         totalCount: 0, totalPages: 0, currentPage: 1, pageSize: 10, hasNext: false, hasPrev: false
     };
-
-    const { getAllWarehouses } = await import("@/lib/action/inventory/inventoryAction");
-    const allWarehouses = await getAllWarehouses();
 
     return (
         <AdminLayout title="Inventory Dashboard" role={user?.role || "guest"}>

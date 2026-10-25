@@ -41,9 +41,14 @@ async function handleResponse(res: Response) {
 async function fetchWithLog(url: string, options: RequestInit) {
     ;((...args: any[]) => {})(`[DEBUG] Fetching: ${url}`);
 
+    const cookieStore = await cookies();
     const res = await fetch(url, {
         ...options,
-        credentials: "include"
+        credentials: "include",
+        headers: {
+            ...(options.headers || {}),
+            Cookie: cookieStore.toString(),
+        }
     });
 
     if (!res.ok) {

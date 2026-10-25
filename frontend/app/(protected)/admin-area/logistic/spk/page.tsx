@@ -269,7 +269,7 @@ export default function SpkPageAdmin() {
   // Fetch all teams for filter
   useEffect(() => {
     const fetchTeams = async () => {
-      const result = await getAllTeam(1, 1000); // Ambil banyak agar dapet semua
+      const result = await getAllTeam(1, 1000, "", true); // Mode ringan: hanya id + nama
       if (result.success && Array.isArray(result.data)) {
         const teamNames = result.data.map((t: any) => t.namaTeam);
         setAllTeams([...new Set(teamNames)]);
@@ -281,12 +281,10 @@ export default function SpkPageAdmin() {
   // ===============================
   //    EFFECT UNTUK URL PARAMS CHANGE
   // ===============================
-  useEffect(() => {
-    // Trigger fetch ketika URL params berubah
-    if (!userLoading && user && user.role === "admin") {
-      fetchData();
-    }
-  }, [urlPage, urlPageSize, urlSearch, urlFilter, urlTeam, urlStatus, fetchData, user, userLoading]);
+  // Catatan: fetchData sudah berubah identitas saat urlPage/urlPageSize/
+  // urlSearch/urlFilter/urlTeam/urlStatus berubah, sehingga effect di atas
+  // otomatis menangani perubahan URL. Effect duplikat dihapus agar data
+  // tidak di-fetch dua kali setiap kali halaman dibuka.
 
   // ===============================
   //    FILTER HANDLER - FIXED

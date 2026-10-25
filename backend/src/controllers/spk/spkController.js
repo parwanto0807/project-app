@@ -511,117 +511,94 @@ export const getAllSPKAdmin = async (req, res) => {
     // ============================
     // COUNT TOTAL DATA DENGAN SEARCH DAN FILTER
     // ============================
-    const totalCount = await prisma.sPK.count({ where: whereClause });
+    // ============================
+    // COUNT + FETCH DATA (PARALEL)
+    // ============================
+    const [totalCount, spkList] = await Promise.all([
+      prisma.sPK.count({ where: whereClause }),
 
-    // ============================
-    // FETCH DATA DENGAN PAGINATION
-    // ============================
-    const spkList = await prisma.sPK.findMany({
-      where: whereClause,
-      skip,
-      take: pageSize,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            namaLengkap: true,
-            email: true,
+      // Relasi ringan dulu. Relasi berat (team, details, field report)
+      // diambil terpisah di bawah agar bisa berjalan paralel — Prisma
+      // mengeksekusi `include` secara berurutan (satu round-trip per relasi).
+      prisma.sPK.findMany({
+        where: whereClause,
+        skip,
+        take: pageSize,
+        // Satu query JOIN, bukan satu round-trip per relasi.
+        relationLoadStrategy: "join",
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              namaLengkap: true,
+              email: true,
+            },
           },
-        },
-        salesOrder: {
-          include: {
-            customer: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-                branch: true,
+          salesOrder: {
+            include: {
+              customer: {
+                select: {
+                  id: true,
+                  name: true,
+                  address: true,
+                  branch: true,
+                },
               },
-            },
-            project: {
-              select: {
-                id: true,
-                name: true,
+              project: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
+              items: true,
             },
-            items: {
-              include: {
-                product: {
-                  select: {
-                    id: true,
-                    name: true,
-                    code: true,
+          },
+          team: {
+            include: {
+              karyawan: {
+                include: {
+                  karyawan: {
+                    select: { id: true, namaLengkap: true, nik: true },
                   },
                 },
               },
             },
           },
-        },
-        team: {
-          include: {
-            karyawan: {
-              include: {
-                karyawan: {
-                  select: {
-                    id: true,
-                    namaLengkap: true,
-                    nik: true,
-                  },
+          details: {
+            include: {
+              karyawan: {
+                select: { id: true, namaLengkap: true, nik: true },
+              },
+              salesOrderItem: true,
+            },
+          },
+          spkFieldReport: {
+            include: {
+              soDetail: {
+                include: {
+                  product: { select: { name: true } },
+                },
+              },
+              photos: {
+                select: {
+                  latitude: true,
+                  longitude: true,
+                  imageUrl: true,
+                },
+                where: {
+                  latitude: { not: null },
+                  longitude: { not: null },
                 },
               },
             },
-          },
-        },
-        details: {
-          include: {
-            karyawan: {
-              select: {
-                id: true,
-                namaLengkap: true,
-                nik: true,
-              },
-            },
-            salesOrderItem: {
-              include: {
-                product: {
-                  select: {
-                    id: true,
-                    name: true,
-                    code: true,
-                  },
-                },
-              },
+            orderBy: {
+              reportedAt: "desc",
             },
           },
         },
-        spkFieldReport: {
-          include: {
-            soDetail: {
-              include: {
-                product: {
-                  select: { name: true }
-                }
-              }
-            },
-            photos: {
-              select: {
-                latitude: true,
-                longitude: true,
-                imageUrl: true,
-              },
-              where: {
-                latitude: { not: null },
-                longitude: { not: null },
-              },
-            },
-          },
-          orderBy: {
-            reportedAt: "desc", // atau createdAt: 'desc'
-          },
-        },
-      },
-      orderBy: { createdAt: "asc" },
-    });
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
 
     // ;(() => {})("✅ Query results:", {
     //   dataCount: spkList.length,
@@ -683,6 +660,8 @@ export const getAllSPK = async (req, res) => {
       where: {
         spkStatusClose: false,
       },
+      // Satu query JOIN, bukan satu round-trip per relasi.
+      relationLoadStrategy: "join",
       include: {
         createdBy: true,
         salesOrder: {
@@ -718,6 +697,71 @@ export const getAllSPK = async (req, res) => {
   } catch (error) {
     console.error("Error getAllSPK:", error);
     res.status(500).json({ error: "Failed to fetch SPK list" });
+  }
+};
+
+/**
+ * Versi ringan dari getAllSPK khusus halaman Monitoring Progress SPK.
+ * Hanya mengambil kolom yang benar-benar dipakai UI sehingga query dan
+ * payload jauh lebih kecil (tidak menarik seluruh data karyawan/relasi).
+ */
+export const getAllSPKReport = async (req, res) => {
+  try {
+    const spkList = await prisma.sPK.findMany({
+      where: {
+        spkStatusClose: false,
+      },
+      relationLoadStrategy: "join",
+      select: {
+        id: true,
+        spkNumber: true,
+        spkDate: true,
+        progress: true,
+        createdBy: {
+          select: { namaLengkap: true },
+        },
+        team: {
+          select: { namaTeam: true },
+        },
+        salesOrder: {
+          select: {
+            customer: {
+              select: { name: true },
+            },
+            project: {
+              select: { id: true, name: true },
+            },
+            items: {
+              select: {
+                id: true,
+                lineNo: true,
+                name: true,
+                description: true,
+                qty: true,
+                uom: true,
+              },
+              orderBy: { lineNo: "asc" },
+            },
+          },
+        },
+        details: {
+          select: {
+            karyawan: {
+              select: { email: true },
+            },
+            salesOrderItem: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    res.json(spkList);
+  } catch (error) {
+    console.error("Error getAllSPKReport:", error);
+    res.status(500).json({ error: "Failed to fetch SPK report list" });
   }
 };
 
@@ -773,6 +817,7 @@ export const getSPKById = async (req, res) => {
 
     let spk = await prisma.sPK.findUnique({
       where: { id },
+      relationLoadStrategy: "join",
       include: {
         createdBy: true,
         salesOrder: {

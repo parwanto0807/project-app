@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import {
     SupplierPayment,
     SupplierPaymentListResponse,
@@ -28,7 +29,7 @@ export async function getSupplierPayments(
         if (query.startDate) params.append("startDate", format(query.startDate, 'yyyy-MM-dd'));
         if (query.endDate) params.append("endDate", format(query.endDate, 'yyyy-MM-dd'));
 
-        const response = await fetch(`${API_URL}/api/supplier-payments?${params}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-payments?${params}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -52,7 +53,7 @@ export async function getSupplierPayments(
  */
 export async function getSupplierPaymentById(id: string): Promise<SupplierPaymentResponse> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-payments/${id}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-payments/${id}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -78,7 +79,7 @@ export async function createSupplierPayment(
     data: CreateSupplierPaymentInput
 ): Promise<SupplierPaymentResponse> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-payments`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-payments`, { credentials: "include",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -106,7 +107,7 @@ export async function updateSupplierPayment(
     data: UpdateSupplierPaymentInput
 ): Promise<SupplierPaymentResponse> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-payments/${id}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-payments/${id}`, { credentials: "include",
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -131,7 +132,7 @@ export async function updateSupplierPayment(
  */
 export async function deleteSupplierPayment(id: string): Promise<{ success: boolean; message: string }> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-payments/${id}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-payments/${id}`, { credentials: "include",
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",
@@ -155,7 +156,7 @@ export async function deleteSupplierPayment(id: string): Promise<{ success: bool
  */
 export async function generatePaymentNumber(): Promise<{ success: boolean; data: { paymentNumber: string } }> {
     try {
-        const response = await fetch(`${API_URL}/api/supplier-payments/generate-number`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-payments/generate-number`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -183,7 +184,7 @@ export async function getPaymentSummary(startDate?: Date, endDate?: Date) {
         if (startDate) params.append("startDate", format(startDate, 'yyyy-MM-dd'));
         if (endDate) params.append("endDate", format(endDate, 'yyyy-MM-dd'));
 
-        const response = await fetch(`${API_URL}/api/supplier-payments/summary?${params}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/supplier-payments/summary?${params}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

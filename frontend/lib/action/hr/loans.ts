@@ -1,6 +1,7 @@
 // Updated at: 2026-05-09 21:26
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import { revalidatePath } from "next/cache";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -14,7 +15,7 @@ export async function fetchAllLoans(filters: {
     if (filters.status) queryParams.append("status", filters.status);
     if (filters.karyawanId) queryParams.append("karyawanId", filters.karyawanId);
 
-    const res = await fetch(
+    const res = await serverFetch(
       `${API_URL}/api/loans/pinjaman?${queryParams.toString()}`,
       { credentials: "include",
         method: "GET",
@@ -37,7 +38,7 @@ export async function fetchAllLoans(filters: {
 
 export async function createLoan(formData: any) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/pinjaman`, { credentials: "include",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -60,7 +61,7 @@ export async function createLoan(formData: any) {
 
 export async function postLoan(loanId: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}/post`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/pinjaman/${loanId}/post`, { credentials: "include",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -82,7 +83,7 @@ export async function postLoan(loanId: string) {
 
 export async function updateLoan(loanId: string, formData: any) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/pinjaman/${loanId}`, { credentials: "include",
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -105,7 +106,7 @@ export async function updateLoan(loanId: string, formData: any) {
 
 export async function deleteLoan(loanId: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman/${loanId}`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/pinjaman/${loanId}`, { credentials: "include",
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -127,7 +128,7 @@ export async function deleteLoan(loanId: string) {
 
 export async function recordRepayment(detailId: string, formData: any) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/pinjaman/repayment/${detailId}`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/pinjaman/repayment/${detailId}`, { credentials: "include",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -150,7 +151,7 @@ export async function recordRepayment(detailId: string, formData: any) {
 
 export async function fetchAllEmployees() {
   try {
-    const res = await fetch(`${API_URL}/api/karyawan/getAllKaryawan`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/karyawan/getAllKaryawan`, { credentials: "include",
       method: "GET",
       cache: "no-store",
     });
@@ -164,7 +165,7 @@ export async function fetchAllEmployees() {
 
 export async function fetchBankAccounts() {
   try {
-    const res = await fetch(`${API_URL}/api/master/banks/getAllBankAccounts`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/master/banks/getAllBankAccounts`, { credentials: "include",
       method: "GET",
       cache: "no-store",
     });
@@ -188,7 +189,7 @@ export async function fetchAllKasbon(filters: {
     if (filters.status) queryParams.append("status", filters.status);
     if (filters.karyawanId) queryParams.append("karyawanId", filters.karyawanId);
 
-    const res = await fetch(
+    const res = await serverFetch(
       `${API_URL}/api/loans/kasbon?${queryParams.toString()}`,
       { credentials: "include", method: "GET", cache: "no-store" }
     );
@@ -210,7 +211,7 @@ export async function createKasbon(formData: {
   catatan?: string;
 }) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/kasbon`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
@@ -230,7 +231,7 @@ export async function createKasbon(formData: {
 
 export async function approveKasbon(id: string, approvedBy?: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/approve`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/kasbon/${id}/approve`, { credentials: "include",
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ approvedBy: approvedBy || "Admin" }),
@@ -249,7 +250,7 @@ export async function approveKasbon(id: string, approvedBy?: string) {
 
 export async function postKasbon(id: string, cashAccountKey?: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/post`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/kasbon/${id}/post`, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cashAccountKey: cashAccountKey || "PETTY_CASH" }),
@@ -268,7 +269,7 @@ export async function postKasbon(id: string, cashAccountKey?: string) {
 
 export async function rejectKasbon(id: string, rejectedReason: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/reject`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/kasbon/${id}/reject`, { credentials: "include",
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rejectedReason }),
@@ -287,7 +288,7 @@ export async function rejectKasbon(id: string, rejectedReason: string) {
 
 export async function settleKasbon(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}/settle`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/kasbon/${id}/settle`, { credentials: "include",
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
     });
@@ -305,7 +306,7 @@ export async function settleKasbon(id: string) {
 
 export async function deleteKasbon(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/kasbon/${id}`, { credentials: "include",
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
     });
@@ -331,7 +332,7 @@ export async function updateKasbon(
   }
 ) {
   try {
-    const res = await fetch(`${API_URL}/api/loans/kasbon/${id}`, { credentials: "include",
+    const res = await serverFetch(`${API_URL}/api/loans/kasbon/${id}`, { credentials: "include",
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),

@@ -1,8 +1,29 @@
 'use server';
 
-import { api } from '@/lib/http';
+import { serverJson } from '@/lib/server-json';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+async function request(method: HttpMethod, url: string, body?: unknown) {
+    const data = await serverJson(url, {
+        method,
+        headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    return { data };
+}
+
+// Shim kompatibel dengan axios supaya kode di bawah tidak perlu diubah.
+// Server Action tidak punya cookie jar, jadi pakai serverJson (meneruskan cookie).
+const api = {
+    get: (url: string) => request('GET', url),
+    post: (url: string, body?: unknown) => request('POST', url, body),
+    put: (url: string, body?: unknown) => request('PUT', url, body),
+    patch: (url: string, body?: unknown) => request('PATCH', url, body),
+    delete: (url: string) => request('DELETE', url),
+};
 
 /**
  * Get all permissions

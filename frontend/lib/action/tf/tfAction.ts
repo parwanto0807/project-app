@@ -1,5 +1,6 @@
 'use server';
 
+import { serverFetch } from "@/lib/server-fetch";
 import { revalidatePath } from 'next/cache';
 import type {
     StockTransfer,
@@ -16,7 +17,7 @@ async function fetchAPI<T>(
     options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
     try {
-        const response = await fetch(`${API_URL}${endpoint}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}${endpoint}`, { credentials: "include",
             ...options,
             headers: {
                 'Content-Type': 'application/json',

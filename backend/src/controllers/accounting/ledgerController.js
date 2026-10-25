@@ -460,6 +460,13 @@ class LedgerController {
         });
       }
 
+      if (target.period?.isClosed) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot void ledger in a CLOSED accounting period. Reopen the period first.",
+        });
+      }
+
       if (target.status === "VOID") {
         return res.status(400).json({
           success: false,

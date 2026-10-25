@@ -148,6 +148,24 @@ interface TableMRProps {
     data: MaterialRequisition[]
     isLoading: boolean
     onRefresh: () => void
+    /** Jika true, data sudah dipaginasi & difilter di server */
+    serverMode?: boolean
+    serverPagination?: {
+        totalCount: number
+        totalPages: number
+        currentPage: number
+        pageSize: number
+        hasNext: boolean
+        hasPrev: boolean
+    } | null
+    stats?: {
+        all: number
+        pending: number
+        approved: number
+        ready: number
+        issued: number
+        cancelled?: number
+    } | null
 }
 
 const TableButtonWithTooltip: React.FC<{
@@ -176,7 +194,14 @@ const TableButtonWithTooltip: React.FC<{
     </Tooltip>
 );
 
-const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
+const TableMR: React.FC<TableMRProps> = ({
+    data,
+    isLoading,
+    onRefresh,
+    serverMode = false,
+    serverPagination = null,
+    stats = null,
+}) => {
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -238,11 +263,13 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         const ps = Number(searchParams.get("pageSize")) || 10
         const st = searchParams.get("status") || "all"
         const q = searchParams.get("search") || ""
+        const df = searchParams.get("dateFilter") || "all"
 
         setCurrentPage(p)
         setItemsPerPage(ps)
         setStatusFilter(st)
         setSearch(q)
+        setDateFilter(df)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParamsStr])
 
@@ -280,6 +307,11 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
     const handleDateFilterChange = (value: string) => {
         setDateFilter(value)
         setCurrentPage(1)
+        const params = new URLSearchParams(searchParams.toString())
+        if (value !== "all") params.set("dateFilter", value)
+        else params.delete("dateFilter")
+        params.set("page", "1")
+        router.push(`?${params.toString()}`)
     }
 
     const handleItemsPerPageChange = (value: number) => {
@@ -300,6 +332,9 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
     // Filter data
     const filteredData = React.useMemo(() => {
+        // Server mode: data sudah difilter & dipaginasi oleh backend.
+        if (serverMode) return data;
+
         return data.filter((mr) => {
             const searchLower = search.toLowerCase()
             const matchesSearch =
@@ -328,18 +363,25 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
             return matchesSearch && matchesStatus && matchesDate
         })
-    }, [data, search, statusFilter, dateFilter])
+    }, [data, search, statusFilter, dateFilter, serverMode])
 
     // Pagination
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage)
+    const totalPages = serverMode
+        ? (serverPagination?.totalPages ?? 0)
+        : Math.ceil(filteredData.length / itemsPerPage)
+    const totalItems = serverMode
+        ? (serverPagination?.totalCount ?? 0)
+        : filteredData.length
     const validPage = (totalPages > 0 && currentPage > totalPages) ? 1 : currentPage
 
     const paginatedData = React.useMemo(() => {
+        // Server mode: `data` sudah satu halaman penuh, jangan di-slice lagi.
+        if (serverMode) return data;
         return filteredData.slice(
             (validPage - 1) * itemsPerPage,
             validPage * itemsPerPage
         )
-    }, [filteredData, validPage, itemsPerPage])
+    }, [filteredData, validPage, itemsPerPage, serverMode, data])
 
     // Auto-correct page parameter in state & URL if current page exceeds total pages (e.g. when last item on page 2 is issued)
     React.useEffect(() => {
@@ -627,6 +669,22 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         )
     }
 
+    const statValues = serverMode && stats
+        ? {
+            total: stats.all,
+            pending: stats.pending,
+            approved: stats.approved,
+            ready: stats.ready,
+            issued: stats.issued,
+        }
+        : {
+            total: data.length,
+            pending: data.filter(d => d.status === "PENDING").length,
+            approved: data.filter(d => d.status === "APPROVED").length,
+            ready: data.filter(d => d.status === "READY_TO_PICKUP").length,
+            issued: data.filter(d => d.status === "ISSUED").length,
+        }
+
     return (
         <div className="space-y-6">
             {/* Header dengan Stats */}
@@ -634,7 +692,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                 {[
                     {
                         label: "Total MR",
-                        value: data.length,
+                        value: statValues.total,
                         icon: FileText,
                         className: "bg-blue-50/50 border-blue-100 hover:bg-blue-50",
                         textLight: "text-blue-600",
@@ -642,7 +700,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                     },
                     {
                         label: "Pending",
-                        value: data.filter(d => d.status === "PENDING").length,
+                        value: statValues.pending,
                         icon: Clock,
                         className: "bg-amber-50/50 border-amber-100 hover:bg-amber-50",
                         textLight: "text-amber-600",
@@ -650,7 +708,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                     },
                     {
                         label: "Approved",
-                        value: data.filter(d => d.status === "APPROVED").length,
+                        value: statValues.approved,
                         icon: CheckCircle,
                         className: "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-50",
                         textLight: "text-emerald-600",
@@ -658,7 +716,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                     },
                     {
                         label: "Ready",
-                        value: data.filter(d => d.status === "READY_TO_PICKUP").length,
+                        value: statValues.ready,
                         icon: Package,
                         className: "bg-purple-50/50 border-purple-100 hover:bg-purple-50",
                         textLight: "text-purple-600",
@@ -666,7 +724,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                     },
                     {
                         label: "Issued",
-                        value: data.filter(d => d.status === "ISSUED").length,
+                        value: statValues.issued,
                         icon: Truck,
                         className: "bg-indigo-50/50 border-indigo-100 hover:bg-indigo-50",
                         textLight: "text-indigo-600",
@@ -791,7 +849,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                     {/* Action Buttons Row */}
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="text-sm text-slate-600 dark:text-slate-300">
-                            <span className="font-semibold text-slate-800 dark:text-white">{filteredData.length}</span> MR ditemukan
+                            <span className="font-semibold text-slate-800 dark:text-white">{totalItems}</span> MR ditemukan
                         </div>
 
                         <div className="flex items-center gap-3">
@@ -1323,7 +1381,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
             </div>
 
             {/* Footer & Pagination */}
-            {filteredData.length > 0 && (
+            {totalItems > 0 && (
                 <div className="space-y-4 pt-2">
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm border-t pt-4 border-slate-200 dark:border-slate-800">
                         <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
@@ -1339,7 +1397,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             </select>
                         </div>
                         <div className="text-slate-500 dark:text-slate-400">
-                            Showing {Math.min((validPage - 1) * itemsPerPage + 1, filteredData.length)} - {Math.min(validPage * itemsPerPage, filteredData.length)} of {filteredData.length} items
+                            Showing {Math.min((validPage - 1) * itemsPerPage + 1, totalItems)} - {Math.min(validPage * itemsPerPage, totalItems)} of {totalItems} items
                         </div>
                     </div>
 

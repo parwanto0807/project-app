@@ -1,5 +1,6 @@
 import { prisma } from "../../config/db.js";
-import { startOfMonth, endOfMonth, parse } from "date-fns";
+import { parse, addMonths } from "date-fns";
+import { getPeriodDate, getJakartaStartOfDay } from "../../utils/dateUtils.js";
 
 export const stockMonitoringController = {
   getMonitoringData: async (req, res) => {
@@ -73,9 +74,19 @@ export const stockMonitoringController = {
         ? parse(period, 'yyyy-MM', new Date()) 
         : new Date();
 
+      // PERIODE NORMAL: selalu awal bulan (00:00 UTC) dari bulan Jakarta.
+      // Jangan pakai startOfMonth/endOfMonth lokal karena menghasilkan
+      // timestamp yang berbeda untuk bulan yang sama (legacy duplicates).
+      const periodStart = getPeriodDate(referenceDate);
+      const periodEnd = new Date(Date.UTC(
+        periodStart.getUTCFullYear(),
+        periodStart.getUTCMonth() + 1,
+        1
+      ));
+
       where.period = {
-        gte: startOfMonth(referenceDate),
-        lte: endOfMonth(referenceDate),
+        gte: periodStart,
+        lt: periodEnd,
       };
 
       // --- LOGIKA STATUS FILTER ---
@@ -138,13 +149,15 @@ export const stockMonitoringController = {
          statsWhere.product = { isActive: true };
       }
 
-      // Query Stats (Parallel)
-      const [balances, totalCount, aggregations, statsTotal, statsCritical, statsWarning, statsSafe, statsInactive] = await prisma.$transaction([
+      // Query Stats (Parallel) — semua read-only, jadi tidak perlu
+      // $transaction (yang mengeksekusi query satu per satu/berurutan).
+      const [balances, totalCount, aggregations, statsTotal, statsCritical, statsWarning, statsSafe, statsInactive] = await Promise.all([
         // 1. Data Utama (dengan filter lengkap user)
         prisma.stockBalance.findMany({
           where: where,
           skip: skip,
           take: limitNum,
+          relationLoadStrategy: "join",
           include: {
             product: {
               select: {
@@ -205,20 +218,11 @@ export const stockMonitoringController = {
         })()
       ]);
 
-      // Dedup balances by (productId, warehouseId, YYYY-MM in Jakarta) as safety measure
-      const seenKeys = new Set();
-      const dedupedBalances = [];
-      for (const b of balances) {
-        const d = new Date(b.period);
-        const jakarta = new Date(d.getTime() + 7 * 60 * 60 * 1000);
-        const key = `${b.productId}|${b.warehouseId}|${jakarta.getUTCFullYear()}-${String(jakarta.getUTCMonth() + 1).padStart(2, '0')}`;
-        if (!seenKeys.has(key)) {
-          seenKeys.add(key);
-          dedupedBalances.push(b);
-        }
-      }
-      // Replace balances with deduped version
-      balances.splice(0, balances.length, ...dedupedBalances);
+      // Catatan: dedupe manual setelah pagination DIHAPUS.
+      // Periode sekarang dinormalisasi (gte awal bulan, lt bulan berikutnya)
+      // dan uniqueness dijaga oleh index (productId, warehouseId, period).
+      // Dedupe lama bisa membuang baris valid dan membuat jumlah data
+      // tidak sesuai pagination.
 
       // 4. Helper Formatting
       const toNumber = (val) => {
@@ -311,8 +315,8 @@ export const stockMonitoringController = {
         ? parse(period, 'yyyy-MM', new Date()) 
         : new Date();
       
-      const startDate = startOfMonth(referenceDate);
-      const endDate = endOfMonth(referenceDate);
+      const startDate = getJakartaStartOfDay(getPeriodDate(referenceDate));
+      const endDate = getJakartaStartOfDay(addMonths(getPeriodDate(referenceDate), 1));
 
       // --- Query StockDetail ---
       // We want all transactions for this product, in this period.
@@ -321,7 +325,7 @@ export const stockMonitoringController = {
         productId: productId,
         createdAt: {
           gte: startDate,
-          lte: endDate
+          lt: endDate
         }
       };
 
@@ -904,13 +908,17 @@ export const stockMonitoringController = {
         ? parse(period, 'yyyy-MM', new Date()) 
         : new Date();
 
-      const startDate = startOfMonth(referenceDate);
-      const endDate = endOfMonth(referenceDate);
+      const periodStart = getPeriodDate(referenceDate);
+      const periodEnd = new Date(Date.UTC(
+        periodStart.getUTCFullYear(),
+        periodStart.getUTCMonth() + 1,
+        1
+      ));
 
       const where = {
         period: {
-          gte: startDate,
-          lte: endDate
+          gte: periodStart,
+          lt: periodEnd
         },
         stockOut: { gt: 0 } // Hanya yang ada pemakaian (keluar)
       };
@@ -978,13 +986,17 @@ export const stockMonitoringController = {
         ? parse(period, 'yyyy-MM', new Date()) 
         : new Date();
 
-      const startDate = startOfMonth(referenceDate);
-      const endDate = endOfMonth(referenceDate);
+      const periodStart = getPeriodDate(referenceDate);
+      const periodEnd = new Date(Date.UTC(
+        periodStart.getUTCFullYear(),
+        periodStart.getUTCMonth() + 1,
+        1
+      ));
 
       const where = {
         period: {
-          gte: startDate,
-          lte: endDate
+          gte: periodStart,
+          lt: periodEnd
         },
         inventoryValue: { gt: 0 } // Hanya yang punya nilai
       };

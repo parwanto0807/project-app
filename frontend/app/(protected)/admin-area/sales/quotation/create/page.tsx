@@ -34,7 +34,7 @@ export default function CreateQuotationPageAdmin() {
   // Hook fetching data
   const { data: customersData, isLoading: isCustomersLoading } = useCustomers();
   const { data: salesOrderData, isLoading: isSalesOrdersLoading } = useSalesOrderData();
-  const { data: productsData, isLoading: isProductsLoading } = useProducts();
+  const { data: productsData, isLoading: isProductsLoading } = useProducts({ compact: true });
   const { data: taxesData, isLoading: isTaxesLoading } = useTaxes();
   const { data: paymentTermsData, isLoading: isPaymentTermsLoading } = usePaymentTerms();
 

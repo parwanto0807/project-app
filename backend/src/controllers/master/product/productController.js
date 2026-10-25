@@ -108,30 +108,50 @@ export const getAllProducts = async (req, res) => {
       page,
       limit,
       includePagination = "false",
+      compact = "false",
     } = req.query;
     const filter = activeOnly === "false" ? {} : { isActive: true };
 
+    // Mode ringan untuk dropdown (tanpa kategori, akun, gambar, dsb).
+    const isCompact = String(compact) === "true";
+    const compactSelect = {
+      id: true,
+      code: true,
+      name: true,
+      description: true,
+      type: true,
+      usageUnit: true,
+      storageUnit: true,
+      purchaseUnit: true,
+      conversionToUsage: true,
+      conversionToStorage: true,
+      isActive: true,
+    };
+    const productSelection = isCompact
+      ? { select: compactSelect }
+      : { include: { category: true } };
+
     if (includePagination === "true") {
       // Mode dengan pagination
-      const totalCount = await prisma.product.count({
-        where: filter,
-      });
-
       const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
       // Batasi ukuran halaman untuk mencegah query/response raksasa.
       const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 200);
       const skip = (pageNumber - 1) * pageSize;
-      const totalPages = Math.ceil(totalCount / pageSize);
 
-      const products = await prisma.product.findMany({
-        where: filter,
-        include: {
-          category: true,
-        },
-        orderBy: { createdAt: "desc" },
-        skip: skip,
-        take: pageSize,
-      });
+      const [totalCount, products] = await Promise.all([
+        prisma.product.count({
+          where: filter,
+        }),
+        prisma.product.findMany({
+          where: filter,
+          ...productSelection,
+          orderBy: { createdAt: "desc" },
+          skip: skip,
+          take: pageSize,
+        }),
+      ]);
+
+      const totalPages = Math.ceil(totalCount / pageSize);
 
       res.json({
         products,
@@ -148,9 +168,7 @@ export const getAllProducts = async (req, res) => {
       // Mode tanpa pagination (backward compatible)
       const products = await prisma.product.findMany({
         where: filter,
-        include: {
-          category: true,
-        },
+        ...productSelection,
         orderBy: { createdAt: "desc" },
       });
 
@@ -425,8 +443,8 @@ export const updateProduct = async (req, res) => {
         conversionToUsage: Number(conversionToUsage),
         isConsumable: isConsumable === "true" || isConsumable === true,
         isActive: isActive === "true" || isActive === true,
-        barcode,
-        categoryId,
+        barcode: barcode === "" || barcode === null ? null : barcode,
+        categoryId: categoryId === "" || categoryId === null || categoryId === undefined ? null : categoryId,
         image: imagePath,
       },
     });

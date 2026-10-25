@@ -50,50 +50,63 @@ export const getAll = async (req, res) => {
     }
 
     // =============================
-    //     HITUNG TOTAL SESUAI FILTER
+    //     HITUNG TOTAL + AMBIL DATA (PARALEL)
     // =============================
-    const totalCount = await prisma.salesOrder.count({ where });
+    // compact=true: untuk dropdown/form yang hanya butuh header + items
+    // (tanpa documents / spk / PR / uang muka) -> respons jauh lebih kecil.
+    const compact = String(req.query.compact || "") === "true";
 
-    const totalPages = Math.ceil(totalCount / pageSize);
-
-    // =============================
-    //     QUERY DATA SALES ORDER
-    // =============================
-    const salesOrders = await prisma.salesOrder.findMany({
-      where,
-      include: {
-        customer: true,
-        project: true,
-        user: true,
-        items: { include: { product: true } },
-        documents: true,
-        spk: {
-          include: {
-            purchaseRequest: {
-              select: {
-                id: true,
-                nomorPr: true,
-                status: true,
-                details: { include: { product: true } },
-                uangMuka: {
-                  select: {
-                    id: true,
-                    nomor: true,
-                    jumlah: true,
-                    pertanggungjawaban: {
-                      include: { details: true },
+    const include = compact
+      ? {
+          customer: true,
+          project: true,
+          user: true,
+          // product tetap diperlukan oleh form SPK (item.product.name)
+          items: { include: { product: true } },
+        }
+      : {
+          customer: true,
+          project: true,
+          user: true,
+          items: { include: { product: true } },
+          documents: true,
+          spk: {
+            include: {
+              purchaseRequest: {
+                select: {
+                  id: true,
+                  nomorPr: true,
+                  status: true,
+                  details: { include: { product: true } },
+                  uangMuka: {
+                    select: {
+                      id: true,
+                      nomor: true,
+                      jumlah: true,
+                      pertanggungjawaban: {
+                        include: { details: true },
+                      },
                     },
                   },
                 },
               },
             },
           },
-        },
-      },
-      orderBy: { soDate: "desc" },
-      skip,
-      take: pageSize,
-    });
+        };
+
+    const [totalCount, salesOrders] = await Promise.all([
+      prisma.salesOrder.count({ where }),
+      prisma.salesOrder.findMany({
+        where,
+        include,
+        relationLoadStrategy: "join",
+        orderBy: { soDate: "desc" },
+        skip,
+        take: pageSize,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalCount / pageSize);
 
     // =============================
     //          RESPONSE
@@ -117,36 +130,48 @@ export const getAll = async (req, res) => {
 
 export const getAllSPK = async (req, res) => {
   try {
+    // compact=true: hanya yang dibutuhkan dropdown SPK/quotation
+    // (tanpa documents, spk, purchaseRequest, uang muka).
+    const compact = String(req.query.compact || "") === "true";
+
     const salesOrders = await prisma.salesOrder.findMany({
-      include: {
-        customer: true,
-        project: true,
-        user: true,
-        items: { include: { product: true } },
-        documents: true,
-        spk: {
-          include: {
-            purchaseRequest: {
-              select: {
-                id: true,
-                nomorPr: true,
-                status: true,
-                details: { include: { product: true } },
-                uangMuka: {
+      include: compact
+        ? {
+            customer: true,
+            project: true,
+            user: true,
+            items: { include: { product: true } },
+          }
+        : {
+            customer: true,
+            project: true,
+            user: true,
+            items: { include: { product: true } },
+            documents: true,
+            spk: {
+              include: {
+                purchaseRequest: {
                   select: {
                     id: true,
-                    nomor: true,
-                    jumlah: true,
-                    pertanggungjawaban: {
-                      include: { details: true },
+                    nomorPr: true,
+                    status: true,
+                    details: { include: { product: true } },
+                    uangMuka: {
+                      select: {
+                        id: true,
+                        nomor: true,
+                        jumlah: true,
+                        pertanggungjawaban: {
+                          include: { details: true },
+                        },
+                      },
                     },
                   },
                 },
               },
             },
           },
-        },
-      },
+      relationLoadStrategy: "join",
       orderBy: { soDate: "desc" },
     });
 
@@ -190,6 +215,7 @@ export const getAllInvoice = async (req, res) => {
           },
         },
       },
+      relationLoadStrategy: "join",
       orderBy: { soDate: "desc" },
     });
 
@@ -222,7 +248,6 @@ export const getAllBap = async (req, res) => {
         project: true,
         user: true,
         items: { include: { product: true } },
-        documents: true,
         spk: {
           select: {
             spkNumber: true,
@@ -231,6 +256,7 @@ export const getAllBap = async (req, res) => {
           },
         },
       },
+      relationLoadStrategy: "join",
       orderBy: { soDate: "desc" },
     });
 
@@ -268,16 +294,27 @@ export const getLastSalesOrder = async (req, res) => {
 export const getById = async (req, res) => {
   try {
     const { id } = req.params;
+    // lite=true: untuk form edit — cukup header + items, tanpa documents/spk.
+    const lite = String(req.query.lite || "") === "true";
+
     const salesOrder = await prisma.salesOrder.findUnique({
       where: { id },
-      include: {
-        customer: true,
-        project: true,
-        user: true,
-        items: { include: { product: true } },
-        documents: true,
-        spk: true,
-      },
+      relationLoadStrategy: "join",
+      include: lite
+        ? {
+            customer: true,
+            project: true,
+            user: true,
+            items: { include: { product: true } },
+          }
+        : {
+            customer: true,
+            project: true,
+            user: true,
+            items: { include: { product: true } },
+            documents: true,
+            spk: true,
+          },
     });
     if (!salesOrder) {
       return res.status(404).json({ message: "Sales Order tidak ditemukan" });

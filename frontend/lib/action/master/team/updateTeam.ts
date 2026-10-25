@@ -1,5 +1,6 @@
 'use server';
 
+import { serverFetch } from "@/lib/server-fetch";
 import { revalidatePath } from 'next/cache';
 
 export async function updateTeam(id: string, formData: FormData) {
@@ -14,7 +15,7 @@ export async function updateTeam(id: string, formData: FormData) {
   }
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/updateTeam/${id}`, {
+    const res = await serverFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/updateTeam/${id}`, {
       method: 'PUT',
       credentials: "include",
       headers: {

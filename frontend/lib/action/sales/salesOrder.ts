@@ -1,12 +1,11 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import { z } from "zod";
 import { salesOrderUpdateSchema } from "@/schemas";
 import { cookies } from "next/headers";
 import { getAuthHeaders, getCookieHeader } from "@/lib/cookie-utils";
-import { apiFetch } from "@/lib/apiFetch";
 import { unstable_noStore as noStore } from "next/cache";
-import { api } from "@/lib/http";
 
 // form schema utk create/update header+items (tanpa soNumber karena digenerate)
 const formSchema = salesOrderUpdateSchema.omit({ soNumber: true });
@@ -64,7 +63,7 @@ async function generateNewSoNumber(): Promise<string> {
 
   let lastSO: { soNumber?: string } | null = null;
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders-last`,
       { credentials: "include", cache: "no-store" }
     );
@@ -107,7 +106,7 @@ export async function createSalesOrderAPI(payload: z.infer<typeof formSchema>) {
       return { error: "Access token tidak ditemukan. Silakan login kembali." };
     }
 
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/create`,
       { credentials: "include",
         method: "POST",
@@ -169,7 +168,7 @@ export async function updateSalesOrderAPI(
       return { error: "Access token tidak ditemukan. Silakan login kembali." };
     }
 
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/update/${id}`,
       {
         method: "PUT",
@@ -209,7 +208,8 @@ export async function fetchAllSalesOrder(
   page: number = 1,
   pageSize: number = 50,
   search: string = "",
-  status: string = "" // Tambahkan parameter status
+  status: string = "",
+  compact: boolean = false
 ) {
   noStore(); // ⬅️ memastikan data selalu fresh
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
@@ -218,7 +218,8 @@ export async function fetchAllSalesOrder(
   const urlParams = new URLSearchParams({
     page: page.toString(),
     pageSize: pageSize.toString(),
-    search: encodeURIComponent(search),
+    // Jangan encode manual: URLSearchParams sudah melakukan encoding.
+    search,
   });
 
   // Tambahkan status ke URL jika tidak "ALL" atau empty
@@ -226,15 +227,30 @@ export async function fetchAllSalesOrder(
     urlParams.set("status", status);
   }
 
+  // Mode ringan untuk form/dropdown (tanpa relasi berat)
+  if (compact) {
+    urlParams.set("compact", "true");
+  }
+
   const url = `${base}/api/salesOrder/sales-orders?${urlParams.toString()}`;
 
   try {
-    const response = await apiFetch(url, {
+    const res = await serverFetch(url, {
       method: "GET",
-      headers: {
-        accept: "application/json",
-      },
+      headers: { accept: "application/json" },
+      cache: "no-store",
     });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `Gagal memuat Sales Order: ${res.status} ${res.statusText}${
+          text ? ` | ${text}` : ""
+        }`
+      );
+    }
+
+    const response = await res.json();
 
     return {
       data: response.data ?? [],
@@ -258,7 +274,7 @@ export async function fetchAllSalesOrderInvoice() {
   const url = `${base}/api/salesOrder/sales-orders-invoice`;
 
   try {
-    const res = await fetch(url, {
+    const res = await serverFetch(url, {
       method: "GET",
       headers: { accept: "application/json" },
       credentials: "include", // kalau butuh cookie auth
@@ -286,7 +302,7 @@ export async function fetchAllSalesOrderBap() {
   const url = `${base}/api/salesOrder/sales-orders-bap`;
 
   try {
-    const res = await fetch(url, {
+    const res = await serverFetch(url, {
       method: "GET",
       headers: { accept: "application/json" },
       credentials: "include", // kalau butuh cookie auth
@@ -308,10 +324,12 @@ export async function fetchAllSalesOrderBap() {
   }
 }
 
-export async function fetchSalesOrderById(id: string) {
+export async function fetchSalesOrderById(id: string, lite = false) {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/getById/${id}`,
+    const res = await serverFetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/getById/${id}${
+        lite ? "?lite=true" : ""
+      }`,
       {
         method: "GET",
         cache: "no-store",
@@ -326,19 +344,31 @@ export async function fetchSalesOrderById(id: string) {
   }
 }
 
-export async function fetchAllSalesOrderSPK() {
+export async function fetchAllSalesOrderSPK(compact = false) {
   noStore(); // memastikan selalu fetch fresh data
 
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
-  const url = `${base}/api/salesOrder/sales-orders-spk`; // ⬅️ tanpa query params
+  const url = `${base}/api/salesOrder/sales-orders-spk${
+    compact ? "?compact=true" : ""
+  }`;
 
   try {
-    const response = await apiFetch(url, {
+    const res = await serverFetch(url, {
       method: "GET",
-      headers: {
-        accept: "application/json",
-      },
+      headers: { accept: "application/json" },
+      cache: "no-store",
     });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(
+        `Gagal memuat Sales Order: ${res.status} ${res.statusText}${
+          text ? ` | ${text}` : ""
+        }`
+      );
+    }
+
+    const response = await res.json();
 
     return {
       data: response.data ?? [],
@@ -358,26 +388,32 @@ export async function cancelSalesOrder(id: string): Promise<CancelSOResponse> {
   }
 
   try {
-    const response = await api.put(`/api/salesOrder/${id}/cancel`);
+    const res = await serverFetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/${id}/cancel`,
+      { method: "PUT", headers: { accept: "application/json" } }
+    );
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      return {
+        success: false,
+        message: data?.message ?? `Gagal membatalkan SalesOrder (${res.status})`,
+      };
+    }
 
     return {
       success: true,
-      message: response.data?.message ?? "SalesOrder cancelled",
-      data: response.data?.data,
+      message: data?.message ?? "SalesOrder cancelled",
+      data: data?.data,
     };
   } catch (error) {
     console.error("❌ Error Cancel SalesOrder:", error);
 
-    const apiError = error as Error & {
-      response?: { data?: { message?: string } };
-    };
-
     return {
       success: false,
       message:
-        apiError.response?.data?.message ??
-        apiError.message ??
-        "Failed to cancel SalesOrder",
+        error instanceof Error ? error.message : "Failed to cancel SalesOrder",
     };
   }
 }

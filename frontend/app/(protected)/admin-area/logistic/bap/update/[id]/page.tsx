@@ -133,7 +133,7 @@ export default function CreateBAPPage() {
         setIsLoading(true);
         const [salesOrderRes, usersRes, bapRes] = await Promise.all([
           fetchAllSalesOrderInvoice(),
-          fetchAllKaryawan(),
+          fetchAllKaryawan(true),
           bapId ? getBAPById(bapId) : Promise.resolve({ success: false, data: null })
         ]);
 

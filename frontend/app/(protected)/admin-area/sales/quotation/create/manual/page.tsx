@@ -31,7 +31,9 @@ export default function CreateManualQuotationPageAdmin() {
 
     // Hook fetching data (tidak perlu salesOrders untuk form manual)
     const { data: customersData, isLoading: isCustomersLoading } = useCustomers();
-    const { data: productsData, isLoading: isProductsLoading } = useProducts();
+    const { data: productsData, isLoading: isProductsLoading } = useProducts({
+        compact: true,
+    });
     const { data: taxesData, isLoading: isTaxesLoading } = useTaxes();
     const { data: paymentTermsData, isLoading: isPaymentTermsLoading } = usePaymentTerms();
 

@@ -17,48 +17,60 @@ export const financialReportService = {
     const EXPENSE_TYPES = ['BEBAN'];
     const INCOME_STATEMENT_TYPES = [...REVENUE_TYPES, ...COGS_TYPES, ...EXPENSE_TYPES];
 
-    // 2. Build Query Filters
-    const whereCondition = {
-      ledger: {
-        transactionDate: {
-          gte: getJakartaStartOfDay(startDate),
-          lte: getJakartaEndOfDay(endDate)
-        },
-        status: 'POSTED' // Only Processed/Posted transactions
-      },
-      coa: {
-        type: {
-          in: INCOME_STATEMENT_TYPES
-        }
-      }
-    };
-
-    // Optional: Filter by Sales Order (Project)
+    // 2. Aggregate from TrialBalance (period movement) when no project filter.
+    //    TrialBalance already validated per period; reports MUST derive from it.
+    let aggregates = [];
     if (salesOrderId) {
-      whereCondition.salesOrderId = salesOrderId;
+      // Project-scoped: fall back to posted ledger lines for that sales order.
+      const whereCondition = {
+        ledger: {
+          transactionDate: {
+            gte: getJakartaStartOfDay(startDate),
+            lte: getJakartaEndOfDay(endDate)
+          },
+          status: 'POSTED'
+        },
+        coa: { type: { in: INCOME_STATEMENT_TYPES } },
+        salesOrderId
+      };
+      const grouped = await prisma.ledgerLine.groupBy({
+        by: ['coaId'],
+        where: whereCondition,
+        _sum: { debitAmount: true, creditAmount: true }
+      });
+      aggregates = grouped.map(g => ({ coaId: g.coaId, periodDebit: g._sum.debitAmount || 0, periodCredit: g._sum.creditAmount || 0 }));
+    } else {
+      // Period-based: find accounting periods overlapping the date range.
+      const periods = await prisma.accountingPeriod.findMany({
+        where: {
+          startDate: { lte: getJakartaEndOfDay(endDate) },
+          endDate: { gte: getJakartaStartOfDay(startDate) }
+        },
+        select: { id: true }
+      });
+      const periodIds = periods.map(p => p.id);
+      const tbs = await prisma.trialBalance.findMany({
+        where: {
+          periodId: { in: periodIds },
+          coa: { type: { in: INCOME_STATEMENT_TYPES } }
+        },
+        select: { coaId: true, periodDebit: true, periodCredit: true }
+      });
+      const map = new Map();
+      for (const tb of tbs) {
+        const cur = map.get(tb.coaId) || { coaId: tb.coaId, periodDebit: 0, periodCredit: 0 };
+        cur.periodDebit += Number(tb.periodDebit || 0);
+        cur.periodCredit += Number(tb.periodCredit || 0);
+        map.set(tb.coaId, cur);
+      }
+      aggregates = [...map.values()];
     }
 
-    // 3. Aggregate Ledger Lines by COA
-    // Group by COA ID to get totals
-    const aggregates = await prisma.ledgerLine.groupBy({
-      by: ['coaId'],
-      where: whereCondition,
-      _sum: {
-        debitAmount: true,
-        creditAmount: true
-      }
-    });
-
-    // 4. Fetch COA Details
+    // 3. Fetch COA Details
     const coaIds = aggregates.map(a => a.coaId);
     const accounts = await prisma.chartOfAccounts.findMany({
       where: { id: { in: coaIds } },
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        type: true
-      }
+      select: { id: true, code: true, name: true, type: true }
     });
 
     const accountMap = new Map(accounts.map(a => [a.id, a]));
@@ -86,8 +98,8 @@ export const financialReportService = {
       const account = accountMap.get(agg.coaId);
       if (!account) continue;
 
-      const debit = Number(agg._sum.debitAmount || 0);
-      const credit = Number(agg._sum.creditAmount || 0);
+      const debit = Number(agg.periodDebit || 0);
+      const credit = Number(agg.periodCredit || 0);
       let balance = 0;
 
       // Determine Balance based on Account Type

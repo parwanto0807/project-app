@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { apiFetch } from "@/lib/apiFetch";
+import { serverJson } from "@/lib/server-json";
 import { SystemAccountFormData } from "@/types/accounting";
 
 // NEXT_PUBLIC_API_URL typically is 'http://localhost:5000' without /api
@@ -9,7 +9,7 @@ const API_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/a
 
 export async function getSystemAccounts() {
     try {
-        const data = await apiFetch(API_URL, {
+        const data = await serverJson(API_URL, {
             method: "GET",
         });
         return data;
@@ -21,7 +21,7 @@ export async function getSystemAccounts() {
 
 export async function upsertSystemAccount(data: SystemAccountFormData) {
     try {
-        const response = await apiFetch(`${API_URL}/upsert`, {
+        const response = await serverJson(`${API_URL}/upsert`, {
             method: "POST",
             body: JSON.stringify(data),
             headers: {
@@ -39,7 +39,7 @@ export async function upsertSystemAccount(data: SystemAccountFormData) {
 
 export async function updateSystemAccount(id: string, data: Partial<SystemAccountFormData>) {
     try {
-        const response = await apiFetch(`${API_URL}/${id}`, {
+        const response = await serverJson(`${API_URL}/${id}`, {
             method: "PUT",
             body: JSON.stringify(data),
             headers: {
@@ -57,7 +57,7 @@ export async function updateSystemAccount(id: string, data: Partial<SystemAccoun
 
 export async function deleteSystemAccount(id: string) {
     try {
-        const response = await apiFetch(`${API_URL}/${id}`, {
+        const response = await serverJson(`${API_URL}/${id}`, {
             method: "DELETE",
         });
 

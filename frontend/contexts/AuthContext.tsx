@@ -33,6 +33,46 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Refresh tidak boleh langsung menghapus sesi saat backend sedang down /
+// jaringan putus. Retry singkat + timeout, lalu biarkan sesi tetap ada.
+const REFRESH_TIMEOUT_MS = 10_000;
+const REFRESH_MAX_ATTEMPTS = 3;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function fetchRefreshWithRetry(
+    url: string,
+    init: RequestInit
+): Promise<Response> {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < REFRESH_MAX_ATTEMPTS; attempt++) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+
+        try {
+            return await fetch(url, { ...init, signal: controller.signal });
+        } catch (error) {
+            lastError = error;
+            if (attempt < REFRESH_MAX_ATTEMPTS - 1) {
+                await sleep(750 * 2 ** attempt);
+            }
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    throw lastError;
+}
+
+function isNetworkError(error: unknown): boolean {
+    return (
+        error instanceof TypeError ||
+        (error instanceof Error &&
+            /failed to fetch|networkerror|load failed|aborted/i.test(error.message))
+    );
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const router = useRouter();
     const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -152,9 +192,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
-            const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+            const res = await fetchRefreshWithRetry(`${API_BASE_URL}/api/auth/refresh`, {
                 method: "POST",
                 credentials: "include",
+                cache: "no-store",
             });
 
             if (res.status === 401) {
@@ -223,6 +264,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return true;
 
         } catch (error) {
+            // Gangguan jaringan / backend mati sesaat: JANGAN hapus cookie dan
+            // JANGAN redirect ke login. Sesi baru dihapus bila server benar-benar
+            // menjawab 401 (lihat blok di atas).
+            if (isNetworkError(error)) {
+                console.warn(
+                    '[Auth] Backend tidak dapat dihubungi. Sesi dipertahankan:',
+                    error instanceof Error ? error.message : error
+                );
+                if (isMountedRef.current) {
+                    setLoading(false);
+                }
+                return false;
+            }
+
             console.error('[Auth] Refresh error:', error);
             cleanup();
             if (isMountedRef.current) {

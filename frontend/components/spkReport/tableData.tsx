@@ -1,19 +1,29 @@
 "use client";
 // import { Fragment } from 'react';
-import { useState, useEffect, useCallback } from 'react';
-// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-// import { Button } from '@/components/ui/button';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Archive, FileText, Sparkles, TrendingUp, Clock } from 'lucide-react';
 import { fetchSPKReports } from '@/lib/action/master/spk/spkReport';
-// import { motion } from "framer-motion";
-// import { cn } from "@/lib/utils";
 
-// Import komponen terpisah
+// Import komponen terpisah — dimuat lazy agar bundle awal lebih ringan
 import SPKListTab from './SPKListTab';
-import ReportProgressTab from './ReportProgressTab';
-import ReportHistoryTab from './ReportHistoryTab';
+
+const TabLoading = () => (
+  <div className="flex items-center justify-center py-16">
+    <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-indigo-600" />
+  </div>
+);
+
+const ReportProgressTab = dynamic(() => import('./ReportProgressTab'), {
+  ssr: false,
+  loading: TabLoading,
+});
+const ReportHistoryTab = dynamic(() => import('./ReportHistoryTab'), {
+  ssr: false,
+  loading: TabLoading,
+});
 
 // 👇 DEFINSI TIPE DATA API (TETAP UTUH)
 export interface SPKDataApi {
@@ -171,6 +181,74 @@ type ItemProgress = Record<string, number>;
 type SPKItemProgressMap = Record<string, ItemProgress>;
 type TabType = 'list' | 'report' | 'history';
 
+const EMPTY_FILTERS = {
+  date: 'all' as const,
+  status: 'all' as const,
+  spkId: '',
+  karyawanId: '',
+};
+
+// 👇 MAP KE SPKData - FIXED PROGRESS CALCULATION (pure, di luar komponen)
+const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
+  return raw.map(item => {
+    const clientName = item.salesOrder?.customer?.name || 'Client Tidak Dikenal';
+    const projectName = item.salesOrder?.project?.name || 'Project Tidak Dikenal';
+    const assignedTo = item.team?.teamKaryawan?.karyawan?.namaLengkap || item.createdBy?.namaLengkap || 'Tidak Ditugaskan';
+    const teamName = item.team?.namaTeam || 'Team belum ditentukan';
+    const email = item.team?.teamKaryawan?.karyawan?.email || 'Email belum ditentukan';
+    const deadline = item.spkDate ? new Date(item.spkDate).toISOString() : new Date().toISOString();
+
+    // Group detail per sales order item sekali (O(n) total), bukan filter
+    // berulang untuk setiap item (O(n²)).
+    const detailsByItem = new Map<string, SPKDataApi['details']>();
+    for (const detail of item.details ?? []) {
+      const itemId = detail.salesOrderItem?.id;
+      if (!itemId) continue;
+      const grouped = detailsByItem.get(itemId);
+      if (grouped) grouped.push(detail);
+      else detailsByItem.set(itemId, [detail]);
+    }
+
+    const items = (item.salesOrder?.items ?? []).map(itemSales => {
+      const relatedDetails = detailsByItem.get(itemSales.id) ?? [];
+      const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
+
+      return {
+        id: itemSales.id,
+        name: itemSales.name,
+        description: itemSales.description || undefined,
+        qty: itemSales.qty,
+        uom: itemSales.uom || undefined,
+        status: (hasDoneDetail ? 'DONE' : 'PENDING') as 'PENDING' | 'DONE',
+        progress: hasDoneDetail ? 100 : 0,
+      };
+    });
+
+    const totalItems = items.length;
+    const totalProgress = items.reduce((sum, item) => sum + item.progress, 0);
+    const progress = totalItems > 0 ? Math.round(totalProgress / totalItems) : 0;
+
+    let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
+    if (progress === 100) status = 'COMPLETED';
+    else if (progress > 0) status = 'PROGRESS';
+    else status = 'PENDING';
+
+    return {
+      id: item.id,
+      spkNumber: item.spkNumber,
+      clientName,
+      projectName,
+      email,
+      status,
+      teamName,
+      progress,
+      deadline,
+      assignedTo,
+      items,
+    };
+  });
+};
+
 const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId }: FormMonitoringProgressSpkProps) => {
   const [selectedSpk, setSelectedSpk] = useState<SPKData | null>(null);
   const [formData, setFormData] = useState<ProgressFormData>({
@@ -193,72 +271,16 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     spkId: '',
     karyawanId: '',
   });
-  const [userSpk, setUserSpk] = useState<SPKData[]>([]);
-  const [spkItemProgress, setSpkItemProgress] = useState<SPKItemProgressMap>({});
-
-  // 👇 MAP KE SPKData - FIXED PROGRESS CALCULATION
-  const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
-    return raw.map(item => {
-      const clientName = item.salesOrder?.customer?.name || 'Client Tidak Dikenal';
-      const projectName = item.salesOrder?.project?.name || 'Project Tidak Dikenal';
-      const assignedTo = item.team?.teamKaryawan?.karyawan?.namaLengkap || item.createdBy?.namaLengkap || 'Tidak Ditugaskan';
-      const teamName = item.team?.namaTeam || 'Team belum ditentukan';
-      const email = item.team?.teamKaryawan?.karyawan?.email || 'Email belum ditentukan';
-      const deadline = new Date(item.spkDate).toISOString();
-
-      // ✅ FIRST: Map items to calculate individual item status
-      const items = item.salesOrder?.items?.map(itemSales => {
-        const relatedDetails = item.details?.filter(detail => detail.salesOrderItem?.id === itemSales.id) || [];
-        const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
-        const itemStatus: 'PENDING' | 'DONE' = hasDoneDetail ? 'DONE' : 'PENDING';
-        const itemProgress = hasDoneDetail ? 100 : 0;
-
-        return {
-          id: itemSales.id,
-          name: itemSales.name,
-          description: itemSales.description || undefined,
-          qty: itemSales.qty,
-          uom: itemSales.uom || undefined,
-          status: itemStatus,
-          progress: itemProgress,
-        };
-      }) || [];
-
-      // ✅ CORRECT PROGRESS CALCULATION: Weighted Average to support partial progress
-      // Each item contributes its progress percentage to the total
-      // Example: Item with 25% progress contributes 25% to total, not 0%
-      const totalItems = items.length;
-      const totalProgress = items.reduce((sum, item) => sum + item.progress, 0);
-      const progress = totalItems > 0 ? Math.round(totalProgress / totalItems) : 0;
-
-      // ✅ Determine overall SPK status based on weighted average progress
-      let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
-      if (progress === 100) status = 'COMPLETED';
-      else if (progress > 0) status = 'PROGRESS';
-      else status = 'PENDING';
-
-      return {
-        id: item.id,
-        spkNumber: item.spkNumber,
-        clientName,
-        projectName,
-        email,
-        status,
-        teamName,
-        progress,
-        deadline,
-        assignedTo,
-        items,
-      };
-    });
-  };
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // 👇 FETCH RIWAYAT LAPORAN
-  const fetchReports = useCallback(async () => {
+  const fetchReports = useCallback(async (signal?: AbortSignal) => {
     setLoadingReports(true);
     try {
-      let reports = await fetchSPKReports(filters);
-      reports = [...reports].sort((a, b) => {
+      const data = await fetchSPKReports({ ...filters, openOnly: true }, { signal });
+      if (signal?.aborted) return;
+
+      const sorted = [...data].sort((a, b) => {
         const spkCompare = a.spkNumber.localeCompare(b.spkNumber, undefined, {
           numeric: true,
           sensitivity: 'base',
@@ -270,56 +292,60 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         }
         return spkCompare;
       });
-      setReports(reports);
+      setReports(sorted);
     } catch (error) {
+      if ((error as Error)?.name === 'AbortError') return;
       console.error('Error fetching reports:', error);
       toast.error('Gagal memuat riwayat laporan');
     } finally {
-      setLoadingReports(false);
+      if (!signal?.aborted) setLoadingReports(false);
     }
   }, [filters]);
 
-  // EFFECT: Setup data SPK
-  useEffect(() => {
-    if (dataSpk && dataSpk.length > 0) {
-      const mapped = mapToSPKData(dataSpk);
-      setUserSpk(mapped);
-    } else {
-      setUserSpk([]);
-    }
-  }, [dataSpk]);
+  // DERIVED: data SPK (tanpa effect + state perantara)
+  const userSpk = useMemo(() => mapToSPKData(dataSpk ?? []), [dataSpk]);
 
-  // EFFECT: Hitung progress item
-  useEffect(() => {
-    const newSpkItemProgress: SPKItemProgressMap = {};
+  // DERIVED: progress tertinggi per item
+  const spkItemProgress = useMemo(() => {
+    const map: SPKItemProgressMap = {};
     for (const report of reports) {
       const { spkNumber, soDetailId, progress } = report;
-      if (!newSpkItemProgress[spkNumber]) {
-        newSpkItemProgress[spkNumber] = {};
-      }
-      const currentProgress = newSpkItemProgress[spkNumber][soDetailId] ?? 0;
-      newSpkItemProgress[spkNumber][soDetailId] = Math.max(currentProgress, progress ?? 0);
+      const itemMap = (map[spkNumber] ??= {});
+      itemMap[soDetailId] = Math.max(itemMap[soDetailId] ?? 0, progress ?? 0);
     }
-    setSpkItemProgress(newSpkItemProgress);
+    return map;
   }, [reports]);
 
-  // EFFECT: Fetch reports saat filter berubah
+  // EFFECT: Fetch reports saat filter berubah (batalkan request lama)
   useEffect(() => {
-    fetchReports();
-  }, [filters, fetchReports]);
+    const controller = new AbortController();
+    void fetchReports(controller.signal);
+    return () => controller.abort();
+  }, [fetchReports]);
 
-  const filteredUserSpk = userSpk.filter(spk => {
-    if (role === 'admin' || role === 'super' || role === 'pic' || role === 'user') return true;
-    return spk.email === userEmail;
-  });
+  const filteredUserSpk = useMemo(() => {
+    if (role === 'admin' || role === 'super' || role === 'pic' || role === 'user') return userSpk;
+    return userSpk.filter(spk => spk.email === userEmail);
+  }, [userSpk, role, userEmail]);
 
-  const getSPKFieldProgress = (spk: SPKData): number => {
+  const getSPKFieldProgress = useCallback((spk: SPKData): number => {
     const itemProgressMap = spkItemProgress[spk.spkNumber];
-    if (!itemProgressMap) return 0;
-    const reportedProgresses = spk.items.map(item => itemProgressMap[item.id] ?? 0);
-    const totalProgress = reportedProgresses.reduce((sum, p) => sum + p, 0);
+    if (!itemProgressMap || spk.items.length === 0) return 0;
+    const totalProgress = spk.items.reduce(
+      (sum, item) => sum + (itemProgressMap[item.id] ?? 0),
+      0
+    );
     return Math.round(totalProgress / spk.items.length);
-  };
+  }, [spkItemProgress]);
+
+  // Statistik dihitung sekali per perubahan data, bukan setiap render.
+  const completedCount = useMemo(
+    () => filteredUserSpk.reduce(
+      (count, spk) => count + (getSPKFieldProgress(spk) === 100 ? 1 : 0),
+      0
+    ),
+    [filteredUserSpk, getSPKFieldProgress]
+  );
 
   if (isLoading) return <SkeletonLoader />;
 
@@ -370,7 +396,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {filteredUserSpk.filter(spk => spk.status === 'COMPLETED').length}
+                    {completedCount}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">Selesai</div>
                 </div>
@@ -385,7 +411,13 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
             value={activeTab}
             onValueChange={(v) => {
               setActiveTab(v as TabType);
-              setFilters({ date: 'all', status: 'all', spkId: '', karyawanId: '' });
+              // Hanya reset jika memang ada filter aktif — menghindari refetch
+              // laporan setiap kali tab berpindah.
+              setFilters(prev =>
+                prev.date === 'all' && prev.status === 'all' && !prev.spkId && !prev.karyawanId
+                  ? prev
+                  : EMPTY_FILTERS
+              );
             }}
             className="w-full"
           >
@@ -477,8 +509,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                 userSpk={userSpk}
                 role={role}
                 fetchReports={fetchReports}
-                itemsPerPage={10}
-                setItemsPerPage={() => { }}
+                itemsPerPage={itemsPerPage}
+                setItemsPerPage={setItemsPerPage}
               />
             </TabsContent>
           </Tabs>

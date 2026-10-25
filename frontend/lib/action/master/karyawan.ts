@@ -1,9 +1,12 @@
 "use server";
 
-export async function fetchAllKaryawan() {
+import { serverFetch } from "@/lib/server-fetch";
+export async function fetchAllKaryawan(compact = false) {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/getAllKaryawan`,
+    const res = await serverFetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/getAllKaryawan${
+        compact ? "?compact=true" : ""
+      }`,
       {
         method: "GET",
         credentials: "include",
@@ -25,7 +28,7 @@ export const fetchKaryawanByEmail = async (email: string) => {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/fetchKaryawanByEmail`;
 
   try {
-    const response = await fetch(apiUrl, {
+    const response = await serverFetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -55,7 +58,7 @@ export const fetchKaryawanByEmail = async (email: string) => {
 
 export async function fetchKaryawanById(id: string) {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/getKaryawanById/${id}`,
       {
         method: "GET",
@@ -76,7 +79,7 @@ export async function fetchKaryawanById(id: string) {
 
 export async function fetchAllGaji() {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/gaji/getAllGaji`,
       {
         method: "GET",
@@ -97,7 +100,7 @@ export async function fetchAllGaji() {
 
 export async function fetchGajiById(id: string) {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/gaji/getGajiById/${id}`,
       {
         method: "GET",
@@ -118,7 +121,7 @@ export async function fetchGajiById(id: string) {
 
 export async function fetchAllTeam() {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/team/getAllTeam`,
       {
         method: "GET",
@@ -139,7 +142,7 @@ export async function fetchAllTeam() {
 
 export async function fetchTeamById(id: string) {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/team/getTeamById/${id}`,
       {
         method: "GET",
@@ -162,7 +165,7 @@ export const fetchUserByEmail = async (email: string) => {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/fetchUserByEmail`;
 
   try {
-    const response = await fetch(apiUrl, {
+    const response = await serverFetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -205,7 +208,7 @@ export async function checkAccountEmail(
   email: string
 ): Promise<CheckAccountEmailResult> {
   try {
-    const response = await fetch(`${BASE_URL}/api/karyawan/checkAccountEmail`, {
+    const response = await serverFetch(`${BASE_URL}/api/karyawan/checkAccountEmail`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -233,7 +236,7 @@ export async function checkAccountEmail(
 export async function createAccountEmail(
   email: string
 ): Promise<AccountEmail | null> {
-  const response = await fetch(`${BASE_URL}/api/karyawan/createAccountEmail`, {
+  const response = await serverFetch(`${BASE_URL}/api/karyawan/createAccountEmail`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

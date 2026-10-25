@@ -85,8 +85,23 @@ export const mrController = {
           }
         });
 
-        if (!mr || mr.status === 'ISSUED') {
-          throw new Error("MR tidak valid atau sudah pernah dikeluarkan");
+        if (!mr || mr.status === 'ISSUED' || mr.status === 'CANCELLED') {
+          throw new Error("MR tidak valid, sudah dikeluarkan, atau dibatalkan");
+        }
+
+        // Enforce: MR dari PO hanya boleh di-issue setelah ada GR COMPLETED.
+        // (Sebelumnya validasi ini hanya di client, bisa di-bypass via API.)
+        if (mr.sourceType === 'PO' && mr.purchaseOrderId) {
+          const completedGR = await tx.goodsReceipt.findFirst({
+            where: {
+              purchaseOrderId: mr.purchaseOrderId,
+              status: 'COMPLETED'
+            },
+            select: { id: true }
+          });
+          if (!completedGR) {
+            throw new Error("Barang belum diterima. Selesaikan Goods Receipt (COMPLETED) terlebih dahulu.");
+          }
         }
 
         // Gunakan mr.createdAt untuk menentukan periode StockBalance
@@ -265,8 +280,11 @@ export const mrController = {
           });
 
           // D. Create StockDetail OUT record
-          const avgPrice = totalCost / qtyIssued;
-          const stockAwalSnapshot = Number(stockBalance.stockAkhir) + qtyIssued;
+          // pricePerUnit di StockDetail selalu dalam satuan BASE (storage).
+          // priceUnit di MR item dalam satuan yang diminta (trans unit).
+          const avgPriceBase = baseQtyDeduction > 0 ? totalCost / baseQtyDeduction : 0;
+          const pricePerRequestedUnit = qtyIssued > 0 ? totalCost / qtyIssued : 0;
+          const stockAwalSnapshot = Number(stockBalance.stockAkhir) + baseQtyDeduction;
           const stockAkhirSnapshot = Number(stockBalance.stockAkhir);
 
           await tx.stockDetail.create({
@@ -282,7 +300,7 @@ export const mrController = {
               stockAkhirSnapshot: stockAkhirSnapshot,
               residualQty: 0,
               isFullyConsumed: true,
-              pricePerUnit: avgPrice,
+              pricePerUnit: avgPriceBase,
               referenceNo: mr.mrNumber,
               // Propagate MR notes if it's an auto-generated transfer
               notes: (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) ? mr.notes : null,
@@ -295,7 +313,7 @@ export const mrController = {
             where: { id: item.id },
             data: { 
               qtyIssued: item.qtyRequested,
-              priceUnit: avgPrice // ✅ Store the calculated FIFO average price
+              priceUnit: pricePerRequestedUnit // ✅ Store FIFO average price per requested unit
             }
           });
 
@@ -737,15 +755,70 @@ export const mrController = {
   // 3. Get MR List (With Pagination)
   getMRList: async (req, res) => {
     const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 10;
+    // Batasi pageSize agar tidak ada response multi-MB
+    const pageSize = Math.min(parseInt(req.query.pageSize) || 10, 200);
     const skip = (page - 1) * pageSize;
 
+    // Filter server-side (sebelumnya semua data diambil lalu difilter di client)
+    const search = (req.query.search || '').trim();
+    const status = (req.query.status || '').trim();
+    const dateFilter = (req.query.dateFilter || '').trim();
+
+    const where = {};
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+    if (['today', 'week', 'month'].includes(dateFilter)) {
+      const nowJ = new Date(Date.now() + 7 * 60 * 60 * 1000);
+      const y = nowJ.getUTCFullYear();
+      const m = nowJ.getUTCMonth();
+      const d = nowJ.getUTCDate();
+      let startUtcMs;
+      if (dateFilter === 'today') {
+        startUtcMs = Date.UTC(y, m, d);
+      } else if (dateFilter === 'month') {
+        startUtcMs = Date.UTC(y, m, 1);
+      } else {
+        // Minggu dimulai Senin
+        const diff = (nowJ.getUTCDay() + 6) % 7;
+        startUtcMs = Date.UTC(y, m, d - diff);
+      }
+      where.issuedDate = {
+        gte: new Date(startUtcMs - 7 * 60 * 60 * 1000),
+      };
+    }
+    if (search) {
+      where.OR = [
+        { mrNumber: { contains: search, mode: 'insensitive' } },
+        { notes: { contains: search, mode: 'insensitive' } },
+        {
+          Warehouse: {
+            name: { contains: search, mode: 'insensitive' },
+          },
+        },
+        {
+          items: {
+            some: {
+              product: {
+                OR: [
+                  { name: { contains: search, mode: 'insensitive' } },
+                  { code: { contains: search, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+        },
+      ];
+    }
+
     try {
-      const [data, totalCount] = await Promise.all([
+      const [data, totalCount, statusGroups] = await Promise.all([
         prisma.materialRequisition.findMany({
+          where,
           skip,
           take: pageSize,
           orderBy: { createdAt: 'desc' },
+          relationLoadStrategy: "join",
           include: {
             Warehouse: {
               select: {
@@ -784,7 +857,11 @@ export const mrController = {
             }
           }
         }),
-        prisma.materialRequisition.count()
+        prisma.materialRequisition.count({ where }),
+        prisma.materialRequisition.groupBy({
+          by: ['status'],
+          _count: { _all: true },
+        }),
       ]);
 
       // Manually fetch related data since schema doesn't have relations
@@ -796,6 +873,8 @@ export const mrController = {
       const now = new Date();
       const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // shift to WIB
       const period = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
+      const prevPeriod = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth() - 1, 1));
+      const nextPeriod = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth() + 1, 1));
 
       const [projects, karyawans, stockBalances, stockDetails] = await Promise.all([
         prisma.project.findMany({
@@ -809,7 +888,10 @@ export const mrController = {
         prisma.stockBalance.findMany({
           where: {
             warehouseId: { in: warehouseIds },
-            productId: { in: productIds }
+            productId: { in: productIds },
+            // Cukup 2 periode terakhir: current stock = baris terbaru.
+            // Sebelumnya mengambil SEMUA periode untuk semua produk.
+            period: { gte: prevPeriod, lt: nextPeriod }
           },
           orderBy: { period: 'asc' }
         }),
@@ -877,10 +959,29 @@ export const mrController = {
 
       const totalPages = Math.ceil(totalCount / pageSize);
 
+      const stats = {
+        all: 0,
+        pending: 0,
+        approved: 0,
+        ready: 0,
+        issued: 0,
+        cancelled: 0,
+      };
+      for (const group of statusGroups) {
+        const count = group._count._all;
+        stats.all += count;
+        if (group.status === 'PENDING') stats.pending = count;
+        else if (group.status === 'APPROVED') stats.approved = count;
+        else if (group.status === 'READY_TO_PICKUP') stats.ready = count;
+        else if (group.status === 'ISSUED') stats.issued = count;
+        else if (group.status === 'CANCELLED') stats.cancelled = count;
+      }
+
       const response = {
         success: true,
         data: {
           data: enrichedData,
+          stats,
           pagination: {
             totalCount,
             totalPages,
@@ -1059,9 +1160,17 @@ export const mrController = {
     const nextPeriod = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth() + 1, 1));
 
     for (const item of mr.items) {
-      let requestedQty = Number(item.qtyRequested);
+      const requestedQty = Number(item.qtyRequested);
       let conversionFromRequestedToBase = 1;
-      let remainingToTake = requestedQty * conversionFromRequestedToBase;
+      if (item.unit === item.product?.usageUnit && item.product?.usageUnit !== item.product?.storageUnit) {
+        conversionFromRequestedToBase = 1 / (Number(item.product?.conversionToUsage) || 1);
+      } else if (item.unit === item.product?.purchaseUnit && item.product?.purchaseUnit !== item.product?.storageUnit) {
+        conversionFromRequestedToBase = Number(item.product?.conversionToStorage) || 1;
+      }
+
+      // baseQtyDeduction = qty dalam satuan storage/base
+      const baseQtyDeduction = requestedQty * conversionFromRequestedToBase;
+      let remainingToTake = baseQtyDeduction;
       let totalCost = 0;
 
       const productName = item.product?.name || 'Produk Tidak Diketahui';
@@ -1126,7 +1235,6 @@ export const mrController = {
         );
       }
 
-      const baseQtyDeduction = remainingToTake;
       for (const batch of batches) {
         if (remainingToTake <= 0) break;
         const takeAmount = Math.min(Number(batch.residualQty), remainingToTake);
@@ -1156,7 +1264,7 @@ export const mrController = {
       const newBookedStock = Math.max(0, Number(stockBalance.bookedStock) - bookedToTake);
       const newAvailable = Math.max(0, newStockAkhir - newBookedStock);
 
-      await tx.stockBalance.update({
+      const updatedBalance = await tx.stockBalance.update({
         where: { id: stockBalance.id },
         data: {
           stockOut: { increment: baseQtyDeduction },
@@ -1167,9 +1275,12 @@ export const mrController = {
         }
       });
 
-      const avgPrice = totalCost / qtyIssued;
-      const stockAwalSnapshot = Number(stockBalance.stockAkhir) + qtyIssued;
-      const stockAkhirSnapshot = Number(stockBalance.stockAkhir);
+      // pricePerUnit di StockDetail = per satuan base/storage.
+      // priceUnit di MR item = per satuan yang diminta.
+      const avgPriceBase = baseQtyDeduction > 0 ? totalCost / baseQtyDeduction : 0;
+      const pricePerRequestedUnit = qtyIssued > 0 ? totalCost / qtyIssued : 0;
+      const stockAwalSnapshot = Number(updatedBalance.stockAkhir) + baseQtyDeduction;
+      const stockAkhirSnapshot = Number(updatedBalance.stockAkhir);
       await tx.stockDetail.create({
         data: {
           productId: item.productId,
@@ -1181,7 +1292,7 @@ export const mrController = {
           transUnit: item.unit,
           stockAwalSnapshot: stockAwalSnapshot,
           stockAkhirSnapshot: stockAkhirSnapshot,
-          pricePerUnit: avgPrice,
+          pricePerUnit: avgPriceBase,
           residualQty: 0,
           isFullyConsumed: true,
           referenceNo: mr.mrNumber,
@@ -1194,9 +1305,28 @@ export const mrController = {
         where: { id: item.id },
         data: {
           qtyIssued: qtyIssued,
-          priceUnit: avgPrice
+          priceUnit: pricePerRequestedUnit
         }
       });
+
+      // Recalculate PR detail fulfillment (sama seperti issueMR single).
+      if (item.purchaseRequestDetailId) {
+        const totalIssued = await tx.materialRequisitionItem.aggregate({
+          where: {
+            purchaseRequestDetailId: item.purchaseRequestDetailId
+          },
+          _sum: {
+            qtyIssued: true
+          }
+        });
+
+        await tx.purchaseRequestDetail.update({
+          where: { id: item.purchaseRequestDetailId },
+          data: {
+            jumlahTerpenuhi: totalIssued._sum.qtyIssued || 0
+          }
+        });
+      }
     }
 
     await tx.materialRequisition.update({
@@ -1226,8 +1356,33 @@ export const mrController = {
       const succeeded = [];
       const failed = [];
 
+      // Prefetch PO yang sudah punya GR COMPLETED (hindari N+1 & bypass validasi)
+      const poIds = [...new Set(pendingMRs.map((m) => m.purchaseOrderId).filter(Boolean))];
+      const readyPoIds = poIds.length
+        ? new Set(
+            (
+              await prisma.purchaseOrder.findMany({
+                where: {
+                  id: { in: poIds },
+                  goodsReceipts: { some: { status: 'COMPLETED' } },
+                },
+                select: { id: true },
+              })
+            ).map((p) => p.id)
+          )
+        : new Set();
+
       for (const mr of pendingMRs) {
         try {
+          if (
+            mr.sourceType === 'PO' &&
+            mr.purchaseOrderId &&
+            !readyPoIds.has(mr.purchaseOrderId)
+          ) {
+            throw new Error(
+              'Barang belum diterima. Selesaikan Goods Receipt (COMPLETED) terlebih dahulu.'
+            );
+          }
           await prisma.$transaction(async (tx) => {
             await mrController._issueSingleMR(tx, mr, issuedById);
           });

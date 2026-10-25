@@ -12,100 +12,17 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { fetchAllSpk, getSpkByEmail } from "@/lib/action/master/spk/spk";
+import { fetchAllSpkReport, getSpkByEmail } from "@/lib/action/master/spk/spk";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
 import { toast } from "sonner";
-import FormMonitoringProgressSpk from "@/components/spkReport/tableData";
+import FormMonitoringProgressSpk, { type SPKDataApi } from "@/components/spkReport/tableData";
 import { useSession } from "@/components/clientSessionProvider";
-
-interface SPK {
-    id: string;
-    spkNumber: string;
-    spkDate: Date;
-    salesOrderId: string;
-    teamId: string;
-    createdById: string;
-
-    createdBy: {
-        id: string;
-        namaLengkap: string;
-        jabatan?: string | null;
-        nik?: string | null;
-        departemen?: string | null;
-    };
-
-    salesOrder: {
-        id: string;
-        soNumber: string;
-        projectName: string;
-        customer: {
-            name: string;      // diisi dari customer.name
-            address: string;   // ✅ baru
-            branch: string;    // ✅ baru
-        }
-        project?: {
-            id: string;
-            name: string;
-        };
-        items: {
-            id: string;
-            lineNo: number;
-            itemType: string;
-            name: string;
-            description?: string | null;
-            qty: number;
-            uom?: string | null;
-            unitPrice: number;
-            discount: number;
-            taxRate: number;
-            lineTotal: number;
-        }[];
-    };
-
-    team?: {
-        id: string;
-        namaTeam: string;
-        teamKaryawan?: {
-            teamId: string;
-            karyawan?: {
-                namaLengkap: string;
-                email: string;
-                jabatan: string;
-                departemen: string;
-            };
-        };
-    } | null;
-
-    details: {
-        id: string;
-        karyawan?: {
-            id: string;
-            namaLengkap: string;
-            jabatan: string;
-            email: string;
-            departemen: string;
-            nik: string;
-        };
-        salesOrderItem?: {
-            id: string;
-            name: string;
-            description?: string;
-            qty: number;
-            uom?: string | null;
-        };
-        lokasiUnit?: string | null;
-    }[];
-
-    notes?: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
 
 export default function SpkReportPageAdmin() {
     const { user, isLoading: userLoading } = useSession();
-    const [dataSpk, setDataSpk] = useState<SPK[]>([]);
+    const [dataSpk, setDataSpk] = useState<SPKDataApi[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
     const [dataKarywanByEmail, setDataKarywanByEmail] = useState<string>('');
@@ -126,17 +43,20 @@ export default function SpkReportPageAdmin() {
         try {
             setIsLoading(true);
 
-            let result: SPK[] = [];
-            if (role === "admin" || role === "super") {
-                result = await fetchAllSpk();   // ✅ ambil semua SPK untuk admin/super
-            } else {
-                result = await getSpkByEmail(email); // ✅ user biasa hanya SPK yang assigned
-            }
+            // Jalankan kedua request secara paralel — tidak saling bergantung.
+            const [result, karyawan] = await Promise.all([
+                role === "admin" || role === "super"
+                    ? fetchAllSpkReport()   // ✅ payload ringan, khusus halaman ini
+                    : getSpkByEmail(email), // ✅ user biasa hanya SPK yang assigned
+                fetchKaryawanByEmail(email).catch((error) => {
+                    console.warn("⚠️ Gagal mengambil karyawan:", error);
+                    return null;
+                }),
+            ]);
 
-            setDataSpk(result);
+            setDataSpk(result ?? []);
 
-            const karyawan = await fetchKaryawanByEmail(email);
-            if (karyawan) {
+            if (karyawan?.user?.id) {
                 setDataKarywanByEmail(karyawan.user.id);
             } else {
                 setDataKarywanByEmail("");

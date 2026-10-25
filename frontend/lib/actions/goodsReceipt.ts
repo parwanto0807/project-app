@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 /**
@@ -12,7 +13,7 @@ export async function getGoodsReceipts(query: { purchaseOrderId?: string; page?:
         if (query.page) params.append("page", query.page.toString());
         if (query.limit) params.append("limit", query.limit.toString());
 
-        const response = await fetch(`${API_URL}/api/gr?${params.toString()}`, { credentials: "include",
+        const response = await serverFetch(`${API_URL}/api/gr?${params.toString()}`, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

@@ -8,6 +8,7 @@ export interface GetMrParams {
     pageSize?: number;
     search?: string;
     status?: string;
+    dateFilter?: string;
 }
 
 export interface IssueMrParams {
@@ -28,6 +29,7 @@ export async function getDataMr(
             pageSize: (params.pageSize || 10).toString(),
             ...(params.search && { search: params.search }),
             ...(params.status && { status: params.status }),
+            ...(params.dateFilter && params.dateFilter !== "all" && { dateFilter: params.dateFilter }),
         }).toString();
 
         // 2. Memanggil API Backend

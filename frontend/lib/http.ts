@@ -162,6 +162,10 @@ export const setOnLoginPage = (value: boolean) => {
 
 // 🔥 FUNGSI UNTUK CEK APAKAH BOLEH REFRESH
 const shouldSkipRefresh = (): boolean => {
+  // Refresh hanya relevan di browser. Di Server Action / SSR tidak ada window
+  // dan tidak ada sesi token di memori, jadi selalu lewati.
+  if (typeof window === "undefined") return true;
+
   const skip =
     GLOBAL_LOGOUT_FLAG ||
     IS_ON_LOGIN_PAGE ||
@@ -189,7 +193,10 @@ setRefreshExecutor(async (): Promise<string | null> => {
   }
 
   // 🔥 CEK JIKA DI LOGIN PAGE DENGAN PARAMETER LOGOUT
-  if (window.location.pathname.includes("/auth/login")) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname.includes("/auth/login")
+  ) {
     const params = new URLSearchParams(window.location.search);
     if (params.has("logout") || params.has("reason")) {
       ;((...args: any[]) => {})(

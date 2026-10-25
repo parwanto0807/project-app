@@ -11,7 +11,13 @@
     "build": "tsc",
     "start": "node src/server.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
-    "test:security": "node scripts/security-smoke.mjs"
+    "test:security": "node scripts/security-smoke.mjs",
+    "db:indexes": "node scripts/create-inventory-indexes.mjs",
+    "db:audit-stock": "node scripts/repair-stock-balance.mjs"
+  },
+  "nodemonConfig": {
+    "watch": ["src"],
+    "ext": "js,mjs,cjs,json"
   },
   "dependencies": {
     "@quixo3/prisma-session-store": "^3.1.20",

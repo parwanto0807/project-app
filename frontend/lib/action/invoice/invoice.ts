@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import { revalidatePath } from "next/cache";
 import {
   Invoice,
@@ -83,7 +84,7 @@ export async function getInvoices(
   });
 
   try {
-    const response = await fetch(
+    const response = await serverFetch(
       `${API_BASE_URL}/api/invoice/getInvoices?${params.toString()}`,
       {
         method: "GET",
@@ -154,7 +155,7 @@ export async function getInvoiceByID(
   }
 
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/invoice/getInvoiceById/${id}`,
       {
         method: "GET",
@@ -210,7 +211,7 @@ export async function updateInvoice(
   try {
     const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/invoice/updateInvoice/${id}`;
 
-    const res = await fetch(endpoint, {
+    const res = await serverFetch(endpoint, {
       method: "PUT",
       credentials: "include",
       headers: {
@@ -277,7 +278,7 @@ export async function getInvoiceStats(year?: number): Promise<InvoiceStats> {
     params.append("year", year.toString());
   }
 
-  const response = await fetch(
+  const response = await serverFetch(
     `${API_BASE_URL}/invoice/stats?${params.toString()}`,
     {
       method: "GET",
@@ -300,7 +301,7 @@ type CreateInvoiceResponse = {
 export async function createInvoice(
   invoiceData: CreateInvoiceRequest
 ): Promise<CreateInvoiceResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/invoice/createInvoice`, {
+  const response = await serverFetch(`${API_BASE_URL}/api/invoice/createInvoice`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -323,7 +324,7 @@ export async function updateInvoiceStatus(
   id: string,
   statusData: UpdateInvoiceStatusRequest
 ): Promise<Invoice> {
-  const response = await fetch(`${API_BASE_URL}/invoice/${id}/status`, {
+  const response = await serverFetch(`${API_BASE_URL}/invoice/${id}/status`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -342,7 +343,7 @@ export async function addPayment(
   id: string,
   paymentData: AddPaymentRequest
 ): Promise<Invoice> {
-  const response = await fetch(
+  const response = await serverFetch(
     `${API_BASE_URL}/api/invoice/addPayment/${id}/payments`,
     {
       method: "POST",
@@ -360,7 +361,7 @@ export async function addPayment(
 }
 
 export async function deleteInvoice(id: string): Promise<void> {
-  const response = await fetch(
+  const response = await serverFetch(
     `${API_BASE_URL}/api/invoice/deleteInvoice/${id}`,
     {
       method: "DELETE",
@@ -382,7 +383,7 @@ export async function approveInvoice(id: string): Promise<Invoice> {
   try {
     // URL yang benar berdasarkan route backend
     const url = `${API_BASE_URL}/api/invoice/${id}/approve`;
-    const response = await fetch(url, {
+    const response = await serverFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -414,7 +415,7 @@ export async function rejectInvoice(
   id: string,
   rejectData: RejectInvoiceRequest
 ): Promise<Invoice> {
-  const response = await fetch(`${API_BASE_URL}/invoice/${id}/reject`, {
+  const response = await serverFetch(`${API_BASE_URL}/invoice/${id}/reject`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -430,7 +431,7 @@ export async function rejectInvoice(
 }
 
 export async function postInvoiceToJournal(id: string): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/api/invoice/${id}/post`, {
+  const response = await serverFetch(`${API_BASE_URL}/api/invoice/${id}/post`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -450,7 +451,7 @@ export async function postInvoiceToJournal(id: string): Promise<any> {
 }
 
 export async function reopenInvoice(id: string): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/api/invoice/${id}/reopen`, {
+  const response = await serverFetch(`${API_BASE_URL}/api/invoice/${id}/reopen`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
