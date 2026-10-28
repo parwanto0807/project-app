@@ -187,7 +187,7 @@ export default function OpeningBalancePage() {
             subtitle="Admin Area"
             role="admin"
         >
-            <div className="p-4 md:p-8 space-y-8 bg-slate-50/50 min-h-screen">
+            <div className="p-4 md:p-4 sm:p-6 lg:p-4 sm:p-6 lg:p-8 space-y-8 bg-slate-50/50 min-h-screen">
                 {/* Breadcrumb Section */}
                 <div className="flex items-center gap-2 mb-2">
                     <Badge variant="outline" className="bg-white text-slate-600 border-slate-200 hover:bg-slate-50 transition-colors px-3 py-1.5 rounded-lg shadow-sm">

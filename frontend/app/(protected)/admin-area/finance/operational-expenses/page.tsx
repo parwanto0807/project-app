@@ -91,7 +91,7 @@ const OperationalExpensePage = () => {
     return (
         <AdminLayout title="Biaya Operasional" role="admin">
             <div className="flex-col md:flex">
-                <div className="flex-1 space-y-4 p-8 pt-6">
+                <div className="flex-1 space-y-4 p-4 sm:p-6 lg:p-4 sm:p-6 lg:p-8 pt-6">
                     <Breadcrumb>
                         <BreadcrumbList>
                             <BreadcrumbItem>

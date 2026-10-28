@@ -76,13 +76,7 @@ export default function InvoicePageAdmin() {
             setIsDataFetching(true);
 
             // DEBUG: Pastikan urlDateFilter ada nilainya
-            ;((...args: any[]) => {})('🔄 fetchData URL parameters:', {
-                urlPage,
-                urlPageSize,
-                urlSearch,
-                urlStatusFilter,
-                urlDateFilter // Pastikan ini ada nilainya
-            });
+            
 
             const [result, resultBank] = await Promise.all([
                 getInvoices(

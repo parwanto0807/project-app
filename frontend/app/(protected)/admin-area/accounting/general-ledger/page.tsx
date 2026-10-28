@@ -451,7 +451,6 @@ export default function GeneralLedgerSummaryPage() {
                     </div>
                 </div>
 
-
                 {/* Main Content Card */}
                 <Card className="border-none shadow-lg overflow-hidden rounded-xl">
                     {/* <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-blue-50/20 p-4 sm:p-6">
@@ -479,7 +478,6 @@ export default function GeneralLedgerSummaryPage() {
                         />
                     </CardContent>
                 </Card>
-
 
                 {/* Total Records Info */}
                 {!isLoading && data.length > 0 && (

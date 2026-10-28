@@ -56,14 +56,11 @@ export default function UMCreatePageAdmin() {
     // Di page.tsx - perbaiki handleCreateUangMuka
     const handleCreateUangMuka = async (submitData: SubmitDataWithFile): Promise<void> => {
         try {
-            ;((...args: any[]) => {})("📤 SubmitData dari form:", {
-                data: submitData.data,
-                file: submitData.file?.name || "Tidak ada file"
-            });
+            
 
             const result = await createUangMuka(submitData);
 
-            ;((...args: any[]) => {})("✅ Success response:", result);
+            
             toast.success("Uang Muka created successfully!");
             router.push("/admin-area/finance/prApprove");
 

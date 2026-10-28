@@ -81,7 +81,7 @@ export default function CashFlowPage() {
 
     return (
         <AdminLayout title="Laporan Arus Kas" role={role as any}>
-            <div className="flex flex-col gap-6 p-4 md:p-8">
+            <div className="flex flex-col gap-6 p-4 md:p-4 sm:p-6 lg:p-4 sm:p-6 lg:p-8">
                 <Breadcrumb>
                     <BreadcrumbList>
                         <BreadcrumbItem>
