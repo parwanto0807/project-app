@@ -132,7 +132,7 @@ export default function CreatePRPageAdmin() {
         data: productsData,
         isLoading: loadingProducts,
         error: errorProducts
-    } = useProducts();
+    } = useProducts({ compact: true, isActive: true });
 
     const {
         user,
@@ -148,6 +148,7 @@ export default function CreatePRPageAdmin() {
     } = usePurchaseRequest();
 
     const [dataSpk, setDataSpk] = useState<SPK[]>([]);
+    const [loadingSpk, setLoadingSpk] = useState(true);
     const products = productsData?.products || [];
 
     const currentUser = user ? {
@@ -172,11 +173,14 @@ export default function CreatePRPageAdmin() {
 
     const fetchData = async () => {
         try {
+            setLoadingSpk(true);
             const result = await fetchAllSpkPr();
-            setDataSpk(result);
+            setDataSpk(Array.isArray(result) ? result : []);
         } catch (error) {
             console.error("Error fetching SPK data:", error);
             toast.error("Gagal memuat data SPK");
+        } finally {
+            setLoadingSpk(false);
         }
     };
 
@@ -277,6 +281,7 @@ export default function CreatePRPageAdmin() {
                         <TabelInputPR
                             products={products}
                             dataSpk={dataSpk}
+                            loadingSpk={loadingSpk}
                             currentUser={currentUser}
                             onSubmit={handleCreatePurchaseRequest}
                             onSuccess={() => router.push("/admin-area/logistic/pr")}

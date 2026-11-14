@@ -1,5 +1,6 @@
 import { prisma } from "../../config/db.js";
 import { createLedgerEntry, getWarehouseInventoryAccountKey } from "../../utils/journalHelper.js";
+import { getPeriodDate } from "../../utils/dateUtils.js";
 
 export const mrController = {
   // 1. Create MR (Setelah PR Approved - Source Internal)
@@ -104,12 +105,10 @@ export const mrController = {
           }
         }
 
-        // Gunakan mr.createdAt untuk menentukan periode StockBalance
-        // (mengikuti bulan saat MR dibuat, bukan bulan saat issue — menghindari mismatch antar bulan)
-        const mrDate = mr.createdAt || new Date();
-        const mrJakarta = new Date(mrDate.getTime() + (7 * 60 * 60 * 1000));
-        const period = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth(), 1));
-        const nextPeriod = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth() + 1, 1));
+        // Gunakan tanggal issue (saat ini) untuk menentukan periode StockBalance aktif
+        // (agar pengeluaran MR bulan lalu tidak mengotori StockBalance bulan lalu yang sudah di-closing)
+        const period = getPeriodDate();
+        const nextPeriod = new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 1));
 
         // 2. Loop setiap item untuk eksekusi FIFO
         for (const item of mr.items) {
@@ -130,7 +129,7 @@ export const mrController = {
           const productCode = item.product?.code ? ` (${item.product.code})` : '';
           const productLabel = `${productName}${productCode}`;
 
-          // PRE-VALIDATION: Cari StockBalance di periode yang sesuai (range sebulan)
+          // PRE-VALIDATION: Cari StockBalance di periode aktif saat ini (range sebulan)
           let stockBalance = await tx.stockBalance.findFirst({
             where: {
               productId: item.productId,
@@ -140,28 +139,39 @@ export const mrController = {
             orderBy: { period: "desc" }
           });
 
-          // Fallback: cari StockBalance dengan bookedStock > 0 (booking dari approve PR)
-          if (!stockBalance || Number(stockBalance.bookedStock) <= 0) {
-            const withBooking = await tx.stockBalance.findFirst({
-              where: {
-                productId: item.productId,
-                warehouseId: mr.warehouseId,
-                bookedStock: { gt: 0 }
-              },
-              orderBy: { period: "desc" }
-            });
-            if (withBooking) stockBalance = withBooking;
-          }
-
-          // Fallback terakhir: ambil StockBalance terakhir apapun periodenya
+          // Jika belum ada StockBalance untuk periode saat ini (misal closing belum dibuat untuk item ini),
+          // ambil dari periode terakhir dan buatkan row baru untuk periode saat ini (rollover)
           if (!stockBalance) {
-            stockBalance = await tx.stockBalance.findFirst({
+            const prevBalance = await tx.stockBalance.findFirst({
               where: {
                 productId: item.productId,
                 warehouseId: mr.warehouseId,
+                period: { lt: period }
               },
               orderBy: { period: "desc" }
             });
+            if (prevBalance) {
+              const prevStockAkhir = Number(prevBalance.stockAkhir) || 0;
+              const prevBooked = Number(prevBalance.bookedStock) || 0;
+              const prevOnPR = Number(prevBalance.onPR) || 0;
+              stockBalance = await tx.stockBalance.create({
+                data: {
+                  productId: item.productId,
+                  warehouseId: mr.warehouseId,
+                  period,
+                  stockAwal: prevStockAkhir,
+                  stockIn: 0,
+                  stockOut: 0,
+                  justIn: 0,
+                  justOut: 0,
+                  stockAkhir: prevStockAkhir,
+                  bookedStock: prevBooked,
+                  onPR: prevOnPR,
+                  availableStock: Math.max(0, prevStockAkhir - prevBooked),
+                  inventoryValue: prevStockAkhir <= 0 ? 0 : (Number(prevBalance.inventoryValue) || 0)
+                }
+              });
+            }
           }
 
           if (!stockBalance) {
@@ -237,7 +247,7 @@ export const mrController = {
                 baseQty: remainingToTake,
                 residualQty: remainingToTake,
                 stockAwalSnapshot: Number(stockBalance.stockAkhir),
-                stockAkhirSnapshot: Math.max(0, Number(stockBalance.stockAkhir) - remainingToTake),
+                stockAkhirSnapshot: Number(stockBalance.stockAkhir),
                 type: 'ADJUSTMENT_IN',
                 source: 'SYSTEM',
                 pricePerUnit: avgPrice,
@@ -1154,10 +1164,8 @@ export const mrController = {
 
   // ============== HELPER: Issue Single MR within a transaction ==============
   _issueSingleMR: async (tx, mr, issuedById) => {
-    const mrDate = mr.createdAt || new Date();
-    const mrJakarta = new Date(mrDate.getTime() + (7 * 60 * 60 * 1000));
-    const period = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth(), 1));
-    const nextPeriod = new Date(Date.UTC(mrJakarta.getUTCFullYear(), mrJakarta.getUTCMonth() + 1, 1));
+    const period = getPeriodDate();
+    const nextPeriod = new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 1));
 
     for (const item of mr.items) {
       const requestedQty = Number(item.qtyRequested);
@@ -1177,7 +1185,7 @@ export const mrController = {
       const productCode = item.product?.code || '';
       const productLabel = `${productName}${productCode}`;
 
-      // Cari StockBalance (range sebulan)
+      // Cari StockBalance di periode aktif saat ini (range sebulan)
       let stockBalance = await tx.stockBalance.findFirst({
         where: {
           productId: item.productId,
@@ -1187,23 +1195,37 @@ export const mrController = {
         orderBy: { period: 'desc' }
       });
 
-      if (!stockBalance || Number(stockBalance.bookedStock) <= 0) {
-        const withBooking = await tx.stockBalance.findFirst({
+      if (!stockBalance) {
+        const prevBalance = await tx.stockBalance.findFirst({
           where: {
             productId: item.productId,
             warehouseId: mr.warehouseId,
-            bookedStock: { gt: 0 }
+            period: { lt: period }
           },
           orderBy: { period: 'desc' }
         });
-        if (withBooking) stockBalance = withBooking;
-      }
-
-      if (!stockBalance) {
-        stockBalance = await tx.stockBalance.findFirst({
-          where: { productId: item.productId, warehouseId: mr.warehouseId },
-          orderBy: { period: 'desc' }
-        });
+        if (prevBalance) {
+          const prevStockAkhir = Number(prevBalance.stockAkhir) || 0;
+          const prevBooked = Number(prevBalance.bookedStock) || 0;
+          const prevOnPR = Number(prevBalance.onPR) || 0;
+          stockBalance = await tx.stockBalance.create({
+            data: {
+              productId: item.productId,
+              warehouseId: mr.warehouseId,
+              period,
+              stockAwal: prevStockAkhir,
+              stockIn: 0,
+              stockOut: 0,
+              justIn: 0,
+              justOut: 0,
+              stockAkhir: prevStockAkhir,
+              bookedStock: prevBooked,
+              onPR: prevOnPR,
+              availableStock: Math.max(0, prevStockAkhir - prevBooked),
+              inventoryValue: prevStockAkhir <= 0 ? 0 : (Number(prevBalance.inventoryValue) || 0)
+            }
+          });
+        }
       }
 
       if (!stockBalance) {

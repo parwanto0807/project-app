@@ -154,6 +154,25 @@ export default function CreateFormPO({
     const [selectedItems, setSelectedItems] = useState<ProductItem[]>([]);
     const [productSearchStates, setProductSearchStates] = useState<Record<number, { open: boolean; query: string }>>({});
     const [selectedProjectName, setSelectedProjectName] = useState<string>("");
+    const [spkOpen, setSpkOpen] = useState(false);
+    const [spkSearch, setSpkSearch] = useState("");
+
+    const visibleSpkList = useMemo(() => {
+        const q = spkSearch.trim().toLowerCase();
+        if (!q) return spkList.slice(0, 80);
+        const matched: SPKDataApi[] = [];
+        for (let i = 0; i < spkList.length; i++) {
+            const s = spkList[i];
+            const spkNo = s.spkNumber?.toLowerCase() || "";
+            const projName = (s.salesOrder?.project?.name || s.salesOrder?.projectName || "").toLowerCase();
+            const soNo = s.salesOrder?.soNumber?.toLowerCase() || "";
+            if (spkNo.includes(q) || projName.includes(q) || soNo.includes(q)) {
+                matched.push(s);
+                if (matched.length >= 80) break;
+            }
+        }
+        return matched;
+    }, [spkList, spkSearch]);
 
     // Initialize form
     const form = useForm<FormValues>({
@@ -587,58 +606,124 @@ export default function CreateFormPO({
                                                 <FormField
                                                     control={form.control}
                                                     name="spkId"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel className="text-sm font-medium flex items-center gap-2 mb-3">
-                                                                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900 dark:to-cyan-800 flex items-center justify-center">
-                                                                    <FileCheck className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                                                                </div>
-                                                                <span>SPK (Opsional)</span>
-                                                            </FormLabel>
-                                                            <Select
-                                                                onValueChange={(value) => {
-                                                                    field.onChange(value);
-                                                                    // Auto-populate projectId from selected SPK
-                                                                    const selectedSpk = spkList.find(spk => spk.id === value);
-                                                                    // Try different paths for projectId
-                                                                    const projectId = selectedSpk?.salesOrder?.project?.id ||
-                                                                        (selectedSpk?.salesOrder as { projectId?: string })?.projectId
-                                                                    if (projectId) {
-                                                                        form.setValue("projectId", projectId, { shouldValidate: true, shouldDirty: true });
-                                                                        setSelectedProjectName(selectedSpk?.salesOrder?.project?.name || selectedSpk?.salesOrder?.projectName || "");
-                                                                        toast.success(`Project otomatis dipilih: ${selectedSpk?.salesOrder?.project?.name}`);
-                                                                    } else {
-                                                                        ;((...args: any[]) => {})("No projectId found in SPK");
-                                                                        setSelectedProjectName("");
-                                                                        toast.info("SPK ini tidak memiliki project terkait");
-                                                                    }
-                                                                }}
-                                                                value={field.value}
-                                                            >
-                                                                <FormControl>
-                                                                    <SelectTrigger className="w-full h-11 border-gray-200 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-500 bg-gradient-to-r from-cyan-50/30 to-white dark:from-gray-900 dark:to-gray-800">
-                                                                        <SelectValue placeholder="Pilih SPK" />
-                                                                    </SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    {spkList.map((spk) => (
-                                                                        <SelectItem
-                                                                            key={spk.id}
-                                                                            value={spk.id}
-                                                                        >
-                                                                            <div className="flex flex-col">
-                                                                                <span className="font-medium dark:text-gray-100">{spk.spkNumber}</span>
-                                                                                <span className="text-xs text-muted-foreground">
-                                                                                    {spk.salesOrder?.project?.name || spk.salesOrder?.projectName || spk.salesOrder?.soNumber}
+                                                    render={({ field }) => {
+                                                        const currentSpk = spkList.find((spk) => spk.id === field.value);
+                                                        return (
+                                                            <FormItem>
+                                                                <FormLabel className="text-sm font-medium flex items-center gap-2 mb-3">
+                                                                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900 dark:to-cyan-800 flex items-center justify-center">
+                                                                        <FileCheck className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                                                                    </div>
+                                                                    <span>SPK (Opsional)</span>
+                                                                </FormLabel>
+                                                                <Popover
+                                                                    open={spkOpen}
+                                                                    onOpenChange={(open) => {
+                                                                        setSpkOpen(open);
+                                                                        if (!open) setSpkSearch("");
+                                                                    }}
+                                                                >
+                                                                    <PopoverTrigger asChild>
+                                                                        <FormControl>
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                role="combobox"
+                                                                                aria-expanded={spkOpen}
+                                                                                className={cn(
+                                                                                    "w-full h-11 justify-between text-left font-normal truncate border-gray-200 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-500 bg-gradient-to-r from-cyan-50/30 to-white dark:from-gray-900 dark:to-gray-800",
+                                                                                    !field.value && "text-muted-foreground"
+                                                                                )}
+                                                                            >
+                                                                                <span className="truncate">
+                                                                                    {currentSpk
+                                                                                        ? `${currentSpk.spkNumber} - ${currentSpk.salesOrder?.project?.name || currentSpk.salesOrder?.projectName || currentSpk.salesOrder?.soNumber || "-"}`
+                                                                                        : "Pilih SPK"}
                                                                                 </span>
-                                                                            </div>
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
+                                                                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                            </Button>
+                                                                        </FormControl>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent
+                                                                        className="w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[480px] p-0"
+                                                                        align="start"
+                                                                    >
+                                                                        <Command shouldFilter={false}>
+                                                                            <CommandInput
+                                                                                placeholder="Cari nomor SPK, proyek, atau SO..."
+                                                                                className="h-10"
+                                                                                value={spkSearch}
+                                                                                onValueChange={setSpkSearch}
+                                                                            />
+                                                                            <CommandList className="max-h-72 overflow-auto">
+                                                                                <CommandGroup>
+                                                                                    {(!spkSearch.trim() || "tidak ada spk".includes(spkSearch.trim().toLowerCase())) && (
+                                                                                        <CommandItem
+                                                                                            value="_none"
+                                                                                            onSelect={() => {
+                                                                                                field.onChange("");
+                                                                                                form.setValue("projectId", "");
+                                                                                                setSelectedProjectName("");
+                                                                                                setSpkOpen(false);
+                                                                                                setSpkSearch("");
+                                                                                            }}
+                                                                                            className="cursor-pointer text-muted-foreground"
+                                                                                        >
+                                                                                            <span>Tidak menggunakan SPK</span>
+                                                                                            {!field.value && (
+                                                                                                <Check className="ml-auto h-4 w-4 text-cyan-600 shrink-0" />
+                                                                                            )}
+                                                                                        </CommandItem>
+                                                                                    )}
+                                                                                    {visibleSpkList.map((spk) => (
+                                                                                        <CommandItem
+                                                                                            key={spk.id}
+                                                                                            value={spk.id}
+                                                                                            onSelect={() => {
+                                                                                                field.onChange(spk.id);
+                                                                                                const projectId =
+                                                                                                    spk.salesOrder?.project?.id ||
+                                                                                                    (spk.salesOrder as { projectId?: string })?.projectId;
+                                                                                                if (projectId) {
+                                                                                                    form.setValue("projectId", projectId, { shouldValidate: true, shouldDirty: true });
+                                                                                                    setSelectedProjectName(spk.salesOrder?.project?.name || spk.salesOrder?.projectName || "");
+                                                                                                    toast.success(`Project otomatis dipilih: ${spk.salesOrder?.project?.name}`);
+                                                                                                } else {
+                                                                                                    setSelectedProjectName("");
+                                                                                                    toast.info("SPK ini tidak memiliki project terkait");
+                                                                                                }
+                                                                                                setSpkOpen(false);
+                                                                                                setSpkSearch("");
+                                                                                            }}
+                                                                                            className="cursor-pointer"
+                                                                                        >
+                                                                                            <div className="flex flex-col min-w-0 flex-1">
+                                                                                                <span className="font-medium truncate dark:text-gray-100">
+                                                                                                    {spk.spkNumber}
+                                                                                                </span>
+                                                                                                <span className="text-xs text-muted-foreground truncate">
+                                                                                                    {spk.salesOrder?.project?.name || spk.salesOrder?.projectName || spk.salesOrder?.soNumber}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                            {field.value === spk.id && (
+                                                                                                <Check className="ml-2 h-4 w-4 text-cyan-600 shrink-0" />
+                                                                                            )}
+                                                                                        </CommandItem>
+                                                                                    ))}
+                                                                                    {visibleSpkList.length === 0 && (
+                                                                                        <div className="p-4 text-center text-sm text-muted-foreground">
+                                                                                            SPK tidak ditemukan
+                                                                                        </div>
+                                                                                    )}
+                                                                                </CommandGroup>
+                                                                            </CommandList>
+                                                                        </Command>
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        );
+                                                    }}
                                                 />
                                             </div>
 

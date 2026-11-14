@@ -19,7 +19,7 @@ import { AdminLoading } from "@/components/admin-loading";
 import { useProducts } from "@/hooks/use-product";
 import { usePurchaseRequest, usePurchaseRequestDetail } from "@/hooks/use-pr";
 import { CreatePurchaseRequestData, UpdatePurchaseRequestData } from "@/types/pr";
-import { fetchAllSpk } from "@/lib/action/master/spk/spk";
+import { fetchAllSpkPr } from "@/lib/action/master/spk/spk";
 import { toast } from "sonner";
 import { useSession } from "@/components/clientSessionProvider";
 import { useMutation } from "@tanstack/react-query";
@@ -151,7 +151,7 @@ export default function UpdatePRPageAdmin() {
         data: productsData,
         isLoading: loadingProducts,
         error: errorProducts
-    } = useProducts();
+    } = useProducts({ compact: true, isActive: true });
 
     const {
         user,
@@ -200,8 +200,8 @@ export default function UpdatePRPageAdmin() {
     const fetchData = useCallback(async () => {
         try {
             setLoadingSpk(true);
-            const spkResult = await fetchAllSpk();
-            setDataSpk(spkResult);
+            const spkResult = await fetchAllSpkPr();
+            setDataSpk(Array.isArray(spkResult) ? spkResult : []);
         } catch (error) {
             console.error("Error fetching SPK data:", error);
             toast.error("Gagal memuat data SPK");

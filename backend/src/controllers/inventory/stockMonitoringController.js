@@ -404,7 +404,7 @@ export const stockMonitoringController = {
                      productId: productId,
                      warehouseId: wh.id
                  },
-                 orderBy: { updatedAt: 'desc' },
+                 orderBy: [{ period: 'desc' }, { updatedAt: 'desc' }],
                  take: 1
              });
              
@@ -457,7 +457,7 @@ export const stockMonitoringController = {
             productId: productId,
             warehouseId: warehouseId
           },
-          orderBy: { updatedAt: 'desc' },
+          orderBy: [{ period: 'desc' }, { updatedAt: 'desc' }],
           select: { availableStock: true }
         });
         stockValue = balance ? Number(balance.availableStock) : 0;
@@ -471,7 +471,7 @@ export const stockMonitoringController = {
          const balances = await Promise.all(warehouses.map(async (wh) => {
              const b = await prisma.stockBalance.findFirst({
                  where: { productId, warehouseId: wh.id },
-                 orderBy: { updatedAt: 'desc' },
+                 orderBy: [{ period: 'desc' }, { updatedAt: 'desc' }],
                  select: { availableStock: true }
              });
              return b ? Number(b.availableStock) : 0;

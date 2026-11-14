@@ -767,16 +767,28 @@ export const getAllSPKReport = async (req, res) => {
 
 export const getAllSPKPr = async (req, res) => {
   try {
+    const includeItems = req.query?.includeItems === "true";
+
     const spkList = await prisma.sPK.findMany({
-      // where: {
-      // where: {
-      //   // spkStatusClose: false, // Commented out to show ALL SPKs
-      // },
-      // },
-      include: {
-        createdBy: true,
+      relationLoadStrategy: "join",
+      select: {
+        id: true,
+        spkNumber: true,
+        spkDate: true,
+        salesOrderId: true,
+        teamId: true,
+        createdById: true,
+        progress: true,
+        createdBy: {
+          select: {
+            id: true,
+            namaLengkap: true,
+          },
+        },
         salesOrder: {
-          include: {
+          select: {
+            id: true,
+            soNumber: true,
             customer: {
               select: {
                 name: true,
@@ -790,23 +802,49 @@ export const getAllSPKPr = async (req, res) => {
                 name: true,
               },
             },
-            items: true,
+            ...(includeItems
+              ? {
+                  items: {
+                    select: {
+                      id: true,
+                      lineNo: true,
+                      itemType: true,
+                      name: true,
+                      description: true,
+                      qty: true,
+                      uom: true,
+                    },
+                    orderBy: { lineNo: "asc" },
+                  },
+                }
+              : {}),
           },
         },
-        team: true,
-        details: {
-          include: {
-            karyawan: true,
-            salesOrderItem: true,
+        team: {
+          select: {
+            id: true,
+            namaTeam: true,
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    res.json(spkList);
+    const formatted = spkList.map((spk) => ({
+      ...spk,
+      salesOrder: spk.salesOrder
+        ? {
+            ...spk.salesOrder,
+            projectName: spk.salesOrder.project?.name || "",
+            items: spk.salesOrder.items || [],
+          }
+        : null,
+      details: [],
+    }));
+
+    res.json(formatted);
   } catch (error) {
-    console.error("Error getAllSPK:", error);
+    console.error("Error getAllSPKPr:", error);
     res.status(500).json({ error: "Failed to fetch SPK list" });
   }
 };

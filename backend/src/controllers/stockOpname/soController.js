@@ -252,8 +252,8 @@ export const stockOpnameController = {
         }
 
         const rawDate = opname.tanggalOpname ? new Date(opname.tanggalOpname) : new Date();
-        const monthStart = new Date(Date.UTC(rawDate.getUTCFullYear(), rawDate.getUTCMonth(), 1));
-        const monthEnd = new Date(Date.UTC(rawDate.getUTCFullYear(), rawDate.getUTCMonth() + 1, 1));
+        const monthStart = getPeriodDate(rawDate);
+        const monthEnd = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1));
 
         // 2. Loop setiap item untuk adjustment
         for (const item of opname.items) {
@@ -554,9 +554,8 @@ export const stockOpnameController = {
       }
 
       const result = await prisma.$transaction(async (tx) => {
-        const now = new Date();
-        const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-        const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+        const monthStart = getPeriodDate();
+        const monthEnd = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1));
 
         const balance = await tx.stockBalance.findFirst({
           where: {
