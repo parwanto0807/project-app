@@ -44,5 +44,26 @@ if (NODE_ENV !== "production") {
 }
 export const allowedOrigins = NODE_ENV === "production" ? prodOrigins : devOrigins;
 
+// Di development, Next.js otomatis pindah port (3001, 3002, ...) bila port
+// sebelumnya sudah dipakai. Izinkan semua origin localhost di dev agar CORS
+// tidak menolak frontend yang berjalan di port selain 3000.
+const isLocalDevOrigin = (origin) => {
+  if (NODE_ENV === "production") return false;
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return (
+      protocol === "http:" &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(hostname)
+    );
+  } catch {
+    return false;
+  }
+};
+
+export const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // request tanpa Origin (mobile / server-to-server)
+  return allowedOrigins.includes(origin) || isLocalDevOrigin(origin);
+};
+
   ;(() => {})(NODE_ENV);
   ;(() => {})(allowedOrigins);

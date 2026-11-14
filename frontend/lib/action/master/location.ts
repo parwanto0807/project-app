@@ -1,10 +1,11 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function fetchLocations() {
   try {
-    const res = await fetch(`${API_URL}/api/master/location`, {
+    const res = await serverFetch(`${API_URL}/api/master/location`, {
       method: "GET",
       credentials: "include",
       cache: "no-store",
@@ -22,7 +23,7 @@ export async function fetchLocations() {
 
 export async function createLocation(data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/master/location`, {
+    const res = await serverFetch(`${API_URL}/api/master/location`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -41,7 +42,7 @@ export async function createLocation(data: any) {
 
 export async function updateLocation(id: string, data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/master/location/${id}`, {
+    const res = await serverFetch(`${API_URL}/api/master/location/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -60,7 +61,7 @@ export async function updateLocation(id: string, data: any) {
 
 export async function deleteLocation(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/master/location/${id}`, {
+    const res = await serverFetch(`${API_URL}/api/master/location/${id}`, {
       method: "DELETE",
       credentials: "include",
     });

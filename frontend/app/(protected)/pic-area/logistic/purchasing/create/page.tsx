@@ -84,7 +84,7 @@ export default function CreatePurchaseOrderPage() {
                 fetchSuppliers(),
                 getWarehouses(),
                 fetchAllProjects(),
-                fetchAllProducts(),
+                fetchAllProducts({ compact: true }),
                 fetchAllSpkPr(),
             ]);
 

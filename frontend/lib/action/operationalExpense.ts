@@ -32,7 +32,7 @@ export const getOperationalExpenses = async (params?: any) => {
         const authHeaders = await getAuthHeaders();
         const cookieHeader = await getCookieHeader();
 
-        const response = await fetch(`${API_BASE}/finance/operational-expenses?${query}`, {
+        const response = await fetch(`${API_BASE}/finance/operational-expenses?${query}`, { credentials: "include",
             method: "GET",
             headers: {
                 ...authHeaders,
@@ -57,7 +57,7 @@ export const createOperationalExpense = async (formData: FormData) => {
         delete headers["Content-Type"];
         delete headers["content-type"];
 
-        const response = await fetch(`${API_BASE}/finance/operational-expenses`, {
+        const response = await fetch(`${API_BASE}/finance/operational-expenses`, { credentials: "include",
             method: "POST",
             headers: {
                 ...headers,
@@ -84,7 +84,7 @@ export const updateOperationalExpense = async (id: string, formData: FormData) =
         delete headers["Content-Type"];
         delete headers["content-type"];
 
-        const response = await fetch(`${API_BASE}/finance/operational-expenses/${id}`, {
+        const response = await fetch(`${API_BASE}/finance/operational-expenses/${id}`, { credentials: "include",
             method: "PUT",
             headers: {
                 ...headers,
@@ -106,7 +106,7 @@ export const updateOperationalExpenseStatus = async (id: string, status: string,
         const authHeaders = await getAuthHeaders();
         const cookieHeader = await getCookieHeader();
 
-        const response = await fetch(`${API_BASE}/finance/operational-expenses/${id}/status`, {
+        const response = await fetch(`${API_BASE}/finance/operational-expenses/${id}/status`, { credentials: "include",
             method: "PATCH",
             headers: {
                 ...authHeaders,
@@ -129,7 +129,7 @@ export const deleteOperationalExpense = async (id: string) => {
         const authHeaders = await getAuthHeaders();
         const cookieHeader = await getCookieHeader();
 
-        const response = await fetch(`${API_BASE}/finance/operational-expenses/${id}`, {
+        const response = await fetch(`${API_BASE}/finance/operational-expenses/${id}`, { credentials: "include",
             method: "DELETE",
             headers: {
                 ...authHeaders,

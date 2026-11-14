@@ -133,7 +133,7 @@ export default function StockOpnamePage() {
     const fetchWarehouses = async () => {
         try {
             // Ganti dengan API warehouses yang sesuai
-            const response = await fetch('/api/warehouse');
+            const response = await fetch('/api/warehouse', { credentials: "include" });
             if (response.ok) {
                 const data = await response.json();
                 if (data.success && data.data) {
@@ -191,7 +191,7 @@ export default function StockOpnamePage() {
             if (filters.startDate) queryParams.append('startDate', filters.startDate);
             if (filters.endDate) queryParams.append('endDate', filters.endDate);
 
-            const response = await fetch(`/api/stock-opname/export?${queryParams.toString()}`);
+            const response = await fetch(`/api/stock-opname/export?${queryParams.toString()}`, { credentials: "include" });
 
             if (response.ok) {
                 const blob = await response.blob();

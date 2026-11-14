@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -84,8 +84,15 @@ const ReportHistoryTab = ({
 }: ReportHistoryTabProps) => {
     const [currentPage, setCurrentPage] = useState(1);
 
-    const totalPages = Math.ceil(reports.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
+    // Kembali ke halaman pertama saat data/filter berubah, agar tabel tidak
+    // menampilkan halaman kosong setelah jumlah laporan menyusut.
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [reports, itemsPerPage]);
+
+    const totalPages = Math.max(1, Math.ceil(reports.length / itemsPerPage));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * itemsPerPage;
     const currentReports = reports.slice(startIndex, startIndex + itemsPerPage);
 
     const groupedReports = currentReports.reduce<Record<string, typeof currentReports>>(

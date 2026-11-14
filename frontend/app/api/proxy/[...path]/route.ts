@@ -11,7 +11,7 @@ export async function GET(
     const backendUrl = `http://localhost:5000/${targetPath}`;
 
 
-    const response = await fetch(backendUrl);
+    const response = await fetch(backendUrl, { credentials: "include" });
 
     if (!response.ok) {
       console.error("Backend returned:", response.status, response.statusText);

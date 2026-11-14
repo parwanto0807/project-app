@@ -1,7 +1,5 @@
 import express from "express";
-import multer from "multer";
-import path from "path";
-
+import { createImageUpload } from "../../../utils/secureUpload.js";
 import {
   getKaryawanCount,
   getAllKaryawan,
@@ -29,17 +27,9 @@ import { authenticateToken } from "../../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/* ----------------------------- MULTER CONFIG ----------------------------- */
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(process.cwd(), "public/images/employee"));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
-const upload = multer({ storage });
+/* ----------------------------- UPLOAD CONFIG ----------------------------- */
+// Foto karyawan/KTP: maks 5 MB, hanya JPG/PNG/WebP.
+const upload = createImageUpload("images/employee", 5, 2);
 
 /* ----------------------------- KARYAWAN ROUTES ----------------------------- */
 router.get("/getKaryawanCount", getKaryawanCount);

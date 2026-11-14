@@ -11,7 +11,7 @@ export async function fetchWithRefresh(input: RequestInfo | URL, init: RequestIn
   const req = new Request(withBase(originalUrl), { credentials: "include", ...init });
 
   const isRefreshCall = originalUrl.includes(REFRESH_PATH);
-  const firstRes = await fetch(req.clone());
+  const firstRes = await fetch(req.clone(), { credentials: "include" });
   if (isRefreshCall || (firstRes.status !== 401 && firstRes.status !== 403)) {
     return firstRes;
   }
@@ -28,7 +28,7 @@ export async function fetchWithRefresh(input: RequestInfo | URL, init: RequestIn
     return firstRes;
   }
 
-  const retryRes = await fetch(req.clone());
+  const retryRes = await fetch(req.clone(), { credentials: "include" });
   if (retryRes.status === 401 || retryRes.status === 403) {
     if (typeof window !== "undefined") window.location.href = "/auth/login";
   }

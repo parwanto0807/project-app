@@ -433,6 +433,25 @@ export default function UpdateFormPO({
     const [selectedProjectName, setSelectedProjectName] = useState<string>(
         initialData.project?.name || ""
     );
+    const [spkOpen, setSpkOpen] = useState(false);
+    const [spkSearch, setSpkSearch] = useState("");
+
+    const visibleSpkList = useMemo(() => {
+        const q = spkSearch.trim().toLowerCase();
+        if (!q) return spkList.slice(0, 80);
+        const matched: SPKDataApi[] = [];
+        for (let i = 0; i < spkList.length; i++) {
+            const s = spkList[i];
+            const spkNo = s.spkNumber?.toLowerCase() || "";
+            const projName = (s.salesOrder?.project?.name || s.salesOrder?.projectName || "").toLowerCase();
+            const soNo = s.salesOrder?.soNumber?.toLowerCase() || "";
+            if (spkNo.includes(q) || projName.includes(q) || soNo.includes(q)) {
+                matched.push(s);
+                if (matched.length >= 80) break;
+            }
+        }
+        return matched;
+    }, [spkList, spkSearch]);
 
     const {
         control,
@@ -813,63 +832,107 @@ export default function UpdateFormPO({
                                     <Controller
                                         name="spkId"
                                         control={control}
-                                        render={({ field }) => (
-                                            <Select
-                                                value={field.value || "_none"}
-                                                onValueChange={(value) => {
-                                                    field.onChange(value === "_none" ? "" : value);
-                                                    // Auto-populate projectId from selected SPK
-                                                    if (value !== "_none") {
-                                                        const selectedSpk = spkList.find(spk => spk.id === value);
-                                                        const projectId = selectedSpk?.salesOrder?.project?.id;
-                                                        if (projectId) {
-                                                            setValue("projectId", projectId);
-                                                            setSelectedProjectName(selectedSpk?.salesOrder?.project?.name || selectedSpk?.salesOrder?.projectName || "");
-                                                        }
-                                                    } else {
-                                                        setSelectedProjectName("");
-                                                    }
-                                                }}
-                                            >
-                                                <SelectTrigger className="w-full h-12 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl">
-                                                    <SelectValue placeholder="Pilih SPK">
-                                                        {/* Show SPK number from initialData when spkList is not loaded */}
-                                                        {field.value && field.value !== "_none" && (
-                                                            spkList.find(spk => spk.id === field.value)?.spkNumber ||
-                                                            initialData.SPK?.spkNumber ||
-                                                            "Loading..."
-                                                        )}
-                                                    </SelectValue>
-                                                    <ChevronDown className="h-4 w-4 ml-auto opacity-50" />
-                                                </SelectTrigger>
-                                                <SelectContent className="rounded-xl">
-                                                    <SelectItem value="_none" className="rounded-lg text-muted-foreground">
-                                                        Tidak ada SPK
-                                                    </SelectItem>
-                                                    {/* Show initialData.SPK if not in spkList */}
-                                                    {initialData.SPK && !spkList.some(spk => spk.id === initialData.SPK?.id) && (
-                                                        <SelectItem key={initialData.SPK.id} value={initialData.SPK.id} className="rounded-lg">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-medium">{initialData.SPK.spkNumber}</span>
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {initialData.project?.name || "Proyek"}
-                                                                </span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    )}
-                                                    {spkList.map((spk) => (
-                                                        <SelectItem key={spk.id} value={spk.id} className="rounded-lg">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-medium">{spk.spkNumber}</span>
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {spk.salesOrder?.project?.name || spk.salesOrder?.projectName || spk.salesOrder?.soNumber}
-                                                                </span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
+                                        render={({ field }) => {
+                                            const currentSpk = spkList.find((spk) => spk.id === field.value);
+                                            const displayLabel =
+                                                field.value && field.value !== "_none"
+                                                    ? currentSpk
+                                                        ? `${currentSpk.spkNumber} - ${currentSpk.salesOrder?.project?.name || currentSpk.salesOrder?.projectName || currentSpk.salesOrder?.soNumber || "-"}`
+                                                        : initialData.SPK?.spkNumber || "Loading..."
+                                                    : "Pilih SPK";
+
+                                            return (
+                                                <Popover
+                                                    open={spkOpen}
+                                                    onOpenChange={(open) => {
+                                                        setSpkOpen(open);
+                                                        if (!open) setSpkSearch("");
+                                                    }}
+                                                >
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            role="combobox"
+                                                            aria-expanded={spkOpen}
+                                                            className={cn(
+                                                                "w-full h-12 justify-between text-left font-normal truncate border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl",
+                                                                (!field.value || field.value === "_none") && "text-muted-foreground"
+                                                            )}
+                                                        >
+                                                            <span className="truncate">{displayLabel}</span>
+                                                            <ChevronDown className="h-4 w-4 ml-2 shrink-0 opacity-50" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent
+                                                        className="w-[var(--radix-popover-trigger-width)] min-w-[320px] max-w-[480px] p-0 rounded-xl"
+                                                        align="start"
+                                                    >
+                                                        <Command shouldFilter={false}>
+                                                            <CommandInput
+                                                                placeholder="Cari nomor SPK, proyek, atau SO..."
+                                                                className="h-10"
+                                                                value={spkSearch}
+                                                                onValueChange={setSpkSearch}
+                                                            />
+                                                            <CommandList className="max-h-72 overflow-auto">
+                                                                <CommandGroup>
+                                                                    {(!spkSearch.trim() || "tidak ada spk".includes(spkSearch.trim().toLowerCase())) && (
+                                                                        <CommandItem
+                                                                            value="_none"
+                                                                            onSelect={() => {
+                                                                                field.onChange("");
+                                                                                setSelectedProjectName("");
+                                                                                setSpkOpen(false);
+                                                                                setSpkSearch("");
+                                                                            }}
+                                                                            className="cursor-pointer rounded-lg text-muted-foreground"
+                                                                        >
+                                                                            <span>Tidak ada SPK</span>
+                                                                            {(!field.value || field.value === "_none") && (
+                                                                                <Check className="ml-auto h-4 w-4 text-cyan-600 shrink-0" />
+                                                                            )}
+                                                                        </CommandItem>
+                                                                    )}
+                                                                    {visibleSpkList.map((spk) => (
+                                                                        <CommandItem
+                                                                            key={spk.id}
+                                                                            value={spk.id}
+                                                                            onSelect={() => {
+                                                                                field.onChange(spk.id);
+                                                                                const projectId = spk.salesOrder?.project?.id;
+                                                                                if (projectId) {
+                                                                                    setValue("projectId", projectId);
+                                                                                    setSelectedProjectName(spk.salesOrder?.project?.name || spk.salesOrder?.projectName || "");
+                                                                                }
+                                                                                setSpkOpen(false);
+                                                                                setSpkSearch("");
+                                                                            }}
+                                                                            className="cursor-pointer rounded-lg"
+                                                                        >
+                                                                            <div className="flex flex-col min-w-0 flex-1">
+                                                                                <span className="font-medium truncate">{spk.spkNumber}</span>
+                                                                                <span className="text-xs text-muted-foreground truncate">
+                                                                                    {spk.salesOrder?.project?.name || spk.salesOrder?.projectName || spk.salesOrder?.soNumber}
+                                                                                </span>
+                                                                            </div>
+                                                                            {field.value === spk.id && (
+                                                                                <Check className="ml-2 h-4 w-4 text-cyan-600 shrink-0" />
+                                                                            )}
+                                                                        </CommandItem>
+                                                                    ))}
+                                                                    {visibleSpkList.length === 0 && (
+                                                                        <div className="p-4 text-center text-sm text-muted-foreground">
+                                                                            SPK tidak ditemukan
+                                                                        </div>
+                                                                    )}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            );
+                                        }}
                                     />
                                 </div>
 

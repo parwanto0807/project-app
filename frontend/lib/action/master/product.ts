@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { apiFetch } from "@/lib/apiFetch";
+import { serverJson } from "@/lib/server-json";
 
 export async function generateProductCode() {
   const shortId = randomUUID().slice(0, 8).toUpperCase();
@@ -32,7 +32,7 @@ export async function fetchAllProductsOpname(options?: {
 
     const url = `${baseUrl}?${params.toString()}`;
 
-    const data = await apiFetch(url, {
+    const data = await serverJson(url, {
       method: "GET",
     });
 
@@ -74,11 +74,18 @@ export async function fetchAllProducts(options?: {
   page?: number;
   limit?: number;
   isActive?: boolean;
+  compact?: boolean;
 }) {
   try {
-    let url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts?includePagination=false`;
+    const params = new URLSearchParams({ includePagination: "false" });
+    if (options?.compact) params.set("compact", "true");
+    if (options?.isActive !== undefined) {
+      params.set("activeOnly", String(options.isActive));
+    }
 
-    const data = await apiFetch(url, {
+    let url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts?${params.toString()}`;
+
+    const data = await serverJson(url, {
       method: "GET",
     });
 
@@ -142,7 +149,7 @@ export async function fetchAllProductsByType(
         ? `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProductsByType/${typeMapping[type]}`
         : `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`;
 
-    const response = await apiFetch(url, { method: "GET" });
+    const response = await serverJson(url, { method: "GET" });
 
     // Handle berbagai format response
     const data = Array.isArray(response)
@@ -168,7 +175,7 @@ export async function fetchAllProductsByType(
 
 export async function fetchProductById(id: string) {
   try {
-    return await apiFetch(
+    return await serverJson(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getProductById/${id}`,
       { method: "GET" }
     );

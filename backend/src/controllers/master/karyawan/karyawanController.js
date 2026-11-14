@@ -158,23 +158,40 @@ export const createKaryawan = async (req, res) => {
 // GET all karyawan
 export const getAllKaryawan = async (req, res) => {
   try {
-    const { includeInactive } = req.query;
+    const { includeInactive, compact } = req.query;
+    const isCompact = String(compact) === "true";
+
     const karyawan = await prisma.karyawan.findMany({
       where: {
         // Default hanya karyawan aktif, kecuali ada query ?includeInactive=true
         ...(includeInactive !== "true" && { isActive: true }),
       },
-      include: {
-        teamKaryawan: { include: { team: true } },
-        gaji: true,
-        user: true,
-        documents: {
-          include: {
-            document: true,
-          },
-        },
-        attendanceLocation: true,
-      },
+      // compact=true: untuk dropdown SPK — tanpa gaji, dokumen, user, dll.
+      ...(isCompact
+        ? {
+            select: {
+              id: true,
+              namaLengkap: true,
+              jabatan: true,
+              departemen: true,
+              nik: true,
+              isActive: true,
+            },
+          }
+        : {
+            include: {
+              teamKaryawan: { include: { team: true } },
+              gaji: true,
+              user: true,
+              documents: {
+                include: {
+                  document: true,
+                },
+              },
+              attendanceLocation: true,
+            },
+            relationLoadStrategy: "join",
+          }),
       orderBy: { nik: "asc" },
     });
     res.json(karyawan);
@@ -492,6 +509,7 @@ export const deleteGaji = async (req, res) => {
 export const getAllTeam = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
+    const namesOnly = String(req.query.namesOnly || '') === 'true';
     
     // Convert to numbers and set defaults
     const pageNumber = parseInt(page);
@@ -515,30 +533,40 @@ export const getAllTeam = async (req, res) => {
       ]
     } : {};
 
-    // Get total count for pagination
-    const totalCount = await prisma.team.count({
-      where: whereClause
-    });
+    // Mode ringan untuk dropdown/filter: cukup id + nama, tanpa relasi karyawan.
+    if (namesOnly) {
+      const teams = await prisma.team.findMany({
+        where: whereClause,
+        select: { id: true, namaTeam: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return res.json({ data: teams });
+    }
+
+    // Get total count + data secara paralel (hemat satu round-trip DB)
+    const [totalCount, teams] = await Promise.all([
+      prisma.team.count({ where: whereClause }),
+      prisma.team.findMany({
+        where: whereClause,
+        include: {
+          karyawan: {
+            include: {
+              karyawan: true
+            }
+          }
+        },
+        skip: skip,
+        take: pageSize,
+        relationLoadStrategy: "join",
+        orderBy: {
+          createdAt: 'desc' // Optional: sort by creation date
+        }
+      }),
+    ]);
 
     // Calculate total pages
     const totalPages = Math.ceil(totalCount / pageSize);
-
-    // Get teams with pagination and search
-    const teams = await prisma.team.findMany({
-      where: whereClause,
-      include: { 
-        karyawan: { 
-          include: { 
-            karyawan: true 
-          } 
-        } 
-      },
-      skip: skip,
-      take: pageSize,
-      orderBy: {
-        createdAt: 'desc' // Optional: sort by creation date
-      }
-    });
 
     res.json({
       data: teams,

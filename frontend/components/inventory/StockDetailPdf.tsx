@@ -11,7 +11,7 @@ export const usePdfGenerator = () => {
     }) => {
         setIsGenerating(true);
         try {
-            const response = await fetch('/api/reports/stock-balance/pdf', {
+            const response = await fetch('/api/reports/stock-balance/pdf', { credentials: "include",
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -48,7 +48,7 @@ export const usePdfGenerator = () => {
     }) => {
         setIsGenerating(true);
         try {
-            const response = await fetch('/api/reports/stock-card/pdf', {
+            const response = await fetch('/api/reports/stock-card/pdf', { credentials: "include",
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

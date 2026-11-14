@@ -70,7 +70,7 @@ export default function MFAInputPage() {
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/mfa/newVerify`,
-        {
+        { credentials: "include",
           method: "POST",
           headers: {
             "Content-Type": "application/json",

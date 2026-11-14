@@ -133,11 +133,11 @@ export default function CashOpnamePage() {
                     </CardHeader>
                     <CardContent>
                         {loading ? (
-                            <div className="flex justify-center py-8">
+                            <div className="flex justify-center py-4 sm:py-6 lg:py-4 sm:py-6 lg:py-8">
                                 <Loader2 className="h-8 w-8 animate-spin" />
                             </div>
                         ) : opnames.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground">
+                            <div className="text-center py-4 sm:py-6 lg:py-4 sm:py-6 lg:py-8 text-muted-foreground">
                                 Belum ada data Cash Opname.
                             </div>
                         ) : (

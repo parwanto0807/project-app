@@ -1,12 +1,13 @@
 'use server';
 
+import { serverFetch } from "@/lib/server-fetch";
 export async function getTeamById(id: string) {
   if (!id) {
     return { success: false, error: 'ID team diperlukan' };
   }
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/getTeamById/${id}`, {
+    const res = await serverFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/getTeamById/${id}`, {
       method: 'GET',
       credentials: "include",
       headers: {

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 // ==========================================
 // 1. Definisikan Schema Validasi dengan Zod
@@ -92,7 +92,7 @@ export const validateSupplier = (req, res, next) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Format error Zod agar lebih mudah dibaca Frontend
-      const formattedErrors = error.errors.map((err) => ({
+      const formattedErrors = error.issues.map((err) => ({
         field: err.path.join('.'), // misal: "contacts.0.email"
         message: err.message,
       }));

@@ -43,7 +43,7 @@ export async function getFundTransfers(params?: {
     const authHeaders = await getAuthHeaders();
     const cookieHeader = await getCookieHeader();
 
-    const response = await fetch(`${API_BASE}/finance/fund-transfer?${query}`, {
+    const response = await fetch(`${API_BASE}/finance/fund-transfer?${query}`, { credentials: "include",
         method: "GET",
         headers: {
             ...authHeaders,
@@ -61,7 +61,7 @@ export async function getFundTransferById(id: string): Promise<{
     const authHeaders = await getAuthHeaders();
     const cookieHeader = await getCookieHeader();
 
-    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}`, {
+    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}`, { credentials: "include",
         method: "GET",
         headers: {
             ...authHeaders,
@@ -80,7 +80,7 @@ export async function createFundTransfer(data: FundTransferRequest): Promise<{
     const authHeaders = await getAuthHeaders();
     const cookieHeader = await getCookieHeader();
 
-    const response = await fetch(`${API_BASE}/finance/fund-transfer`, {
+    const response = await fetch(`${API_BASE}/finance/fund-transfer`, { credentials: "include",
         method: "POST",
         headers: {
             ...authHeaders,
@@ -107,7 +107,7 @@ export async function updateFundTransfer(id: string, data: FundTransferRequest):
     const authHeaders = await getAuthHeaders();
     const cookieHeader = await getCookieHeader();
 
-    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}`, {
+    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}`, { credentials: "include",
         method: "PUT",
         headers: {
             ...authHeaders,
@@ -134,7 +134,7 @@ export async function deleteFundTransfer(id: string): Promise<{
     const authHeaders = await getAuthHeaders();
     const cookieHeader = await getCookieHeader();
 
-    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}`, {
+    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}`, { credentials: "include",
         method: "DELETE",
         headers: {
             ...authHeaders,
@@ -159,7 +159,7 @@ export async function voidFundTransfer(id: string, reason: string): Promise<{
     const authHeaders = await getAuthHeaders();
     const cookieHeader = await getCookieHeader();
 
-    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}/void`, {
+    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}/void`, { credentials: "include",
         method: "POST",
         headers: {
             ...authHeaders,
@@ -186,7 +186,7 @@ export async function postFundTransfer(id: string): Promise<{
     const authHeaders = await getAuthHeaders();
     const cookieHeader = await getCookieHeader();
 
-    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}/post`, {
+    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}/post`, { credentials: "include",
         method: "POST",
         headers: {
             ...authHeaders,

@@ -57,7 +57,7 @@ export default function ViewCustomerDetailDialogById({
   useEffect(() => {
     if (open && id) {
       setLoading(true);
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/getCustomerById/${id}`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/getCustomerById/${id}`, { credentials: "include" })
         .then((res) => {
           if (!res.ok) throw new Error("Failed to fetch customer data");
           return res.json();

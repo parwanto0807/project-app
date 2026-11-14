@@ -124,6 +124,12 @@ class PeriodController {
         const { id } = req.params;
         const { periodName, startDate, endDate } = req.body;
 
+        const existing = await prisma.accountingPeriod.findUnique({ where: { id } });
+        if (!existing) return res.status(404).json({ success: false, message: "Accounting Period not found" });
+        if (existing.isClosed) {
+            return res.status(400).json({ success: false, message: "Closed period cannot be edited. Reopen the period first." });
+        }
+
         const start = startDate ? new Date(startDate) : undefined;
         const end = endDate ? new Date(new Date(endDate).setHours(23, 59, 59, 999)) : undefined;
         

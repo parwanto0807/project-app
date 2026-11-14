@@ -14,7 +14,7 @@ import { AdminLayout } from "@/components/admin-panel/admin-layout";
 export default function SystemAccountPage() {
     return (
         <AdminLayout title="System Account Mapping" role="admin">
-            <div className="flex-1 space-y-4 p-2 md:p-8 pt-6">
+            <div className="flex-1 space-y-4 p-2 md:p-4 sm:p-6 lg:p-4 sm:p-6 lg:p-8 pt-6">
                 {/* Header Section */}
                 <Card className="border-none shadow-lg overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
                     <CardHeader className="relative pb-6 sm:pb-8">
@@ -42,7 +42,7 @@ export default function SystemAccountPage() {
 
                 <Suspense fallback={
                     <Card className="border-none shadow-md">
-                        <div className="p-8 text-center flex flex-col items-center justify-center space-y-4">
+                        <div className="p-4 sm:p-6 lg:p-4 sm:p-6 lg:p-8 text-center flex flex-col items-center justify-center space-y-4">
                             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
                             <p className="text-muted-foreground animate-pulse">Memuat konfigurasi sistem...</p>
                         </div>

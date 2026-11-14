@@ -137,7 +137,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
         });
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/createKaryawan`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/createKaryawan`, { credentials: "include",
                 method: "POST",
                 body: formData,
             });

@@ -134,8 +134,9 @@ class ClosingService {
                     const net = totalD - totalC;
                     if (net >= 0) endD = net; else endC = Math.abs(net);
                 } else {
+                    // Credit-normal accounts: net credit increases credit side.
                     const net = totalC - totalD;
-                    if (net >= 0) endD = net; else endC = Math.abs(net);
+                    if (net >= 0) endC = net; else endD = Math.abs(net);
                 }
 
                 nextToUpdate.push({
@@ -664,6 +665,59 @@ class ClosingService {
             if (nextPeriod && nextPeriodStart) {
                 // 1.7.a First, Rollover Trial Balances to ensure Opening Balances exist!
                 await this.rolloverTrialBalances(tx, periodId, nextPeriod.id);
+
+            // 1.7.c Retained Earnings — pindahkan laba/rugi berjalan ke Laba Ditahan (jika COA dikonfigurasi)
+            try {
+                const retainedSysAcc = await tx.systemAccount.findUnique({ where: { key: 'RETAINED_EARNINGS' } });
+                if (retainedSysAcc?.coaId) {
+                    const currentTBs = await tx.trialBalance.findMany({
+                        where: { periodId },
+                        include: { coa: true }
+                    });
+                    let revenue = 0, cogs = 0, expense = 0;
+                    for (const tb of currentTBs) {
+                        const t = tb.coa?.type;
+                        const net = Number(tb.endingCredit) - Number(tb.endingDebit);
+                        if (t === 'PENDAPATAN' || t === 'REVENUE' || t === 'OTHER_INCOME') revenue += net;
+                        else if (t === 'HPP' || t === 'COGS') cogs += (Number(tb.endingDebit) - Number(tb.endingCredit));
+                        else if (t === 'BEBAN' || t === 'EXPENSE' || t === 'OTHER_EXPENSE') expense += (Number(tb.endingDebit) - Number(tb.endingCredit));
+                    }
+                    const netProfit = revenue - cogs - expense;
+                    if (netProfit !== 0) {
+                        const reTb = await tx.trialBalance.findUnique({
+                            where: { periodId_coaId: { periodId: nextPeriod.id, coaId: retainedSysAcc.coaId } }
+                        });
+                        if (reTb) {
+                            await tx.trialBalance.update({
+                                where: { id: reTb.id },
+                                data: {
+                                    openingCredit: Number(reTb.openingCredit) + netProfit,
+                                    endingCredit: Number(reTb.endingCredit) + netProfit,
+                                    calculatedAt: new Date()
+                                }
+                            });
+                        } else {
+                            await tx.trialBalance.create({
+                                data: {
+                                    periodId: nextPeriod.id,
+                                    coaId: retainedSysAcc.coaId,
+                                    openingDebit: 0,
+                                    openingCredit: netProfit,
+                                    periodDebit: 0,
+                                    periodCredit: 0,
+                                    endingDebit: 0,
+                                    endingCredit: netProfit,
+                                    currency: 'IDR',
+                                    calculatedAt: new Date()
+                                }
+                            });
+                        }
+                        ;(() => {})('[CLOSING] Retained earnings adjusted by', netProfit);
+                    }
+                }
+            } catch (reErr) {
+                console.warn('[CLOSING] Retained earnings step skipped:', reErr.message);
+            }
 
                 // 1.7.b Then reconcile next period's opening against the sub-ledger
                 await this.reconcileInventoryValues(tx, nextPeriod.id, userId, nextPeriodStart);

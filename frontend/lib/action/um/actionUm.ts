@@ -429,7 +429,7 @@ export async function getUangMukaStatistics(): Promise<{
  */
 export async function downloadBuktiPencairan(fileUrl: string): Promise<Blob> {
   try {
-    const response = await fetch(fileUrl);
+    const response = await fetch(fileUrl, { credentials: "include" });
     if (!response.ok) {
       throw new Error("Failed to download file");
     }

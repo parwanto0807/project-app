@@ -1,10 +1,11 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function fetchWifiSsids(activeOnly = false) {
   try {
-    const res = await fetch(`${API_URL}/api/master/wifi-ssid?activeOnly=${activeOnly}`, {
+    const res = await serverFetch(`${API_URL}/api/master/wifi-ssid?activeOnly=${activeOnly}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -27,7 +28,7 @@ export async function fetchWifiSsids(activeOnly = false) {
 
 export async function createWifiSsid(data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/master/wifi-ssid`, {
+    const res = await serverFetch(`${API_URL}/api/master/wifi-ssid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -49,7 +50,7 @@ export async function createWifiSsid(data: any) {
 
 export async function updateWifiSsid(id: string, data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/master/wifi-ssid/${id}`, {
+    const res = await serverFetch(`${API_URL}/api/master/wifi-ssid/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -71,7 +72,7 @@ export async function updateWifiSsid(id: string, data: any) {
 
 export async function deleteWifiSsid(id: string) {
   try {
-    const res = await fetch(`${API_URL}/api/master/wifi-ssid/${id}`, {
+    const res = await serverFetch(`${API_URL}/api/master/wifi-ssid/${id}`, {
       method: "DELETE",
       credentials: "include",
     });

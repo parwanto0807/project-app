@@ -3,7 +3,7 @@ import { Tax } from "@/types/quotation";
 
 export async function fetchTaxes(): Promise<{ taxes: Tax[] }> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/master/tax/getTaxes`
+    `${process.env.NEXT_PUBLIC_API_URL}/api/master/tax/getTaxes`, { credentials: "include" }
   );
   if (!res.ok) throw new Error("Gagal fetch taxes");
   const taxes = await res.json();
@@ -12,7 +12,7 @@ export async function fetchTaxes(): Promise<{ taxes: Tax[] }> {
 
 export async function fetchTaxById(id: string): Promise<Tax> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/master/tax/${id}`
+    `${process.env.NEXT_PUBLIC_API_URL}/api/master/tax/${id}`, { credentials: "include" }
   );
   if (!res.ok) throw new Error("Gagal fetch tax");
   return res.json();

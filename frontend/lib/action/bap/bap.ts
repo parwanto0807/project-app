@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import { z } from "zod";
 import {
   BAPSchema,
@@ -56,7 +57,7 @@ const fetchAPI = async (url: string, options: RequestInit = {}) => {
     cache: "no-store",
   };
 
-  const response = await fetch(`${API_BASE_URL}${url}`, defaultOptions);
+  const response = await serverFetch(`${API_BASE_URL}${url}`, defaultOptions);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
@@ -222,7 +223,7 @@ export const createBAP = async (
         ;((...args: any[]) => {})(key, value instanceof File ? `File: ${value.name}` : value);
       }
 
-      res = await fetch(`${API_BASE_URL}/api/bap/createBAP`, {
+      res = await serverFetch(`${API_BASE_URL}/api/bap/createBAP`, {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -239,7 +240,7 @@ export const createBAP = async (
         })),
       };
 
-      res = await fetch(`${API_BASE_URL}/api/bap/createBAP`, {
+      res = await serverFetch(`${API_BASE_URL}/api/bap/createBAP`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -351,7 +352,7 @@ export const uploadBAPPhoto = async (file: File) => {
     formData.append("file", file);
 
     // Ganti dengan endpoint upload yang sesuai
-    const response = await fetch(`${API_BASE_URL}/api/bap/uploadBAPPhoto`, {
+    const response = await serverFetch(`${API_BASE_URL}/api/bap/uploadBAPPhoto`, {
       method: "POST",
       credentials: "include",
       body: formData,

@@ -54,7 +54,7 @@ export default function BalanceSheetPage() {
             // Update URL
             router.push(`?${params.toString()}`, { scroll: false });
 
-            const res = await fetch(`/api/accounting/reports/balance-sheet?${params.toString()}`);
+            const res = await fetch(`/api/accounting/reports/balance-sheet?${params.toString()}`, { credentials: "include" });
             const data = await res.json();
 
             if (data.success) {
@@ -83,7 +83,7 @@ export default function BalanceSheetPage() {
 
     return (
         <AdminLayout title="Laporan Neraca" role={role as any}>
-            <div className="flex flex-col gap-6 p-4 md:p-8">
+            <div className="flex flex-col gap-6 p-4 md:p-4 sm:p-6 lg:p-4 sm:p-6 lg:p-8">
                 <Breadcrumb>
                     <BreadcrumbList>
                         <BreadcrumbItem>

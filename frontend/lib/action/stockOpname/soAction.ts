@@ -86,7 +86,7 @@ export const stockOpnameActions = {
         if (endDate) queryParams.append('endDate', endDate);
         if (type) queryParams.append('type', type);
 
-        const response = await fetch(`/api/stock-opname?${queryParams.toString()}`, {
+        const response = await fetch(`/api/stock-opname?${queryParams.toString()}`, { credentials: "include",
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -113,7 +113,7 @@ export const stockOpnameActions = {
      * Mengambil detail stock opname beserta items
      */
     getById: async (id: string): Promise<ApiResponse<StockOpname>> => {
-        const response = await fetch(`/api/stock-opname/${id}`, {
+        const response = await fetch(`/api/stock-opname/${id}`, { credentials: "include",
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -249,7 +249,7 @@ export const stockOpnameActions = {
         if (startDate) queryParams.append('startDate', startDate);
         if (endDate) queryParams.append('endDate', endDate);
 
-        const response = await fetch(`/api/stock-opname/product/${productId}/items?${queryParams.toString()}`, {
+        const response = await fetch(`/api/stock-opname/product/${productId}/items?${queryParams.toString()}`, { credentials: "include",
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -289,7 +289,7 @@ export const stockOpnameActions = {
 
         const url = `/api/stock-opname/summary${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: "include",
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

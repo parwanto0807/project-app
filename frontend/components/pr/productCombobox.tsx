@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ProductCreateDialog } from "../sales/salesOrder/productDialog";
+
+const MAX_VISIBLE_PRODUCTS = 80;
 
 interface ProductComboboxProps {
     value: string;
@@ -18,11 +20,45 @@ interface ProductComboboxProps {
 export const ProductCombobox = React.forwardRef<HTMLButtonElement, ProductComboboxProps>(
     ({ value, onValueChange, products, error = false, placeholder = "Pilih Barang / Part Number", onCreated }, ref) => {
         const [isOpen, setIsOpen] = useState(false);
+        const [searchQuery, setSearchQuery] = useState("");
 
-        const selectedProduct = products.find((p) => p.id === value);
+        const selectedProduct = useMemo(
+            () => products.find((p) => p.id === value),
+            [products, value]
+        );
+
+        const visibleProducts = useMemo(() => {
+            const q = searchQuery.trim().toLowerCase();
+            if (!q) {
+                const top = products.slice(0, MAX_VISIBLE_PRODUCTS);
+                if (selectedProduct && !top.some((p) => p.id === selectedProduct.id)) {
+                    return [selectedProduct, ...top.slice(0, MAX_VISIBLE_PRODUCTS - 1)];
+                }
+                return top;
+            }
+
+            const matched: typeof products = [];
+            for (let i = 0; i < products.length; i++) {
+                const p = products[i];
+                if (
+                    p.name?.toLowerCase().includes(q) ||
+                    p.code?.toLowerCase().includes(q)
+                ) {
+                    matched.push(p);
+                    if (matched.length >= MAX_VISIBLE_PRODUCTS) break;
+                }
+            }
+            return matched;
+        }, [products, searchQuery, selectedProduct]);
 
         return (
-            <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <Popover
+                open={isOpen}
+                onOpenChange={(open) => {
+                    setIsOpen(open);
+                    if (!open) setSearchQuery("");
+                }}
+            >
                 <PopoverTrigger asChild>
                     <Button
                         ref={ref}
@@ -60,42 +96,47 @@ export const ProductCombobox = React.forwardRef<HTMLButtonElement, ProductCombob
                     className="w-[var(--radix-popover-trigger-width)] min-w-[340px] max-w-[480px] p-0 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[9999] bg-white dark:bg-slate-950 overflow-hidden"
                     align="start"
                 >
-                    <Command>
+                    <Command shouldFilter={false}>
                         <div className="relative flex items-center border-b border-slate-100 dark:border-slate-800">
                             <CommandInput
                                 placeholder="Cari part number atau nama barang..."
                                 className="h-9 text-sm"
+                                value={searchQuery}
+                                onValueChange={setSearchQuery}
                             />
                         </div>
                         <CommandList className="max-h-60">
-                            <CommandEmpty className="py-4 text-center">
-                                <p className="text-xs text-slate-400 mb-2">
-                                    Tidak ditemukan
-                                </p>
-                                {onCreated && (
-                                    <ProductCreateDialog
-                                        createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
-                                        onCreated={(created) => {
-                                            onCreated(created);
-                                            onValueChange(created.id);
-                                            setIsOpen(false);
-                                        }}
-                                        trigger={
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="w-full text-xs"
-                                            >
-                                                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                                                Tambah Produk Baru
-                                            </Button>
-                                        }
-                                    />
-                                )}
-                            </CommandEmpty>
+                            {visibleProducts.length === 0 && (
+                                <CommandEmpty className="py-4 text-center">
+                                    <p className="text-xs text-slate-400 mb-2">
+                                        Tidak ditemukan
+                                    </p>
+                                    {onCreated && (
+                                        <ProductCreateDialog
+                                            createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                            onCreated={(created) => {
+                                                onCreated(created);
+                                                onValueChange(created.id);
+                                                setIsOpen(false);
+                                                setSearchQuery("");
+                                            }}
+                                            trigger={
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="w-full text-xs"
+                                                >
+                                                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                                                    Tambah Produk Baru
+                                                </Button>
+                                            }
+                                        />
+                                    )}
+                                </CommandEmpty>
+                            )}
                             <CommandGroup className="p-1">
-                                {products.map((p) => {
+                                {visibleProducts.map((p) => {
                                     const isSelected = value === p.id;
                                     const stockVal = p.availableStock;
                                     const unitVal = p.storageUnit || p.unit || "pcs";
@@ -103,10 +144,11 @@ export const ProductCombobox = React.forwardRef<HTMLButtonElement, ProductCombob
                                     return (
                                         <CommandItem
                                             key={p.id}
-                                            value={`${p.code ?? ""} ${p.name}`}
+                                            value={p.id}
                                             onSelect={() => {
                                                 onValueChange(p.id);
                                                 setIsOpen(false);
+                                                setSearchQuery("");
                                             }}
                                             className={cn(
                                                 "cursor-pointer py-2 px-3 rounded-lg mb-0.5 text-sm",

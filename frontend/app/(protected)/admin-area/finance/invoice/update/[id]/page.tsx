@@ -26,7 +26,6 @@ import { getInvoiceByID } from "@/lib/action/invoice/invoice"; // ✅ Already im
 import { Invoice } from "@/schemas/invoice";
 import { useSession } from "@/components/clientSessionProvider";
 
-
 // Define types (you can move these to a shared types file if reused)
 export interface Customer {
   id: string;

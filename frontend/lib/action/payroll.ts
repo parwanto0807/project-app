@@ -1,10 +1,11 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function fetchPayrollConfigs() {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/config`, {
+    const res = await serverFetch(`${API_URL}/api/payroll/config`, {
       method: "GET",
       credentials: "include",
       cache: "no-store",
@@ -22,7 +23,7 @@ export async function fetchPayrollConfigs() {
 
 export async function createPayrollConfig(data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/config`, {
+    const res = await serverFetch(`${API_URL}/api/payroll/config`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -41,7 +42,7 @@ export async function createPayrollConfig(data: any) {
 
 export async function updatePayrollConfig(id: string, data: any) {
   try {
-    const res = await fetch(`${API_URL}/api/payroll/config/${id}`, {
+    const res = await serverFetch(`${API_URL}/api/payroll/config/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),

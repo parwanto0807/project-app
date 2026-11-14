@@ -12,7 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { fetchAllSalesOrderSPK } from "@/lib/action/sales/salesOrder";
+import { fetchSalesOrderById } from "@/lib/action/sales/salesOrder";
 import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { AdminLoading } from "@/components/admin-loading";
@@ -54,14 +54,15 @@ export default function CreateSpkPageAdminSO() {
       try {
         setIsDataLoading(true);
 
-        // Fetch data secara parallel
-        const [resultSO, resultTeam, resultUser] = await Promise.all([
-          fetchAllSalesOrderSPK(),
-          getAllTeam(),
-          fetchAllKaryawan()
+        // Cukup ambil SO yang dipilih (id), bukan seluruh daftar SO.
+        // Sebelumnya endpoint sales-orders-spk mengembalikan ~6,5 MB.
+        const [so, resultTeam, resultUser] = await Promise.all([
+          fetchSalesOrderById(id, true),
+          getAllTeam(1, 50),
+          fetchAllKaryawan(true)
         ]);
 
-        setSalesOrders(resultSO.data || []);
+        setSalesOrders(so ? [so] : []);
         setTeams(resultTeam.data || []);
         setUserCreated(resultUser.karyawan || []);
         setDataFetched(true);
@@ -77,7 +78,7 @@ export default function CreateSpkPageAdminSO() {
     };
 
     fetchAllData();
-  }, [userLoading, user, router]);
+  }, [userLoading, user, router, id]);
 
   // Set data sales order yang dipilih setelah data selesai di-fetch
   useEffect(() => {

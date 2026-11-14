@@ -157,7 +157,7 @@ export default function DashboardTeamTable({ teams, role, isLoading }: TeamTable
         setIsDeleting(true);
         try {
             // Panggil API untuk menghapus team
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${teamToDelete.id}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${teamToDelete.id}`, { credentials: "include",
                 method: 'DELETE',
             });
 

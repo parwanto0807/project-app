@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -34,6 +34,8 @@ export default function MaterialRequisitionPage() {
     const [allMR, setAllMR] = useState<any[]>([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isInternalLoading, setIsInternalLoading] = useState(true);
+    const [serverPagination, setServerPagination] = useState<any>(null);
+    const [serverStats, setServerStats] = useState<any>(null);
 
     const [bulkOpen, setBulkOpen] = useState(false);
     const [bulkLoading, setBulkLoading] = useState(false);
@@ -41,7 +43,22 @@ export default function MaterialRequisitionPage() {
     const [bulkResult, setBulkResult] = useState<{ succeeded: any[]; failed: any[] } | null>(null);
 
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, isLoading: sessionLoading } = useSession();
+
+    // Server-side pagination & filter (mengikuti URL yang diubah TableMR)
+    const page = Number(searchParams.get("page")) || 1;
+    const pageSize = Number(searchParams.get("pageSize")) || 10;
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "all";
+    const dateFilter = searchParams.get("dateFilter") || "all";
+
+    // Debounce search agar tidak fetch di setiap ketikan (server-side search)
+    const [debouncedSearch, setDebouncedSearch] = useState(search);
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(search), 400);
+        return () => clearTimeout(timer);
+    }, [search]);
 
     /* =========================
         FETCH DATA
@@ -57,15 +74,25 @@ export default function MaterialRequisitionPage() {
         const fetchData = async () => {
             setIsInternalLoading(true);
             try {
-                const res = await getDataMr({ pageSize: 9999 });
+                const res = await getDataMr({
+                    page,
+                    pageSize,
+                    search: debouncedSearch || undefined,
+                    status: status !== "all" ? status : undefined,
+                    dateFilter: dateFilter !== "all" ? dateFilter : undefined,
+                });
 
                 if (res.success && res.data) {
                     setAllMR(res.data.data);
+                    setServerPagination(res.data.pagination ?? null);
+                    setServerStats((res.data as any).stats ?? null);
                 } else {
                     setAllMR([]);
+                    setServerPagination(null);
+                    setServerStats(null);
                 }
             } catch (error) {
-                console.error("âŒ Error fetching MR:", error);
+                console.error("Error fetching MR:", error);
                 setAllMR([]);
             } finally {
                 setIsInternalLoading(false);
@@ -73,7 +100,7 @@ export default function MaterialRequisitionPage() {
         };
 
         fetchData();
-    }, [router, user, sessionLoading, refreshTrigger]);
+    }, [router, user?.id, user?.role, sessionLoading, refreshTrigger, page, pageSize, debouncedSearch, status, dateFilter]);
 
     /* =========================
         HANDLERS
@@ -190,6 +217,9 @@ export default function MaterialRequisitionPage() {
                     data={allMR}
                     isLoading={isInternalLoading || sessionLoading}
                     onRefresh={handleRefresh}
+                    serverMode
+                    serverPagination={serverPagination}
+                    stats={serverStats}
                 />
             </div>
 

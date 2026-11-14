@@ -207,7 +207,7 @@ export const getReportsBySpkId = async (
     try {
         const url = `${API_URL}/api/spk/report/getReportsBySpkIdBap/${encodeURIComponent(spkId)}`;
 
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

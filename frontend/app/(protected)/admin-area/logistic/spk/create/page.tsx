@@ -69,7 +69,7 @@ export default function CreateSpkPageAdmin() {
     }
 
     const fetchDataSalesOrder = async () => {
-      const resultSO = await fetchAllSalesOrder();
+      const resultSO = await fetchAllSalesOrder(1, 50, "", "", true);
       setSalesOrders(resultSO.data);
       setIsDataLoading(resultSO.data.length === 0);
     };
@@ -83,7 +83,7 @@ export default function CreateSpkPageAdmin() {
     fetchDataTeam();
 
     const fetchDataUser = async () => {
-      const resultUserCreated = await fetchAllKaryawan();
+      const resultUserCreated = await fetchAllKaryawan(true);
       setUserCreated(resultUserCreated.karyawan);
     }
     fetchDataUser()

@@ -1,4 +1,5 @@
 "use client";
+import { memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,9 @@ const SPKListTab = ({
             {filteredUserSpk.map((spk, index) => {
               const progress = getSPKFieldProgress(spk);
               const status = progress === 100 ? 'COMPLETED' : progress > 0 ? 'PROGRESS' : 'PENDING';
+              // Batasi stagger agar daftar panjang tidak butuh animasi berlapis
+              // yang membuat kartu terakhir baru muncul beberapa detik kemudian.
+              const animationDelay = Math.min(index, 8) * 0.05;
 
               const statusConfig = {
                 COMPLETED: {
@@ -122,7 +126,7 @@ const SPKListTab = ({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{
                     duration: 0.4,
-                    delay: index * 0.1,
+                    delay: animationDelay,
                     ease: "easeOut"
                   }}
                   whileHover={{
@@ -239,7 +243,7 @@ const SPKListTab = ({
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${progress}%` }}
-                              transition={{ duration: 1, delay: index * 0.1 + 0.3, ease: "easeOut" }}
+                              transition={{ duration: 1, delay: animationDelay + 0.15, ease: "easeOut" }}
                               className={cn(
                                 "h-full rounded-full bg-gradient-to-r shadow-inner",
                                 config.color
@@ -301,4 +305,4 @@ const SPKListTab = ({
   );
 };
 
-export default SPKListTab;
+export default memo(SPKListTab);

@@ -203,6 +203,7 @@ interface SPK {
 interface TabelInputPRProps {
     products: Product[];
     dataSpk?: SPK[];
+    loadingSpk?: boolean;
     currentUser?: User;
     onSubmit: (data: CreatePurchaseRequestData) => Promise<void>;
     onSuccess: () => void;
@@ -220,9 +221,12 @@ interface FormItem extends Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarg
     sourceProduct: SourceProductType; // pastikan pakai ini
 }
 
+const MAX_VISIBLE_SPK = 80;
+
 export function TabelInputPR({
     products,
     dataSpk = [],
+    loadingSpk = false,
     currentUser,
     onSubmit,
     onSuccess,
@@ -248,6 +252,8 @@ export function TabelInputPR({
     const [selectedParentPR, setSelectedParentPR] = useState<PurchaseRequest | null>(null); // ✅ Selected parent PR
     const [loadingParentPRs, setLoadingParentPRs] = useState(false);
     const [parentPROpen, setParentPROpen] = useState(false); // ✅ Parent PR popover state
+    const [spkOpen, setSpkOpen] = useState(false);
+    const [spkSearch, setSpkSearch] = useState("");
     const [loadingKaryawan, setLoadingKaryawan] = useState(false);
     const [loadingAllKaryawan, setLoadingAllKaryawan] = useState(false);
     const lastProductRef = useRef<HTMLButtonElement | null>(null);
@@ -298,8 +304,10 @@ export function TabelInputPR({
             }
 
             try {
-                const response = await fetchKaryawanByEmail(currentUser.email);
-                const karyawan = response.user;
+                const res = await api.post("/api/karyawan/fetchKaryawanByEmail", {
+                    email: currentUser.email,
+                });
+                const karyawan = res.data?.user;
 
                 if (karyawan && karyawan.id) {
                     setKaryawanData(karyawan);
@@ -312,8 +320,22 @@ export function TabelInputPR({
                     setKaryawanData(null);
                 }
             } catch (error) {
-                console.error("Error fetching karyawan:", error);
-                setKaryawanData(null);
+                try {
+                    const fallback = await fetchKaryawanByEmail(currentUser.email);
+                    const karyawan = fallback?.user;
+                    if (karyawan && karyawan.id) {
+                        setKaryawanData(karyawan);
+                        setFormData(prev => ({
+                            ...prev,
+                            requestedById: karyawan.id
+                        }));
+                    } else {
+                        setKaryawanData(null);
+                    }
+                } catch (err) {
+                    console.error("Error fetching karyawan:", err);
+                    setKaryawanData(null);
+                }
             } finally {
                 setLoadingKaryawan(false);
             }
@@ -322,17 +344,26 @@ export function TabelInputPR({
         fetchKaryawan();
     }, [currentUser?.email]);
 
-    // ✅ Fetch all karyawan for requester dropdown
+    // ✅ Fetch all karyawan for requester dropdown (compact mode directly via client API)
     useEffect(() => {
         const fetchAllKaryawanData = async () => {
             setLoadingAllKaryawan(true);
             try {
-                const result = await fetchAllKaryawan();
-                if (result.karyawan) {
-                    setAllKaryawan(result.karyawan);
+                const res = await api.get("/api/karyawan/getAllKaryawan", {
+                    params: { compact: "true" },
+                });
+                if (Array.isArray(res.data)) {
+                    setAllKaryawan(res.data);
                 }
             } catch (error) {
-                console.error("Error fetching all karyawan:", error);
+                try {
+                    const result = await fetchAllKaryawan(true);
+                    if (result.karyawan) {
+                        setAllKaryawan(result.karyawan);
+                    }
+                } catch (err) {
+                    console.error("Error fetching all karyawan:", err);
+                }
             } finally {
                 setLoadingAllKaryawan(false);
             }
@@ -384,6 +415,39 @@ export function TabelInputPR({
     //     ;((...args: any[]) => {})("Karyawan data updated:", karyawanData);
     // }, [karyawanData]);
 
+    const visibleSpkList = useMemo(() => {
+        const q = spkSearch.trim().toLowerCase();
+        if (!q) {
+            const top = dataSpk.slice(0, MAX_VISIBLE_SPK);
+            if (selectedSpk && !top.some((s) => s.id === selectedSpk.id)) {
+                return [selectedSpk, ...top.slice(0, MAX_VISIBLE_SPK - 1)];
+            }
+            return top;
+        }
+
+        const matched: SPK[] = [];
+        for (let i = 0; i < dataSpk.length; i++) {
+            const s = dataSpk[i];
+            const spkNo = s.spkNumber?.toLowerCase() || "";
+            const projName = s.salesOrder?.project?.name?.toLowerCase() || "";
+            const branch = s.salesOrder?.customer?.branch?.toLowerCase() || "";
+            const custName = s.salesOrder?.customer?.name?.toLowerCase() || "";
+            const soNo = s.salesOrder?.soNumber?.toLowerCase() || "";
+
+            if (
+                spkNo.includes(q) ||
+                projName.includes(q) ||
+                branch.includes(q) ||
+                custName.includes(q) ||
+                soNo.includes(q)
+            ) {
+                matched.push(s);
+                if (matched.length >= MAX_VISIBLE_SPK) break;
+            }
+        }
+        return matched;
+    }, [dataSpk, spkSearch, selectedSpk]);
+
     const handleSpkChange = (spkId: string) => {
         // Jika user memilih "Tidak menggunakan SPK"
         if (spkId === "no-spk") {
@@ -403,11 +467,11 @@ export function TabelInputPR({
         const spk = dataSpk.find(s => s.id === spkId);
 
         if (spk) {
-            const projectName = spk.salesOrder.project?.name || 'N/A';
+            const projectName = spk.salesOrder?.project?.name || 'N/A';
             setSelectedProject(spk.salesOrder?.project || null);
             setSelectedSpk(spk);
 
-            const keterangan = `Purchase request for SPK : ${spk.spkNumber} related to SO : ${spk.salesOrder.soNumber} and related to project ${projectName}.`;
+            const keterangan = `Purchase request for SPK : ${spk.spkNumber} related to SO : ${spk.salesOrder?.soNumber || '-'} and related to project ${projectName}.`;
 
             setFormData(prev => ({
                 ...prev,
@@ -415,6 +479,30 @@ export function TabelInputPR({
                 projectId: spk.salesOrder?.project?.id ?? '',
                 keterangan: keterangan,
             }));
+
+            // Lazy-load SPK items if not included in the lightweight list payload
+            if (!spk.salesOrder?.items || spk.salesOrder.items.length === 0) {
+                api.get(`/api/spk/getSPKById/${spkId}`)
+                    .then((res) => {
+                        const fullSpk = res.data;
+                        if (fullSpk && fullSpk.id === spkId && fullSpk.salesOrder?.items) {
+                            setSelectedSpk((prev) =>
+                                prev && prev.id === spkId
+                                    ? {
+                                          ...prev,
+                                          salesOrder: {
+                                              ...prev.salesOrder,
+                                              items: fullSpk.salesOrder.items,
+                                          },
+                                      }
+                                    : prev
+                            );
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Failed to lazy-load SPK items:", err);
+                    });
+            }
         } else {
             setSelectedProject(null);
             setSelectedSpk(null);
@@ -856,19 +944,130 @@ export function TabelInputPR({
                             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="spkId" className="font-semibold">SPK (Surat Perintah Kerja)</Label>
-                                    <Select value={formData.spkId || "no-spk"} onValueChange={handleSpkChange}>
-                                        <SelectTrigger className={cn(errors.spkId && "border-red-500")}>
-                                            <SelectValue placeholder="Select SPK" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="no-spk">Tidak menggunakan SPK</SelectItem>
-                                            {dataSpk.map((spk) => (
-                                                <SelectItem key={spk.id} value={spk.id}>
-                                                    {spk.spkNumber} - {spk.salesOrder.project?.name} - {spk.salesOrder.customer.branch}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Popover
+                                        open={spkOpen}
+                                        onOpenChange={(open) => {
+                                            setSpkOpen(open);
+                                            if (!open) setSpkSearch("");
+                                        }}
+                                    >
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                id="spkId"
+                                                type="button"
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={spkOpen}
+                                                className={cn(
+                                                    "w-full justify-between text-left font-normal truncate",
+                                                    errors.spkId && "border-red-500"
+                                                )}
+                                            >
+                                                <span className="truncate">
+                                                    {loadingSpk && dataSpk.length === 0 ? (
+                                                        "Memuat data SPK..."
+                                                    ) : selectedSpk ? (
+                                                        `${selectedSpk.spkNumber} - ${selectedSpk.salesOrder?.project?.name || "-"} - ${selectedSpk.salesOrder?.customer?.branch || "-"}`
+                                                    ) : (
+                                                        "Tidak menggunakan SPK"
+                                                    )}
+                                                </span>
+                                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                            className="w-[var(--radix-popover-trigger-width)] min-w-[340px] max-w-[540px] p-0"
+                                            align="start"
+                                        >
+                                            <Command shouldFilter={false}>
+                                                <div className="relative flex items-center">
+                                                    <CommandInput
+                                                        placeholder="Cari nomor SPK, proyek, SO, atau cabang..."
+                                                        className="h-10 pr-8"
+                                                        value={spkSearch}
+                                                        onValueChange={setSpkSearch}
+                                                    />
+                                                    {spkSearch && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSpkSearch("")}
+                                                            className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                                                            aria-label="Clear search"
+                                                        >
+                                                            <XCircle className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {!loadingSpk && dataSpk.length > 0 && (
+                                                    <div className="px-3 py-1.5 text-[11px] text-muted-foreground bg-muted/40 border-b flex items-center justify-between">
+                                                        <span>
+                                                            {spkSearch.trim()
+                                                                ? `Hasil pencarian: ${visibleSpkList.length} SPK`
+                                                                : `Menampilkan ${visibleSpkList.length} dari ${dataSpk.length} SPK`}
+                                                        </span>
+                                                        {!spkSearch.trim() && dataSpk.length > MAX_VISIBLE_SPK && (
+                                                            <span className="italic">Ketik untuk cari lebih spesifik</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                <CommandList className="max-h-72 overflow-auto">
+                                                    {loadingSpk && dataSpk.length === 0 ? (
+                                                        <div className="p-4 text-center text-sm text-muted-foreground">
+                                                            Memuat daftar SPK...
+                                                        </div>
+                                                    ) : (
+                                                        <CommandGroup>
+                                                            {(!spkSearch.trim() || "tidak menggunakan spk".includes(spkSearch.trim().toLowerCase())) && (
+                                                                <CommandItem
+                                                                    value="no-spk"
+                                                                    onSelect={() => {
+                                                                        handleSpkChange("no-spk");
+                                                                        setSpkOpen(false);
+                                                                        setSpkSearch("");
+                                                                    }}
+                                                                    className="cursor-pointer font-medium"
+                                                                >
+                                                                    <span>Tidak menggunakan SPK</span>
+                                                                    {(!formData.spkId || formData.spkId === "no-spk") && (
+                                                                        <CheckCircle className="ml-auto h-4 w-4 text-green-600 shrink-0" />
+                                                                    )}
+                                                                </CommandItem>
+                                                            )}
+                                                            {visibleSpkList.map((spk) => (
+                                                                <CommandItem
+                                                                    key={spk.id}
+                                                                    value={spk.id}
+                                                                    onSelect={() => {
+                                                                        handleSpkChange(spk.id);
+                                                                        setSpkOpen(false);
+                                                                        setSpkSearch("");
+                                                                    }}
+                                                                    className="cursor-pointer"
+                                                                >
+                                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                                        <span className="font-medium truncate">
+                                                                            {spk.spkNumber}
+                                                                        </span>
+                                                                        <span className="text-xs text-muted-foreground truncate">
+                                                                            {spk.salesOrder?.project?.name || "-"} • {spk.salesOrder?.customer?.branch || spk.salesOrder?.customer?.name || "-"}
+                                                                        </span>
+                                                                    </div>
+                                                                    {formData.spkId === spk.id && (
+                                                                        <CheckCircle className="ml-2 h-4 w-4 text-green-600 shrink-0" />
+                                                                    )}
+                                                                </CommandItem>
+                                                            ))}
+                                                            {visibleSpkList.length === 0 && spkSearch.trim() !== "" && (
+                                                                <div className="p-4 text-center text-sm text-muted-foreground">
+                                                                    SPK tidak ditemukan
+                                                                </div>
+                                                            )}
+                                                        </CommandGroup>
+                                                    )}
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                     {errors.spkId && <p className="text-xs text-red-500">{errors.spkId}</p>}
                                 </div>
 

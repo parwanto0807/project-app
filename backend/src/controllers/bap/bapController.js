@@ -60,11 +60,13 @@ export const getAllBAP = async (req, res) => {
       ];
     }
 
-    const baps = await prisma.bAP.findMany({
-      where,
-      skip,
-      take: limitNum,
-      include: {
+    const [baps, total] = await Promise.all([
+      prisma.bAP.findMany({
+        where,
+        skip,
+        take: limitNum,
+        relationLoadStrategy: "join",
+        include: {
         salesOrder: {
           select: {
             soNumber: true,
@@ -91,10 +93,11 @@ export const getAllBAP = async (req, res) => {
         user: { select: { id: true, namaLengkap: true } }, // relasi ke Karyawan
         photos: { orderBy: { orderIndex: 'asc' } },
       },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.bAP.count({ where }),
+    ]);
 
-    const total = await prisma.bAP.count({ where });
     res.json({
       data: baps,
       pagination: {

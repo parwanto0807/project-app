@@ -206,7 +206,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
         });
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/updateKaryawan/${id}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/updateKaryawan/${id}`, { credentials: "include",
                 method: "PUT",
                 body: formData,
             });

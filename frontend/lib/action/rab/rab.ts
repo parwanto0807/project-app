@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import { revalidateTag } from "next/cache";
 import {
   RABCreateInput,
@@ -13,7 +14,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const baseURL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:5000";
   const url = `${baseURL}${endpoint}`;
 
-  const response = await fetch(url, {
+  const response = await serverFetch(url, {
     ...options,
     credentials: "include", // ✅ INI HARUS ADA
     headers: {

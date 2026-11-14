@@ -144,7 +144,7 @@ export default function CreateBAPPage() {
             try {
                 const [salesOrderRes, usersRes] = await Promise.all([
                     fetchAllSalesOrderBap(),
-                    fetchAllKaryawan(),
+                    fetchAllKaryawan(true),
                 ]);
 
                 setSalesOrders(salesOrderRes.salesOrders || []);

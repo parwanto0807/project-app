@@ -1,4 +1,4 @@
-// rabValidation.js
+﻿// rabValidation.js
 import { z } from "zod";
 
 // Schema untuk RAB Detail
@@ -48,7 +48,7 @@ export const validateRabData = (data, isUpdate = false) => {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        errors: error.errors.map((err) => ({
+        errors: error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,
         })),

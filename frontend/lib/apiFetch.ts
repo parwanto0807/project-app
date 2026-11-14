@@ -11,6 +11,14 @@ import {
 // ⬆ gunakan getAccessToken & refreshAccessToken yang sudah kamu pakai di use-current-user
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
+  // apiFetch bergantung pada localStorage + auto-refresh browser.
+  // Di Server Action gunakan serverFetch/serverJson agar cookie ikut terkirim.
+  if (typeof window === "undefined") {
+    throw new Error(
+      "apiFetch() hanya boleh dipanggil di client. Gunakan serverFetch()/serverJson() di Server Action."
+    );
+  }
+
   let token = getAccessToken();
 
   // ✅ Jika tidak ada token tapi ada di localStorage, coba restore

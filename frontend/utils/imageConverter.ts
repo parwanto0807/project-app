@@ -37,7 +37,7 @@ export const makeImageSrcEmployee = (val?: string | null): string => {
 export const urlToBase64 = async (url: string): Promise<string> => {
   try {
     // Tambahkan mode 'cors' agar browser mengizinkan request ke domain lain
-    const response = await fetch(url, { mode: 'cors' });
+    const response = await fetch(url, { credentials: "include", mode: 'cors' });
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

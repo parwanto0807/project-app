@@ -1,6 +1,7 @@
 import { SpkApiPayload } from "@/schemas/index";
 import { FetchSpkParams, SpkResponse } from "@/types/spk";
 import { SPK } from "@/types/spkReport";
+import { api } from "@/lib/http";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -27,6 +28,11 @@ export async function getSpkByEmail(email: string) {
 
 export async function fetchAllSpk() {
   try {
+    if (typeof window !== "undefined") {
+      const response = await api.get("/api/spk/getAllSPK");
+      return response.data;
+    }
+
     const res = await fetch(`${API_URL}/api/spk/getAllSPK`, {
       method: "GET",
       credentials: "include",
@@ -45,6 +51,29 @@ export async function fetchAllSpk() {
 }
 
 // @/lib/action/master/spk/spk.ts
+
+// ✅ Versi ringan untuk halaman Monitoring Progress SPK (payload lebih kecil)
+export async function fetchAllSpkReport() {
+  try {
+    const res = await fetch(`${API_URL}/api/spk/getAllSPKReport`, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(
+        errorData?.error || `Gagal fetch SPK report: ${res.status}`
+      );
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("fetchAllSpkReport error:", error);
+    throw error;
+  }
+}
 
 export async function fetchAllSpkAdmin(
   params?: FetchSpkParams
@@ -111,6 +140,11 @@ export async function fetchAllSpkAdmin(
 
 export async function fetchAllSpkPr() {
   try {
+    if (typeof window !== "undefined") {
+      const response = await api.get("/api/spk/getAllSPKPr");
+      return response.data;
+    }
+
     const res = await fetch(`${API_URL}/api/spk/getAllSPKPr`, {
       method: "GET",
       credentials: "include",
@@ -123,22 +157,31 @@ export async function fetchAllSpkPr() {
 
     return await res.json();
   } catch (error) {
-    console.error("fetchAllSpk error:", error);
+    console.error("fetchAllSpkPr error:", error);
     throw error;
   }
 }
 
 export async function fetchSpkById(id: string) {
   try {
-    // ;((...args: any[]) => {})("🔍 Fetching SPK by ID:", id);
+    if (typeof window !== "undefined") {
+      const response = await api.get(`/api/spk/getSPKById/${id}`);
+      const data = response.data;
+      if (Array.isArray(data)) {
+        const filteredSpk = data.find((spk: SPK) => spk.id === id);
+        if (!filteredSpk) {
+          throw new Error(`SPK dengan ID ${id} tidak ditemukan`);
+        }
+        return filteredSpk;
+      }
+      return data;
+    }
 
     const res = await fetch(`${API_URL}/api/spk/getSPKById/${id}`, {
       method: "GET",
       credentials: "include",
       cache: "no-store",
     });
-
-    // ;((...args: any[]) => {})("📡 Response status:", res.status);
 
     if (!res.ok) {
       const errorData = await res.json();
@@ -148,21 +191,7 @@ export async function fetchSpkById(id: string) {
 
     const data = await res.json();
 
-    // ✅ DEBUG: Log struktur data
-    // ;((...args: any[]) => {})("📊 Data structure from backend:", {
-    //   type: typeof data,
-    //   isArray: Array.isArray(data),
-    //   length: Array.isArray(data) ? data.length : "N/A",
-    //   data: data,
-    // });
-
-    // ✅ TEMPORARY FIX: Filter data di frontend
     if (Array.isArray(data)) {
-      // console.warn(
-      //   "⚠️ Backend mengembalikan SEMUA SPK, filtering by ID di frontend"
-      // );
-
-      // Cari SPK yang sesuai dengan ID
       const filteredSpk = data.find((spk: SPK) => spk.id === id);
 
       if (!filteredSpk) {
@@ -170,12 +199,9 @@ export async function fetchSpkById(id: string) {
         throw new Error(`SPK dengan ID ${id} tidak ditemukan`);
       }
 
-      // ;((...args: any[]) => {})("✅ SPK ditemukan setelah filtering:", filteredSpk.spkNumber);
       return filteredSpk;
     }
 
-    // Jika backend sudah mengembalikan single object
-    // ;((...args: any[]) => {})("✅ Backend mengembalikan single SPK:", data.spkNumber);
     return data;
   } catch (error) {
     console.error("❌ fetchSpkById error:", error);

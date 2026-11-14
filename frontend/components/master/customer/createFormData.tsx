@@ -84,7 +84,7 @@ export default function CreateCustomerForm({ role }: { role: string }) {
     const onSubmit = async (data: CustomerFormValues) => {
         setIsSubmitting(true);
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/createCustomer`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/createCustomer`, { credentials: "include",
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),

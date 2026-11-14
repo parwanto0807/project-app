@@ -83,7 +83,7 @@ export default function UpdateSalesOrderPageAdmin() {
     const fetchData = async () => {
       setLoadingData(true);
       try {
-        const salesOrderData = await fetchSalesOrderById(id);
+        const salesOrderData = await fetchSalesOrderById(id, true);
         if (!salesOrderData) throw new Error("Sales order data not found.");
 
         const validation = fullSalesOrderSchema.safeParse(salesOrderData);

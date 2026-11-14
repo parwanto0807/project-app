@@ -229,7 +229,7 @@ export default function KegiatanPage() {
     isCapturingRef.current = false;
   };
 
-  const dataUrlToBlob = async (dataUrl: string) => (await fetch(dataUrl)).blob();
+  const dataUrlToBlob = async (dataUrl: string) => (await fetch(dataUrl, { credentials: "include" })).blob();
 
   // ── Absensi IN (mulai kegiatan) ──
   const handleIn = async () => {

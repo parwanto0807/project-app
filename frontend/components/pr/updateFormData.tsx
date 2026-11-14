@@ -261,6 +261,41 @@ export function TabelUpdatePR({
     const [loadingKaryawan, setLoadingKaryawan] = useState(false);
     const [loadingAllKaryawan, setLoadingAllKaryawan] = useState(false);
     const [parentPROpen, setParentPROpen] = useState(false); // ✅ Parent PR popover state
+    const [spkOpen, setSpkOpen] = useState(false);
+    const [spkSearch, setSpkSearch] = useState("");
+
+    const visibleSpkList = useMemo(() => {
+        const q = spkSearch.trim().toLowerCase();
+        if (!q) {
+            const top = dataSpk.slice(0, 80);
+            if (selectedSpk && !top.some((s) => s.id === selectedSpk.id)) {
+                return [selectedSpk, ...top.slice(0, 79)];
+            }
+            return top;
+        }
+
+        const matched: SPK[] = [];
+        for (let i = 0; i < dataSpk.length; i++) {
+            const s = dataSpk[i];
+            const spkNo = s.spkNumber?.toLowerCase() || "";
+            const projName = s.salesOrder?.project?.name?.toLowerCase() || "";
+            const branch = s.salesOrder?.customer?.branch?.toLowerCase() || "";
+            const custName = s.salesOrder?.customer?.name?.toLowerCase() || "";
+            const soNo = s.salesOrder?.soNumber?.toLowerCase() || "";
+
+            if (
+                spkNo.includes(q) ||
+                projName.includes(q) ||
+                branch.includes(q) ||
+                custName.includes(q) ||
+                soNo.includes(q)
+            ) {
+                matched.push(s);
+                if (matched.length >= 80) break;
+            }
+        }
+        return matched;
+    }, [dataSpk, spkSearch, selectedSpk]);
 
 
     // Hook untuk mendapatkan histori PR berdasarkan SPK
@@ -330,6 +365,28 @@ export function TabelUpdatePR({
                     if (spk) {
                         setSelectedSpk(spk);
                         setSelectedProject(spk.salesOrder?.project || null);
+                        if (!spk.salesOrder?.items || spk.salesOrder.items.length === 0) {
+                            api.get(`/api/spk/getSPKById/${spk.id}`)
+                                .then((res) => {
+                                    const fullSpk = res.data;
+                                    if (fullSpk && fullSpk.id === spk.id && fullSpk.salesOrder?.items) {
+                                        setSelectedSpk((prev) =>
+                                            prev && prev.id === spk.id
+                                                ? {
+                                                      ...prev,
+                                                      salesOrder: {
+                                                          ...prev.salesOrder,
+                                                          items: fullSpk.salesOrder.items,
+                                                      },
+                                                  }
+                                                : prev
+                                        );
+                                    }
+                                })
+                                .catch((err) => {
+                                    console.error("Failed to lazy-load SPK items:", err);
+                                });
+                        }
                     }
                 }
             }
@@ -346,8 +403,10 @@ export function TabelUpdatePR({
             }
 
             try {
-                const response = await fetchKaryawanByEmail(currentUser.email);
-                const karyawan = response.user;
+                const res = await api.post("/api/karyawan/fetchKaryawanByEmail", {
+                    email: currentUser.email,
+                });
+                const karyawan = res.data?.user;
 
                 if (karyawan && karyawan.id) {
                     setKaryawanData(karyawan);
@@ -364,8 +423,24 @@ export function TabelUpdatePR({
                     setKaryawanData(null);
                 }
             } catch (error) {
-                console.error("Error fetching karyawan:", error);
-                setKaryawanData(null);
+                try {
+                    const response = await fetchKaryawanByEmail(currentUser.email);
+                    const karyawan = response?.user;
+                    if (karyawan && karyawan.id) {
+                        setKaryawanData(karyawan);
+                        if (!existingData && !formData.requestedById) {
+                            setFormData(prev => ({
+                                ...prev,
+                                requestedById: karyawan.id
+                            }));
+                        }
+                    } else {
+                        setKaryawanData(null);
+                    }
+                } catch (err) {
+                    console.error("Error fetching karyawan:", err);
+                    setKaryawanData(null);
+                }
             } finally {
                 setLoadingKaryawan(false);
             }
@@ -374,17 +449,26 @@ export function TabelUpdatePR({
         fetchKaryawan();
     }, [currentUser?.email, existingData, formData.requestedById]);
 
-    // ✅ Fetch all karyawan for requester dropdown
+    // ✅ Fetch all karyawan for requester dropdown (compact mode directly via client API)
     useEffect(() => {
         const fetchAllKaryawanData = async () => {
             setLoadingAllKaryawan(true);
             try {
-                const result = await fetchAllKaryawan();
-                if (result.karyawan) {
-                    setAllKaryawan(result.karyawan);
+                const res = await api.get("/api/karyawan/getAllKaryawan", {
+                    params: { compact: "true" },
+                });
+                if (Array.isArray(res.data)) {
+                    setAllKaryawan(res.data);
                 }
             } catch (error) {
-                console.error("Error fetching all karyawan:", error);
+                try {
+                    const result = await fetchAllKaryawan(true);
+                    if (result.karyawan) {
+                        setAllKaryawan(result.karyawan);
+                    }
+                } catch (err) {
+                    console.error("Error fetching all karyawan:", err);
+                }
             } finally {
                 setLoadingAllKaryawan(false);
             }
@@ -440,11 +524,11 @@ export function TabelUpdatePR({
         const spk = dataSpk.find(s => s.id === spkId);
 
         if (spk) {
-            const projectName = spk.salesOrder.project?.name || 'N/A';
+            const projectName = spk.salesOrder?.project?.name || 'N/A';
             setSelectedProject(spk.salesOrder?.project || null);
             setSelectedSpk(spk);
 
-            const keterangan = `Purchase request for SPK : ${spk.spkNumber} related to SO : ${spk.salesOrder.soNumber} and related to project ${projectName}.`;
+            const keterangan = `Purchase request for SPK : ${spk.spkNumber} related to SO : ${spk.salesOrder?.soNumber || '-'} and related to project ${projectName}.`;
 
             setFormData(prev => ({
                 ...prev,
@@ -452,6 +536,29 @@ export function TabelUpdatePR({
                 projectId: spk.salesOrder?.project?.id ?? '',
                 keterangan: keterangan,
             }));
+
+            if (!spk.salesOrder?.items || spk.salesOrder.items.length === 0) {
+                api.get(`/api/spk/getSPKById/${spkId}`)
+                    .then((res) => {
+                        const fullSpk = res.data;
+                        if (fullSpk && fullSpk.id === spkId && fullSpk.salesOrder?.items) {
+                            setSelectedSpk((prev) =>
+                                prev && prev.id === spkId
+                                    ? {
+                                          ...prev,
+                                          salesOrder: {
+                                              ...prev.salesOrder,
+                                              items: fullSpk.salesOrder.items,
+                                          },
+                                      }
+                                    : prev
+                            );
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Failed to lazy-load SPK items:", err);
+                    });
+            }
         } else {
             setSelectedProject(null);
             setSelectedSpk(null);
@@ -782,19 +889,82 @@ export function TabelUpdatePR({
                             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="spkId" className="font-semibold">SPK (Surat Perintah Kerja) <span className="text-red-500">*</span></Label>
-                                    <Select value={formData.spkId} onValueChange={handleSpkChange} disabled={editMode}>
-                                        <SelectTrigger className={cn(errors.spkId && "border-red-500")}>
-                                            <SelectValue placeholder="Select SPK" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {dataSpk.map((spk) => (
-                                                <SelectItem key={spk.id} value={spk.id}>
-                                                    {spk.spkNumber}
-                                                </SelectItem>
-                                            ))}
-                                            {dataSpk.length === 0 && <SelectItem value="no-spk" disabled>No SPK available</SelectItem>}
-                                        </SelectContent>
-                                    </Select>
+                                    <Popover
+                                        open={spkOpen}
+                                        onOpenChange={(open) => {
+                                            if (editMode) return;
+                                            setSpkOpen(open);
+                                            if (!open) setSpkSearch("");
+                                        }}
+                                    >
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                id="spkId"
+                                                type="button"
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={spkOpen}
+                                                disabled={editMode}
+                                                className={cn(
+                                                    "w-full justify-between text-left font-normal truncate",
+                                                    errors.spkId && "border-red-500"
+                                                )}
+                                            >
+                                                <span className="truncate">
+                                                    {selectedSpk
+                                                        ? `${selectedSpk.spkNumber} - ${selectedSpk.salesOrder?.project?.name || "-"} - ${selectedSpk.salesOrder?.customer?.branch || "-"}`
+                                                        : "Tidak menggunakan SPK"}
+                                                </span>
+                                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                            className="w-[var(--radix-popover-trigger-width)] min-w-[340px] max-w-[540px] p-0"
+                                            align="start"
+                                        >
+                                            <Command shouldFilter={false}>
+                                                <CommandInput
+                                                    placeholder="Cari nomor SPK, proyek, SO, atau cabang..."
+                                                    className="h-10"
+                                                    value={spkSearch}
+                                                    onValueChange={setSpkSearch}
+                                                />
+                                                <CommandList className="max-h-72 overflow-auto">
+                                                    <CommandGroup>
+                                                        {visibleSpkList.map((spk) => (
+                                                            <CommandItem
+                                                                key={spk.id}
+                                                                value={spk.id}
+                                                                onSelect={() => {
+                                                                    handleSpkChange(spk.id);
+                                                                    setSpkOpen(false);
+                                                                    setSpkSearch("");
+                                                                }}
+                                                                className="cursor-pointer"
+                                                            >
+                                                                <div className="flex flex-col min-w-0 flex-1">
+                                                                    <span className="font-medium truncate">
+                                                                        {spk.spkNumber}
+                                                                    </span>
+                                                                    <span className="text-xs text-muted-foreground truncate">
+                                                                        {spk.salesOrder?.project?.name || "-"} • {spk.salesOrder?.customer?.branch || spk.salesOrder?.customer?.name || "-"}
+                                                                    </span>
+                                                                </div>
+                                                                {formData.spkId === spk.id && (
+                                                                    <CheckCircle className="ml-2 h-4 w-4 text-green-600 shrink-0" />
+                                                                )}
+                                                            </CommandItem>
+                                                        ))}
+                                                        {visibleSpkList.length === 0 && (
+                                                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                                                SPK tidak ditemukan
+                                                            </div>
+                                                        )}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                     {errors.spkId && <p className="text-xs text-red-500">{errors.spkId}</p>}
                                     {editMode && (
                                         <p className="text-xs text-muted-foreground mt-1">

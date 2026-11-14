@@ -1,4 +1,4 @@
-// import { PrismaClient } from "@prisma/client";
+﻿// import { PrismaClient } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import path from "path";
 import fs from "fs/promises";
@@ -26,7 +26,7 @@ import {
 const validateWithZod = (schema, data) => {
   const result = schema.safeParse(data);
   if (!result.success) {
-    const errorMessage = result.error.errors
+    const errorMessage = result.error.issues
       .map((err) => {
         const field = err.path.length ? err.path.join(".") : "<root>";
         return `${field}: ${err.message}`;
@@ -67,7 +67,7 @@ export const lppController = {
     try {
       // Parse payload JSON
       const payload = req.body.data ? JSON.parse(req.body.data) : req.body;
-      ;(() => {})("📦 Data Received:", payload);
+      ;(() => {})("ðŸ“¦ Data Received:", payload);
 
       const {
         uangMukaId,
@@ -158,12 +158,12 @@ export const lppController = {
         data: result,
       });
     } catch (error) {
-      console.error("❌ Error createLpp:", error);
+      console.error("âŒ Error createLpp:", error);
       res.status(500).json({ success: false, message: error.message });
     }
   },
 
-  // 🆕 CREATE LPP DETAIL - Menambah detail baru ke LPP yang sudah ada
+  // ðŸ†• CREATE LPP DETAIL - Menambah detail baru ke LPP yang sudah ada
   createLppDetail: async (req, res) => {
     try {
       const { id } = validateWithZod(lppIdValidation, req.params);
@@ -244,7 +244,7 @@ export const lppController = {
     }
   },
 
-  // 🆕 UPDATE LPP DETAIL - Mengupdate detail LPP yang sudah ada
+  // ðŸ†• UPDATE LPP DETAIL - Mengupdate detail LPP yang sudah ada
   updateLppDetail: async (req, res) => {
     try {
       const { detailId } = validateWithZod(detailIdValidation, req.params);
@@ -336,7 +336,7 @@ export const lppController = {
     }
   },
 
-  // 🆕 BATCH UPDATE DETAILS - Update multiple details sekaligus (Create, Update, Delete)
+  // ðŸ†• BATCH UPDATE DETAILS - Update multiple details sekaligus (Create, Update, Delete)
   batchUpdateDetails: async (req, res) => {
     try {
       const { id } = validateWithZod(lppIdValidation, req.params);
@@ -461,7 +461,7 @@ export const lppController = {
     }
   },
 
-  // 🆕 UPDATE FOTO KETERANGAN - Update keterangan foto bukti
+  // ðŸ†• UPDATE FOTO KETERANGAN - Update keterangan foto bukti
   updateFotoKeterangan: async (req, res) => {
     try {
       const { fotoId } = validateWithZod(fotoIdValidation, req.params);
@@ -497,7 +497,7 @@ export const lppController = {
     }
   },
 
-  // 🆕 GET LPP BY PURCHASE REQUEST ID
+  // ðŸ†• GET LPP BY PURCHASE REQUEST ID
   getLppByPurchaseRequestId: async (req, res) => {
     try {
       const { purchaseRequestId } = req.params;
@@ -547,7 +547,7 @@ export const lppController = {
     }
   },
 
-  // 🆕 DUPLICATE LPP - Membuat salinan LPP
+  // ðŸ†• DUPLICATE LPP - Membuat salinan LPP
   duplicateLpp: async (req, res) => {
     try {
       const { id } = validateWithZod(lppIdValidation, req.params);
@@ -624,7 +624,7 @@ export const lppController = {
     }
   },
 
-  // 🆕 EXPORT LPP TO PDF (Placeholder)
+  // ðŸ†• EXPORT LPP TO PDF (Placeholder)
   exportLppToPdf: async (req, res) => {
     try {
       const { id } = validateWithZod(lppIdValidation, req.params);
@@ -666,7 +666,7 @@ export const lppController = {
     }
   },
 
-  // 🆕 EXPORT LPP TO EXCEL (Placeholder)
+  // ðŸ†• EXPORT LPP TO EXCEL (Placeholder)
   exportLppToExcel: async (req, res) => {
     try {
       const { id } = validateWithZod(lppIdValidation, req.params);
@@ -707,7 +707,7 @@ export const lppController = {
     }
   },
 
-  // 🆕 GET LPP STATISTICS
+  // ðŸ†• GET LPP STATISTICS
   getLppStatistics: async (req, res) => {
     try {
       const statistics = await prisma.$transaction(async (tx) => {
@@ -886,7 +886,7 @@ export const lppController = {
           uangMukaId: validatedData.uangMukaId,
           details: {
             upsert: validatedData.details.map((d) => ({
-              where: { id: d.id ?? "" }, // kalau ada id → update
+              where: { id: d.id ?? "" }, // kalau ada id â†’ update
               update: {
                 tanggalTransaksi: new Date(d.tanggalTransaksi),
                 keterangan: d.keterangan,
@@ -1059,7 +1059,7 @@ export const lppController = {
 
   // Tambahkan function ini di lppController.js, sebelum export
 
-  // 🆕 DELETE LPP DETAIL - Menghapus detail LPP
+  // ðŸ†• DELETE LPP DETAIL - Menghapus detail LPP
   deleteLppDetail: async (req, res) => {
     try {
       const { detailId } = validateWithZod(detailIdValidation, req.params);
@@ -1208,7 +1208,7 @@ export const lppController = {
             );
 
           if (isProjectOperational) {
-            ;(() => {})(`📋 [LPP-ACCOUNTING] Generating Project Mobilization Journal for LPP: ${existingLpp.nomor}`);
+            ;(() => {})(`ðŸ“‹ [LPP-ACCOUNTING] Generating Project Mobilization Journal for LPP: ${existingLpp.nomor}`);
 
             const targetKaryawanId = pr?.requestedById || existingLpp.uangMuka.karyawanId;
 

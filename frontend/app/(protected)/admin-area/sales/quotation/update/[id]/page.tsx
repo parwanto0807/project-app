@@ -82,13 +82,17 @@ export default function UpdateQuotationPageAdmin({
     const updateQuotationMutation = useUpdateQuotation();
 
     // Hook fetching data untuk dropdowns
-    const { data: customersData, isLoading: isCustomersLoading } = useCustomers();
-    const { data: salesOrderData, isLoading: isSalesOrdersLoading } =
-        useSalesOrder(page, pageSize, searchTerm, statusFilter, refreshTrigger);
-    const { data: productsData, isLoading: isProductsLoading } = useProducts();
-    const { data: taxesData, isLoading: isTaxesLoading } = useTaxes();
-    const { data: paymentTermsData, isLoading: isPaymentTermsLoading } =
-        usePaymentTerms();
+    const { data: customersData } = useCustomers();
+    const { data: salesOrderData } = useSalesOrder(
+        page,
+        pageSize,
+        searchTerm,
+        statusFilter,
+        refreshTrigger
+    );
+    const { data: productsData } = useProducts({ compact: true });
+    const { data: taxesData } = useTaxes();
+    const { data: paymentTermsData } = usePaymentTerms();
 
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
@@ -179,18 +183,12 @@ export default function UpdateQuotationPageAdmin({
     };
 
 
-    const isDataLoading =
-        userLoading ||
-        !resolvedParams ||
-        isQuotationLoading ||
-        isCustomersLoading ||
-        isProductsLoading ||
-        isSalesOrdersLoading ||
-        isTaxesLoading ||
-        isPaymentTermsLoading;
+    // Hanya data quotation yang memblokir render. Customer, produk, sales order,
+    // tax, dan payment term dimuat di background untuk dropdown — jadi item
+    // quotation langsung tampil tanpa menunggu produk (1,8 MB) selesai.
+    const isDataLoading = userLoading || !resolvedParams || isQuotationLoading;
 
-    const isDataReady =
-        customers.length > 0 && products.length > 0 && quotationData !== undefined;
+    const isDataReady = quotationData !== undefined;
 
     if (quotationError) {
         return (

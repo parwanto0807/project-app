@@ -323,14 +323,47 @@ export const completeAssembly = async (req, res) => {
           }
 
           const qtyInStorage = toStorageUnit(comp.quantity, comp.unit, product);
+          const periodDate = getPeriodDate();
 
-          const sourceBalance = await tx.stockBalance.findFirst({
+          let sourceBalance = await tx.stockBalance.findFirst({
             where: {
               productId: comp.productId,
               warehouseId: assembly.warehouseId,
+              period: periodDate,
             },
-            orderBy: { updatedAt: "desc" },
           });
+
+          if (!sourceBalance) {
+            const prevSource = await tx.stockBalance.findFirst({
+              where: {
+                productId: comp.productId,
+                warehouseId: assembly.warehouseId,
+                period: { lt: periodDate },
+              },
+              orderBy: { period: "desc" },
+            });
+            if (prevSource) {
+              const prevStockAkhir = toNumber(prevSource.stockAkhir);
+              const prevBooked = toNumber(prevSource.bookedStock);
+              sourceBalance = await tx.stockBalance.create({
+                data: {
+                  productId: comp.productId,
+                  warehouseId: assembly.warehouseId,
+                  period: periodDate,
+                  stockAwal: prevStockAkhir,
+                  stockIn: 0,
+                  stockOut: 0,
+                  justIn: 0,
+                  justOut: 0,
+                  stockAkhir: prevStockAkhir,
+                  bookedStock: prevBooked,
+                  onPR: toNumber(prevSource.onPR),
+                  availableStock: Math.max(0, prevStockAkhir - prevBooked),
+                  inventoryValue: prevStockAkhir <= 0 ? 0 : toNumber(prevSource.inventoryValue),
+                },
+              });
+            }
+          }
 
           if (!sourceBalance) {
             throw new Error(`Stok tidak ditemukan untuk ${product.code} di gudang`);
@@ -342,13 +375,20 @@ export const completeAssembly = async (req, res) => {
             );
           }
 
+          const newSourceStockAkhir = Math.max(0, toNumber(sourceBalance.stockAkhir) - qtyInStorage);
+          const newSourceAvailable = Math.max(0, newSourceStockAkhir - toNumber(sourceBalance.bookedStock));
+          const compCost = qtyInStorage * toNumber(comp.cogs);
+          const newSourceInvValue = newSourceStockAkhir <= 0
+            ? 0
+            : Math.max(0, toNumber(sourceBalance.inventoryValue) - compCost);
+
           await tx.stockBalance.update({
             where: { id: sourceBalance.id },
             data: {
               stockOut: { increment: qtyInStorage },
-              stockAkhir: { decrement: qtyInStorage },
-              availableStock: { decrement: qtyInStorage },
-              inventoryValue: { decrement: qtyInStorage * toNumber(comp.cogs) },
+              stockAkhir: { set: newSourceStockAkhir },
+              availableStock: { set: newSourceAvailable },
+              inventoryValue: { set: newSourceInvValue },
             },
           });
 
@@ -365,36 +405,48 @@ export const completeAssembly = async (req, res) => {
               referenceNo: assembly.assemblyNumber,
               residualQty: 0,
               stockAwalSnapshot: toNumber(sourceBalance.stockAkhir),
-              stockAkhirSnapshot: toNumber(sourceBalance.stockAkhir) - qtyInStorage,
+              stockAkhirSnapshot: newSourceStockAkhir,
               notes: `Komponen perakitan ${assembly.assemblyNumber}`,
             },
           });
         }
 
         // 2. Add output product stock
+        const outputPeriodDate = getPeriodDate();
         let destBalance = await tx.stockBalance.findFirst({
           where: {
             productId: assembly.outputProductId,
             warehouseId: assembly.warehouseId,
+            period: outputPeriodDate,
           },
-          orderBy: { updatedAt: "desc" },
         });
 
         if (!destBalance) {
+          const prevDest = await tx.stockBalance.findFirst({
+            where: {
+              productId: assembly.outputProductId,
+              warehouseId: assembly.warehouseId,
+              period: { lt: outputPeriodDate },
+            },
+            orderBy: { period: "desc" },
+          });
+          const prevStockAkhir = prevDest ? toNumber(prevDest.stockAkhir) : 0;
+          const prevBooked = prevDest ? toNumber(prevDest.bookedStock) : 0;
           destBalance = await tx.stockBalance.create({
             data: {
               productId: assembly.outputProductId,
               warehouseId: assembly.warehouseId,
-              period: getPeriodDate(),
-              stockAwal: 0,
+              period: outputPeriodDate,
+              stockAwal: prevStockAkhir,
               stockIn: 0,
               stockOut: 0,
               justIn: 0,
               justOut: 0,
-              stockAkhir: 0,
-              bookedStock: 0,
-              availableStock: 0,
-              inventoryValue: 0,
+              stockAkhir: prevStockAkhir,
+              bookedStock: prevBooked,
+              onPR: prevDest ? toNumber(prevDest.onPR) : 0,
+              availableStock: Math.max(0, prevStockAkhir - prevBooked),
+              inventoryValue: prevStockAkhir <= 0 ? 0 : (prevDest ? toNumber(prevDest.inventoryValue) : 0),
             },
           });
         }

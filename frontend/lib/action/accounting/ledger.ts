@@ -32,7 +32,7 @@ export async function getLedgers(params: {
         if (params.page) queryParams.append("page", params.page.toString());
         if (params.limit) queryParams.append("limit", params.limit.toString());
 
-        const res = await fetch(`${API_URL}/api/accounting/ledger?${queryParams.toString()}`, {
+        const res = await fetch(`${API_URL}/api/accounting/ledger?${queryParams.toString()}`, { credentials: "include",
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -82,7 +82,7 @@ export async function getGeneralLedgerLines(params: {
         if (params.page) queryParams.append("page", params.page.toString());
         if (params.limit) queryParams.append("limit", params.limit.toString());
 
-        const res = await fetch(`${API_URL}/api/accounting/ledger/general/lines?${queryParams.toString()}`, {
+        const res = await fetch(`${API_URL}/api/accounting/ledger/general/lines?${queryParams.toString()}`, { credentials: "include",
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -133,7 +133,7 @@ export async function getGeneralLedgerPostings(params: {
         if (params.page) queryParams.append("page", params.page.toString());
         if (params.limit) queryParams.append("limit", params.limit.toString());
 
-        const res = await fetch(`${API_URL}/api/accounting/ledger/general/postings?${queryParams.toString()}`, {
+        const res = await fetch(`${API_URL}/api/accounting/ledger/general/postings?${queryParams.toString()}`, { credentials: "include",
             method: "GET",
             headers: {
                 Authorization: `Bearer ${token}`,

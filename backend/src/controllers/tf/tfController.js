@@ -2,6 +2,86 @@ import { prisma } from '../../config/db.js';
 import { getPeriodDate } from '../../utils/dateUtils.js';
 
 /**
+ * Helper: Ambil StockBalance untuk periode aktif (atau buat dari rollover periode terakhir)
+ * agar mutasi tidak pernah bocor ke StockBalance bulan lalu yang sudah di-closing.
+ */
+const getOrCreateCurrentStockBalance = async (
+  tx,
+  productId,
+  warehouseId,
+  periodDate = getPeriodDate(),
+  createIfEmpty = false
+) => {
+  let balance = await tx.stockBalance.findFirst({
+    where: {
+      productId,
+      warehouseId,
+      period: periodDate
+    }
+  });
+
+  if (balance) return balance;
+
+  // Cari dari periode sebelumnya yang paling baru untuk rollover
+  const prevBalance = await tx.stockBalance.findFirst({
+    where: {
+      productId,
+      warehouseId,
+      period: { lt: periodDate }
+    },
+    orderBy: { period: 'desc' }
+  });
+
+  if (prevBalance) {
+    const stockAwal = Number(prevBalance.stockAkhir) || 0;
+    const bookedStock = Number(prevBalance.bookedStock) || 0;
+    const onPR = Number(prevBalance.onPR) || 0;
+    const availableStock = Math.max(0, stockAwal - bookedStock);
+    const inventoryValue = stockAwal <= 0 ? 0 : (Number(prevBalance.inventoryValue) || 0);
+
+    return await tx.stockBalance.create({
+      data: {
+        productId,
+        warehouseId,
+        period: periodDate,
+        stockAwal,
+        stockIn: 0,
+        stockOut: 0,
+        justIn: 0,
+        justOut: 0,
+        stockAkhir: stockAwal,
+        bookedStock,
+        onPR,
+        availableStock,
+        inventoryValue
+      }
+    });
+  }
+
+  if (createIfEmpty) {
+    return await tx.stockBalance.create({
+      data: {
+        productId,
+        warehouseId,
+        period: periodDate,
+        stockAwal: 0,
+        stockIn: 0,
+        stockOut: 0,
+        justIn: 0,
+        justOut: 0,
+        stockAkhir: 0,
+        bookedStock: 0,
+        onPR: 0,
+        availableStock: 0,
+        inventoryValue: 0
+      }
+    });
+  }
+
+  return null;
+};
+
+/**
  * @desc Create new stock transfer
  * @route POST /api/tf
  */
@@ -147,10 +227,12 @@ export const createTransfer = async (req, res) => {
 
         // Update sender warehouse stock balance
         // Increase bookedStock, Decrease availableStock (in storage unit)
-        const latestBalance = await tx.stockBalance.findFirst({
-          where: { productId: item.productId, warehouseId: fromWarehouseId },
-          orderBy: { updatedAt: 'desc' }
-        });
+        const latestBalance = await getOrCreateCurrentStockBalance(
+          tx,
+          item.productId,
+          fromWarehouseId,
+          periodDate
+        );
         let updateResult = { count: 0 };
         if (latestBalance) {
           await tx.stockBalance.update({
@@ -396,6 +478,7 @@ export const getAllTransfers = async (req, res) => {
         where,
         skip,
         take: Number(limit),
+        relationLoadStrategy: "join",
         include: {
           fromWarehouse: true,
           toWarehouse: true,
@@ -420,33 +503,37 @@ export const getAllTransfers = async (req, res) => {
       prisma.stockTransfer.count({ where })
     ]);
 
-    // Fetch related Material Requisitions (qrToken) & Goods Receipts
+    // Fetch related Material Requisitions (qrToken) & Goods Receipts (paralel)
     const transferNumbers = transfers.map(t => t.transferNumber);
-    
-    // 1. Find MRs
-    const mrs = await prisma.materialRequisition.findMany({
-      where: {
-        OR: transferNumbers.map(tn => ({
-          notes: { contains: `[${tn}]` }
-        }))
-      },
-      select: {
-        notes: true,
-        qrToken: true
-      }
-    });
 
-    // 2. Find GRs (vendorDeliveryNote matches transferNumber)
-    const grs = await prisma.goodsReceipt.findMany({
-        where: {
-            vendorDeliveryNote: { in: transferNumbers }
-        },
-        select: {
-            id: true,
-            vendorDeliveryNote: true,
-            status: true
-        }
-    });
+    const [mrs, grs] = await Promise.all([
+      transferNumbers.length
+        ? prisma.materialRequisition.findMany({
+            where: {
+              OR: transferNumbers.map(tn => ({
+                notes: { contains: `[${tn}]` }
+              }))
+            },
+            select: {
+              notes: true,
+              qrToken: true
+            }
+          })
+        : Promise.resolve([]),
+
+      transferNumbers.length
+        ? prisma.goodsReceipt.findMany({
+            where: {
+              vendorDeliveryNote: { in: transferNumbers }
+            },
+            select: {
+              id: true,
+              vendorDeliveryNote: true,
+              status: true
+            }
+          })
+        : Promise.resolve([]),
+    ]);
 
     const data = transfers.map(transfer => {
       // Find the MR relevant to this transfer
@@ -560,19 +647,16 @@ export const updateTransfer = async (req, res) => {
         throw new Error('Hanya transfer dengan status DRAFT yang dapat diedit');
       }
 
-      const periodDate = new Date();
-      periodDate.setDate(1);
-      periodDate.setHours(0, 0, 0, 0);
-      periodDate.setMinutes(0);
-      periodDate.setSeconds(0);
-      periodDate.setMilliseconds(0);
+      const periodDate = getPeriodDate();
 
       // 2. Rollback previous stock booking
       for (const oldItem of existingTransfer.items) {
-        const latestBalance = await tx.stockBalance.findFirst({
-            where: { productId: oldItem.productId, warehouseId: existingTransfer.fromWarehouseId },
-            orderBy: { updatedAt: 'desc' }
-          });
+        const latestBalance = await getOrCreateCurrentStockBalance(
+            tx,
+            oldItem.productId,
+            existingTransfer.fromWarehouseId,
+            periodDate
+          );
           if (latestBalance) {
             await tx.stockBalance.update({
               where: { id: latestBalance.id },
@@ -612,10 +696,12 @@ export const updateTransfer = async (req, res) => {
 
       // 5. Apply new stock booking
       for (const item of items) {
-        const latestBalance = await tx.stockBalance.findFirst({
-          where: { productId: item.productId, warehouseId: fromWarehouseId },
-          orderBy: { updatedAt: 'desc' }
-        });
+        const latestBalance = await getOrCreateCurrentStockBalance(
+          tx,
+          item.productId,
+          fromWarehouseId,
+          periodDate
+        );
         let updateResult = { count: 0 };
         if (latestBalance) {
           await tx.stockBalance.update({
@@ -793,30 +879,29 @@ export const updateTransferStatus = async (req, res) => {
           });
 
           // Update stock balance
-          const stockBalance = await tx.stockBalance.findFirst({
-            where: {
-              productId: item.productId,
-              warehouseId: transfer.fromWarehouseId
-            },
-            orderBy: { updatedAt: 'desc' }
-          });
+          const stockBalance = await getOrCreateCurrentStockBalance(
+            tx,
+            item.productId,
+            transfer.fromWarehouseId,
+            getPeriodDate()
+          );
 
           if (stockBalance) {
             // Recalculate availableStock = stockAkhir - bookedStock
             const currentStockAkhir = parseFloat(stockBalance.stockAkhir) || 0;
             const newStockAkhir = Math.max(0, currentStockAkhir - parseFloat(item.quantity));
-            const currentBooked = parseFloat(stockBalance.bookedStock) || 0;
+            const currentBooked = Math.max(0, (parseFloat(stockBalance.bookedStock) || 0) - parseFloat(item.quantity));
             const newAvailable = Math.max(0, newStockAkhir - currentBooked);
             // Clear inventoryValue when stock reaches 0
             const currentInvValue = parseFloat(stockBalance.inventoryValue) || 0;
-            const newInvValue = newStockAkhir <= 0 ? 0 : currentInvValue;
+            const newInvValue = newStockAkhir <= 0 ? 0 : Math.max(0, currentInvValue - totalCost);
 
             await tx.stockBalance.update({
               where: { id: stockBalance.id },
               data: {
                 stockOut: { increment: item.quantity },
                 stockAkhir: { set: newStockAkhir },
-                bookedStock: { decrement: parseFloat(item.quantity) },
+                bookedStock: { set: currentBooked },
                 availableStock: { set: newAvailable },
                 inventoryValue: { set: newInvValue }
               }
@@ -831,9 +916,32 @@ export const updateTransferStatus = async (req, res) => {
           throw new Error('receiverId diperlukan untuk status RECEIVED');
         }
 
-        const currentPeriod = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+        const periodDate = getPeriodDate();
 
         for (const item of transfer.items) {
+          // Update stock balance for destination
+          const stockBalance = await getOrCreateCurrentStockBalance(
+            tx,
+            item.productId,
+            transfer.toWarehouseId,
+            periodDate,
+            true
+          );
+
+          const currentStockAkhir = parseFloat(stockBalance.stockAkhir) || 0;
+          const newStockAkhir = currentStockAkhir + parseFloat(item.quantity);
+          const currentBooked = parseFloat(stockBalance.bookedStock) || 0;
+          const newAvailable = Math.max(0, newStockAkhir - currentBooked);
+
+          await tx.stockBalance.update({
+            where: { id: stockBalance.id },
+            data: {
+              stockIn: { increment: item.quantity },
+              stockAkhir: { set: newStockAkhir },
+              availableStock: { set: newAvailable }
+            }
+          });
+
           // Create stock detail for destination warehouse
           await tx.stockDetail.create({
             data: {
@@ -844,53 +952,12 @@ export const updateTransferStatus = async (req, res) => {
               receivedQty: item.quantity,
               residualQty: item.quantity,
               pricePerUnit: 0, // Transfer doesn't change value
-              stockAwalSnapshot: 0,
+              stockAwalSnapshot: currentStockAkhir,
               stockMasukSnapshot: item.quantity,
               stockKeluarSnapshot: 0,
-              stockAkhirSnapshot: item.quantity
+              stockAkhirSnapshot: newStockAkhir
             }
           });
-
-          // Update stock balance for destination
-          const stockBalance = await tx.stockBalance.findFirst({
-            where: {
-              productId: item.productId,
-              warehouseId: transfer.toWarehouseId
-            },
-            orderBy: { updatedAt: 'desc' }
-          });
-
-          if (stockBalance) {
-            const currentStockAkhir = parseFloat(stockBalance.stockAkhir) || 0;
-            const newStockAkhir = currentStockAkhir + parseFloat(item.quantity);
-            const currentBooked = parseFloat(stockBalance.bookedStock) || 0;
-            const newAvailable = Math.max(0, newStockAkhir - currentBooked);
-
-            await tx.stockBalance.update({
-              where: { id: stockBalance.id },
-              data: {
-                stockIn: { increment: item.quantity },
-                stockAkhir: { set: newStockAkhir },
-                availableStock: { set: newAvailable }
-              }
-            });
-          } else {
-            await tx.stockBalance.create({
-              data: {
-                productId: item.productId,
-                warehouseId: transfer.toWarehouseId,
-                period: getPeriodDate(),
-                stockAwal: 0,
-                stockIn: item.quantity,
-                stockOut: 0,
-                stockAkhir: item.quantity,
-                availableStock: item.quantity,
-                bookedStock: 0,
-                onPR: 0,
-                inventoryValue: 0
-              }
-            });
-          }
         }
       }
 
@@ -999,10 +1066,12 @@ export const cancelTransfer = async (req, res) => {
           }
 
           // Release booked stock back to available (in storage unit)
-          const latestBalance = await tx.stockBalance.findFirst({
-            where: { productId: item.productId, warehouseId: transfer.fromWarehouseId },
-            orderBy: { updatedAt: 'desc' }
-          });
+          const latestBalance = await getOrCreateCurrentStockBalance(
+            tx,
+            item.productId,
+            transfer.fromWarehouseId,
+            periodDate
+          );
           if (latestBalance) {
             await tx.stockBalance.update({
               where: { id: latestBalance.id },
@@ -1106,10 +1175,12 @@ export const deletePermanentTransfer = async (req, res) => {
         }
 
         // Release booked stock back to available (in storage unit)
-        const latestBalance = await tx.stockBalance.findFirst({
-            where: { productId: item.productId, warehouseId: transfer.fromWarehouseId },
-            orderBy: { updatedAt: 'desc' }
-          });
+        const latestBalance = await getOrCreateCurrentStockBalance(
+            tx,
+            item.productId,
+            transfer.fromWarehouseId,
+            periodDate
+          );
           if (latestBalance) {
             await tx.stockBalance.update({
               where: { id: latestBalance.id },
@@ -1443,14 +1514,15 @@ export const createDirectTransfer = async (req, res) => {
           qtyInStorageUnit = parseFloat(item.quantity) * conversion;
         }
 
-        // Deduct from source warehouse
-        const sourceBalance = await tx.stockBalance.findFirst({
-          where: {
-            productId: item.productId,
-            warehouseId: fromWarehouseId
-          },
-          orderBy: { updatedAt: 'desc' }
-        });
+        const periodDate = getPeriodDate();
+
+        // Deduct from source warehouse (strictly in current period)
+        const sourceBalance = await getOrCreateCurrentStockBalance(
+          tx,
+          item.productId,
+          fromWarehouseId,
+          periodDate
+        );
 
         if (!sourceBalance) {
           throw new Error(`Stock balance not found for ${product.code} in source warehouse`);
@@ -1460,13 +1532,20 @@ export const createDirectTransfer = async (req, res) => {
           throw new Error(`Stok tidak mencukupi untuk ${product.code}. Available: ${sourceBalance.availableStock}, Required: ${qtyInStorageUnit}`);
         }
 
+        const newSourceStockAkhir = Math.max(0, Number(sourceBalance.stockAkhir) - qtyInStorageUnit);
+        const newSourceAvailable = Math.max(0, newSourceStockAkhir - (Number(sourceBalance.bookedStock) || 0));
+        const sourceCost = qtyInStorageUnit * (Number(item.pricePerUnit) || 0);
+        const newSourceInvValue = newSourceStockAkhir <= 0
+          ? 0
+          : Math.max(0, (Number(sourceBalance.inventoryValue) || 0) - sourceCost);
+
         await tx.stockBalance.update({
           where: { id: sourceBalance.id },
           data: {
             stockOut: { increment: qtyInStorageUnit },
-            stockAkhir: { decrement: qtyInStorageUnit },
-            availableStock: { decrement: qtyInStorageUnit },
-            inventoryValue: { decrement: qtyInStorageUnit * (item.pricePerUnit || 0) }
+            stockAkhir: { set: newSourceStockAkhir },
+            availableStock: { set: newSourceAvailable },
+            inventoryValue: { set: newSourceInvValue }
           }
         });
 
@@ -1483,46 +1562,29 @@ export const createDirectTransfer = async (req, res) => {
             pricePerUnit: item.pricePerUnit || 0,
             referenceNo: transfer.transferNumber,
             stockAwalSnapshot: sourceBalance.stockAkhir,
-            stockAkhirSnapshot: Number(sourceBalance.stockAkhir) - qtyInStorageUnit,
+            stockAkhirSnapshot: newSourceStockAkhir,
             notes: notes || `Direct transfer to ${transfer.toWarehouse.name}`
           }
         });
 
-        // Add to destination warehouse
-        let destBalance = await tx.stockBalance.findFirst({
-          where: {
-            productId: item.productId,
-            warehouseId: toWarehouseId
-          },
-          orderBy: { updatedAt: 'desc' }
-        });
+        // Add to destination warehouse (strictly in current period)
+        const destBalance = await getOrCreateCurrentStockBalance(
+          tx,
+          item.productId,
+          toWarehouseId,
+          periodDate,
+          true
+        );
 
-        if (!destBalance) {
-          // Create new balance if not exists
-          destBalance = await tx.stockBalance.create({
-            data: {
-              productId: item.productId,
-              warehouseId: toWarehouseId,
-              period: getPeriodDate(),
-              stockAwal: 0,
-              stockIn: 0,
-              stockOut: 0,
-              justIn: 0,
-              justOut: 0,
-              stockAkhir: 0,
-              bookedStock: 0,
-              availableStock: 0,
-              inventoryValue: 0
-            }
-          });
-        }
+        const newDestStockAkhir = Number(destBalance.stockAkhir) + qtyInStorageUnit;
+        const newDestAvailable = Math.max(0, newDestStockAkhir - (Number(destBalance.bookedStock) || 0));
 
         await tx.stockBalance.update({
           where: { id: destBalance.id },
           data: {
             stockIn: { increment: qtyInStorageUnit },
-            stockAkhir: { increment: qtyInStorageUnit },
-            availableStock: { increment: qtyInStorageUnit },
+            stockAkhir: { set: newDestStockAkhir },
+            availableStock: { set: newDestAvailable },
             inventoryValue: { increment: qtyInStorageUnit * (item.pricePerUnit || 0) }
           }
         });
@@ -1541,7 +1603,7 @@ export const createDirectTransfer = async (req, res) => {
             referenceNo: transfer.transferNumber,
             residualQty: qtyInStorageUnit,
             stockAwalSnapshot: destBalance.stockAkhir,
-            stockAkhirSnapshot: Number(destBalance.stockAkhir) + qtyInStorageUnit,
+            stockAkhirSnapshot: newDestStockAkhir,
             notes: notes || `Direct transfer from ${transfer.fromWarehouse.name}`
           }
         });

@@ -162,7 +162,7 @@ export const getReportsBySpkId = async (
 ): Promise<{ success: boolean; data: SpkFieldReport[] }> => {
     try {
         const url = `${API_URL}/api/spk/report/getReportsBySpkIdBap/${encodeURIComponent(spkId)}`;
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

@@ -88,6 +88,10 @@ async function getOrCreateAccountingPeriod(date, tx) {
     ;(() => {})(`✅ Created accounting period: ${periodCode} (${periodName})`);
   }
 
+  if (period.isClosed) {
+    throw new Error(`Accounting period ${period.periodCode} is CLOSED. Posting is not allowed.`);
+  }
+
   return period;
 }
 
@@ -331,8 +335,11 @@ export async function createLedgerEntry({
     const totalDebit = preparedLines.reduce((sum, line) => sum + line.debitAmount, 0);
     const totalCredit = preparedLines.reduce((sum, line) => sum + line.creditAmount, 0);
 
-    // Validate balance (allow 0.01 tolerance for rounding)
-    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+    // Validate balance — strict equality (no tolerance). Money must be exactly balanced.
+    // Use scaled-integer comparison to avoid floating point drift.
+    const scaledDebit = Math.round(totalDebit * 100);
+    const scaledCredit = Math.round(totalCredit * 100);
+    if (scaledDebit !== scaledCredit) {
       throw new Error(
         `Ledger not balanced! Debit: ${totalDebit.toFixed(2)}, Credit: ${totalCredit.toFixed(2)}, ` +
         `Difference: ${(totalDebit - totalCredit).toFixed(2)}`

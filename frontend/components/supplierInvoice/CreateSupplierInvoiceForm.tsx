@@ -169,7 +169,7 @@ export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: s
     useEffect(() => {
         const fetchSuppliers = async () => {
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/supplier?activeOnly=true&onWip=false`);
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/supplier?activeOnly=true&onWip=false`, { credentials: "include" });
                 const data = await response.json();
                 if (data.success) setSuppliers(data.data);
             } catch (error) {
@@ -188,7 +188,7 @@ export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: s
                     // Service items don't require GR, so we don't filter by FULLY_RECEIVED status
                     // But we still need minimum status SENT to ensure PO has been sent to supplier
                     const response = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL}/api/po?supplierId=${supplierId}&minStatus=SENT`
+                        `${process.env.NEXT_PUBLIC_API_URL}/api/po?supplierId=${supplierId}&minStatus=SENT`, { credentials: "include" }
                     );
                     const data = await response.json();
                     if (data.success) {
@@ -240,7 +240,7 @@ export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: s
         try {
             // Fetch PO details and Goods Receipts in parallel
             const [poResponse, grResponse] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/po/${poId}`).then(res => res.json()),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/po/${poId}`, { credentials: "include" }).then(res => res.json()),
                 getGoodsReceipts({ purchaseOrderId: poId, limit: 100 })
             ]);
 

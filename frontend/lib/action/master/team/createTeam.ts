@@ -1,5 +1,6 @@
 "use server";
 
+import { serverFetch } from "@/lib/server-fetch";
 import { revalidatePath } from "next/cache";
 
 interface TeamState {
@@ -24,7 +25,7 @@ export async function createTeam(
   }
 
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/team/createTeam`,
       {
         method: "POST",

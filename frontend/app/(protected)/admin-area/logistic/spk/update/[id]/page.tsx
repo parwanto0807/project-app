@@ -80,17 +80,18 @@ export default function UpdateSpkPage() {
       try {
         setIsLoading(true);
 
-        // Fetch SPK by ID
-        const spkResult = await fetchSpkById(spkId);
-        // if (!spkResult || !spkResult) {
-        //   return;
-        // }
+        // Fetch SPK + data pendukung secara paralel (bukan berurutan)
+        const [spkResult, soResult, teamResult, karyawanResult] =
+          await Promise.all([
+            fetchSpkById(spkId),
+            fetchAllSalesOrder(1, 50, "", "", true),
+            getAllTeam(),
+            fetchAllKaryawan(true),
+          ]);
+
         setSpk(spkResult);
-        const soResult = await fetchAllSalesOrder();
         setSalesOrders(soResult.data || []);
-        const teamResult = await getAllTeam();
         setTeams(teamResult.data || []);
-        const karyawanResult = await fetchAllKaryawan();
         setKaryawans(karyawanResult.karyawan);
 
       } catch (error) {

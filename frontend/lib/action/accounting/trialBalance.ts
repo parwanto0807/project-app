@@ -37,7 +37,7 @@ export async function getTrialBalance(
         const url = `${API_URL}/api/accounting/trial-balance?${queryParams}`;
         ;((...args: any[]) => {})("[TB] Fetching from:", url);
 
-        const response = await fetch(url, {
+        const response = await fetch(url, { credentials: "include",
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -85,7 +85,7 @@ export async function recalculateTrialBalance(periodId: string) {
             return { success: false, message: "Unauthorized" };
         }
 
-        const response = await fetch(`${API_URL}/api/accounting/trial-balance/recalculate`, {
+        const response = await fetch(`${API_URL}/api/accounting/trial-balance/recalculate`, { credentials: "include",
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

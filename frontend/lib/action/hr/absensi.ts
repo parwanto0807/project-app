@@ -22,7 +22,7 @@ export async function fetchAllAbsensi(filters: {
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/absensi?${queryParams.toString()}`,
-      { 
+      { credentials: "include", 
         method: "GET", 
         headers: {
           Cookie: cookieStore.toString(),
@@ -45,7 +45,7 @@ export async function validateAbsensi(
 ) {
   try {
     const cookieStore = await cookies();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}/validate`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}/validate`, { credentials: "include",
       method: "PATCH",
       headers: { 
         "Content-Type": "application/json",
@@ -66,7 +66,7 @@ export async function validateAbsensi(
 export async function approveAbsensi(id: string, catatanValidasi?: string) {
   try {
     const cookieStore = await cookies();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}/approve`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}/approve`, { credentials: "include",
       method: "PATCH",
       headers: { 
         "Content-Type": "application/json",
@@ -114,7 +114,7 @@ export async function createManualAbsensi(data: {
 }) {
   try {
     const cookieStore = await cookies();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi`, { credentials: "include",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -135,7 +135,7 @@ export async function createManualAbsensi(data: {
 export async function deleteAbsensi(id: string) {
   try {
     const cookieStore = await cookies();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}`, { credentials: "include",
       method: "DELETE",
       headers: { 
         "Content-Type": "application/json",
@@ -155,7 +155,7 @@ export async function deleteAbsensi(id: string) {
 export async function updateAbsensiAction(id: string, data: { tanggal?: string | null; jamMasuk?: string | null; jamKeluar?: string | null; status?: string; keterangan?: string }) {
   try {
     const cookieStore = await cookies();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}`, { credentials: "include",
       method: "PUT",
       headers: { 
         "Content-Type": "application/json",

@@ -1,6 +1,12 @@
 'use server';
 
-export async function getAllTeam(page = 1, limit = 10, search = '') {
+import { serverFetch } from "@/lib/server-fetch";
+export async function getAllTeam(
+  page = 1,
+  limit = 10,
+  search = "",
+  namesOnly = false
+) {
   try {
     // Build query parameters
     const params = new URLSearchParams({
@@ -8,12 +14,16 @@ export async function getAllTeam(page = 1, limit = 10, search = '') {
       limit: limit.toString(),
     });
 
+    if (namesOnly) {
+      params.append("namesOnly", "true");
+    }
+
     // Add search parameter if provided
     if (search && search.trim() !== '') {
       params.append('search', search.trim());
     }
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/getAllTeam?${params.toString()}`, {
+    const res = await serverFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/getAllTeam?${params.toString()}`, {
       method: 'GET',
       credentials: "include",
       headers: {

@@ -2,6 +2,7 @@ import express from "express";
 import {
   createSPK,
   getAllSPK,
+  getAllSPKReport,
   getAllSPKPr,
   getSPKById,
   updateSPK,
@@ -21,6 +22,7 @@ const router = express.Router();
 // CRUD SPK
 router.post("/createSPK", createSPK);
 router.get("/getAllSPK", getAllSPK);
+router.get("/getAllSPKReport", getAllSPKReport);
 router.get("/getAllSPKAdmin", getAllSPKAdmin);
 router.get("/getRecentSPK", getRecentSPK);
 router.get("/getAllSPKPr", getAllSPKPr);

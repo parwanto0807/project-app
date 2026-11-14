@@ -268,7 +268,7 @@ export default function AttendancePage() {
 
         setIsSubmitting(true);
         try {
-            const response = await fetch(capturedImage);
+            const response = await fetch(capturedImage, { credentials: "include" });
             const blob = await response.blob();
             
             const formData = new FormData();
