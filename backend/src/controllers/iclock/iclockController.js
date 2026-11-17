@@ -8,7 +8,9 @@ const getHoursDiff = (date1, date2) => {
 
 export const cdataGet = async (req, res) => {
   try {
-    const { SN, options, pushver } = req.query;
+    const SN = req.query.SN || req.query.sn || "Unknown";
+    const options = req.query.options || req.query.Options;
+    const pushver = req.query.pushver || req.query.PushVer;
     console.log(`[ADMS] Mesin terhubung: SN=${SN}, Options=${options}, PushVer=${pushver}`);
     
     res.type('text/plain');
@@ -26,20 +28,29 @@ export const cdataGet = async (req, res) => {
       `TransFlag=1111000000\n` +
       `TimeZone=7\n` +
       `Realtime=1\n` +
-      `Encrypt=0`
+      `Encrypt=0\n`
     );
   } catch (error) {
     console.error("[ADMS] Error at cdataGet:", error);
-    res.status(500).send("ERROR");
+    res.status(500).send("ERROR\n");
   }
 };
 
 export const cdataPost = async (req, res) => {
   try {
-    const { SN, table } = req.query;
-    const rawData = req.body; 
+    const SN = req.query.SN || req.query.sn || "Unknown";
+    const table = (req.query.table || req.query.Table || "").toUpperCase();
     
-    console.log(`[ADMS POST] SN=${SN}, Table=${table}`);
+    let rawData = "";
+    if (typeof req.body === "string") {
+      rawData = req.body;
+    } else if (Buffer.isBuffer(req.body)) {
+      rawData = req.body.toString("utf8");
+    } else if (typeof req.body === "object" && req.body !== null) {
+      rawData = Object.keys(req.body).join("\n");
+    }
+    
+    console.log(`[ADMS POST] SN=${SN}, Table=${table}, BodyLength=${rawData.length}`);
     
     if (table === "ATTLOG") {
       const lines = rawData.split('\n').map(line => line.trim()).filter(line => line.length > 0);

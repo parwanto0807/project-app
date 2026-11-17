@@ -103,6 +103,9 @@ app.use(
   express.static(path.join(process.cwd(), "public/uploads"))
 );
 
+// Route ADMS Mesin Absensi (Solution / ZKTeco) - publik, tanpa session/auth/CSRF
+app.use('/iclock', iclockRoutes);
+
 // CORS Configuration
 
 app.use(
@@ -246,7 +249,7 @@ app.use((req, res, next) => {
 });
 
 // Routes (semua /api wajib terautentikasi kecuali allowlist di requireApiAuth)
-app.use(requireApiAuth);
+app.use("/api", requireApiAuth);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/sessions", sessionRoute);
@@ -305,7 +308,6 @@ app.use('/api/hr/leaves', leaveRoutes);
 app.use('/api/master/location', locationRoutes);
 app.use('/api/master/wifi-ssid', wifiSsidRoutes);
 app.use('/api/assembly', assemblyRoutes);
-app.use('/iclock', iclockRoutes);
 
 
 

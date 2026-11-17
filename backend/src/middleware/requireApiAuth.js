@@ -7,6 +7,7 @@ import { authenticateToken, verifySessionToken } from "./authMiddleware.js";
  * Endpoint publik (allowlist):
  *  - /api/auth/*   : login, register, refresh, MFA, Google OAuth, logout, me
  *  - /api/health   : health check
+ *  - /iclock/*     : ADMS Push Protocol mesin absensi (Solution / ZKTeco)
  *
  * Mendukung dua mode autentikasi:
  *  1. Session cookie (session_token / sessionToken) -> verifySessionToken
@@ -14,7 +15,7 @@ import { authenticateToken, verifySessionToken } from "./authMiddleware.js";
  *
  * Kill-switch darurat: set env API_AUTH_ENFORCE=false.
  */
-const PUBLIC_PREFIXES = ["/api/auth", "/api/health"];
+const PUBLIC_PREFIXES = ["/api/auth", "/api/health", "/iclock"];
 
 function isPublicPath(pathname) {
   return PUBLIC_PREFIXES.some(
