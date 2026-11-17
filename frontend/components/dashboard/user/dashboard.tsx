@@ -27,6 +27,10 @@ interface SPKDataApi {
     salesOrderId: string;
     teamId: string;
     createdById: string;
+    progress?: number;
+    progressComment?: string | null;
+    spkStatus?: boolean;
+    spkStatusClose?: boolean;
     createdBy: {
         id: string;
         namaLengkap: string;
@@ -113,6 +117,8 @@ interface SPKData {
     assignedTo: string;
     teamName: string;
     email: string;
+    spkStatus?: boolean;
+    spkStatusClose?: boolean;
     items: {
         id: string;
         name: string;
@@ -141,7 +147,9 @@ const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
 
         const totalDetails = item.details?.length || 0;
         const completedDetails = item.details?.filter(d => d.status === 'DONE').length || 0;
-        const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
+        const dbProgress = typeof item.progress === 'number' ? item.progress : 0;
+        const calculatedProgress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
+        const progress = dbProgress > 0 ? dbProgress : calculatedProgress;
 
         const teamName = item.team?.namaTeam || 'Team belum ditentukan';
         const email = item.team?.teamKaryawan?.karyawan?.email || 'Email belum ditentukan';
@@ -156,7 +164,8 @@ const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
         const items = item.salesOrder?.items?.map(itemSales => {
             const relatedDetails = item.details?.filter(detail => detail.salesOrderItem?.id === itemSales.id) || [];
             const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
-            const itemStatus: 'PENDING' | 'DONE' = hasDoneDetail ? 'DONE' : 'PENDING';
+            const itemProgress = hasDoneDetail ? 100 : (dbProgress === 100 ? 100 : 0);
+            const itemStatus: 'PENDING' | 'DONE' = itemProgress === 100 ? 'DONE' : 'PENDING';
             return {
                 id: itemSales.id,
                 name: itemSales.name,
@@ -164,7 +173,7 @@ const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
                 qty: itemSales.qty,
                 uom: itemSales.uom || undefined,
                 status: itemStatus,
-                progress: hasDoneDetail ? 100 : 0,
+                progress: itemProgress,
             };
         }) || [];
 
@@ -180,6 +189,8 @@ const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
             deadline,
             assignedTo,
             items,
+            spkStatus: item.spkStatus,
+            spkStatusClose: item.spkStatusClose,
         };
     });
 };
@@ -203,8 +214,13 @@ const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkPr
     };
 
     useEffect(() => {
-        if (dataSpk && dataSpk.length > 0) setUserSpk(mapToSPKData(dataSpk));
-        else setUserSpk([]);
+        if (dataSpk && dataSpk.length > 0) {
+            const mapped = mapToSPKData(dataSpk);
+            // Jangan tampilkan SPK Close di user dashboard
+            setUserSpk(mapped.filter(spk => !spk.spkStatusClose && !spk.spkStatus && (spk.progress ?? 0) < 100));
+        } else {
+            setUserSpk([]);
+        }
     }, [dataSpk]);
 
     useEffect(() => {

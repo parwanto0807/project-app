@@ -543,21 +543,21 @@ export function PrApprovalTable({
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-2">
                                                         <FileText className="h-3 w-3 text-blue-500" />
-                                                        <span className="text-sm text-gray-500">{item.purchaseRequest?.nomorPr}</span>
-                                                        <ChevronRight className="h-4 w-4 text-blue-500" />
+                                                        <span className="text-sm text-gray-500">{item.purchaseRequest?.nomorPr || '-'}</span>
+                                                        {item.purchaseRequest?.nomorPr && <ChevronRight className="h-4 w-4 text-blue-500" />}
                                                     </div>
                                                 </td>
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-2">
                                                         <FileText className="h-3 w-3 text-blue-500" />
-                                                        <span className="text-sm text-gray-500">{item.spk?.spkNumber}</span>
-                                                        <ChevronRight className="h-4 w-4 text-blue-500" />
+                                                        <span className="text-sm text-gray-500">{item.spk?.spkNumber || '-'}</span>
+                                                        {item.spk?.spkNumber && <ChevronRight className="h-4 w-4 text-blue-500" />}
                                                     </div>
                                                 </td>
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-2">
                                                         <FileText className="h-3 w-3 text-blue-500" />
-                                                        <span className="text-sm text-gray-500">{item.spk?.salesOrder.soNumber}</span>
+                                                        <span className="text-sm text-gray-500">{item.spk?.salesOrder?.soNumber || '-'}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-3">

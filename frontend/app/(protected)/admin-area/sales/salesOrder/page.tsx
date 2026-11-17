@@ -91,7 +91,7 @@ export default function SalesOrderPageAdmin() {
   // ===============================
 
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "ALL">(
-    urlStatus && Object.values(OrderStatusEnum.Enum).includes(urlStatus)
+    urlStatus && (OrderStatusEnum.options as readonly string[]).includes(urlStatus)
       ? urlStatus
       : "ALL"
   );
@@ -113,7 +113,7 @@ export default function SalesOrderPageAdmin() {
   const paginationMeta = salesOrderData?.pagination;
 
   useEffect(() => {
-    if (urlStatus && Object.values(OrderStatusEnum.Enum).includes(urlStatus)) {
+    if (urlStatus && (OrderStatusEnum.options as readonly string[]).includes(urlStatus)) {
       setStatusFilter(urlStatus);
     } else {
       setStatusFilter("ALL");

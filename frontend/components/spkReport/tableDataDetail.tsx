@@ -27,6 +27,10 @@ interface SPKDataApi {
     salesOrderId: string;
     teamId: string;
     createdById: string;
+    progress?: number;
+    progressComment?: string | null;
+    spkStatus?: boolean;
+    spkStatusClose?: boolean;
 
     createdBy: {
         id: string;
@@ -117,6 +121,8 @@ interface SPKData {
     assignedTo: string;
     teamName: string;
     email: string;
+    spkStatus?: boolean;
+    spkStatusClose?: boolean;
     items: {
         id: string;
         name: string;
@@ -241,10 +247,12 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                 item.createdBy?.namaLengkap ||
                 'Tidak Ditugaskan';
 
-            // 4. Hitung progress total SPK: berdasarkan jumlah detail yang DONE
+            // 4. Hitung progress total SPK: berdasarkan jumlah detail yang DONE atau nilai progress resmi di DB
             const totalDetails = item.details?.length || 0;
             const completedDetails = item.details?.filter(d => d.status === 'DONE').length || 0;
-            const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
+            const dbProgress = typeof item.progress === 'number' ? item.progress : 0;
+            const calculatedProgress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
+            const progress = dbProgress > 0 ? dbProgress : calculatedProgress;
             const teamName = item.team?.namaTeam || 'Team belum ditentukan'
             const email = item.team?.teamKaryawan?.karyawan?.email || ' Email belum ditentukan'
 
@@ -261,8 +269,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
             const items = item.salesOrder?.items?.map(itemSales => {
                 const relatedDetails = item.details?.filter(detail => detail.salesOrderItem?.id === itemSales.id) || [];
                 const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
-                const itemStatus: 'PENDING' | 'DONE' = hasDoneDetail ? 'DONE' : 'PENDING';
-                const itemProgress = hasDoneDetail ? 100 : 0;
+                const itemProgress = hasDoneDetail ? 100 : (dbProgress === 100 ? 100 : 0);
+                const itemStatus: 'PENDING' | 'DONE' = itemProgress === 100 ? 'DONE' : 'PENDING';
 
                 return {
                     id: itemSales.id,
@@ -289,6 +297,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                 deadline,
                 assignedTo,
                 items, // 👈 Tambahkan field items ini
+                spkStatus: item.spkStatus,
+                spkStatusClose: item.spkStatusClose,
             };
         });
     };
@@ -341,7 +351,12 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
 
     const filteredUserSpk = userSpk.filter(spk => {
-        if (role === 'admin' || role === 'super' || role === 'user') return true;
+        // Di user-area (role === 'user'): status SPK Close jangan ditampilkan
+        if (role === 'user') {
+            const isClosed = spk.spkStatusClose === true || spk.spkStatus === true || (spk.progress ?? 0) >= 100;
+            return !isClosed;
+        }
+        if (role === 'admin' || role === 'super') return true;
         return spk.email === userEmail;
     });
 

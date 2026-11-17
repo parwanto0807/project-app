@@ -474,7 +474,7 @@ export const defaultCreateUangMukaValues: CreateUangMukaInput = {
 };
 
 export const defaultUpdateStatusValues: UpdateStatusWithFileInput = {
-  status: UangMukaStatus.Enum.PENDING,
+  status: UangMukaStatus.enum.PENDING,
   tanggalPencairan: null,
   metodePencairan: undefined,
   namaBankTujuan: "",
@@ -488,22 +488,22 @@ export const defaultUpdateStatusValues: UpdateStatusWithFileInput = {
 // ========================
 
 export const uangMukaStatusConfig = {
-  [UangMukaStatus.Enum.PENDING]: {
+  [UangMukaStatus.enum.PENDING]: {
     label: "Pending",
     color: "bg-yellow-100 text-yellow-800 border-yellow-300",
     description: "Menunggu pencairan",
   },
-  [UangMukaStatus.Enum.DISBURSED]: {
+  [UangMukaStatus.enum.DISBURSED]: {
     label: "Dicairkan",
     color: "bg-blue-100 text-blue-800 border-blue-300",
     description: "Dana sudah dicairkan",
   },
-  [UangMukaStatus.Enum.SETTLED]: {
+  [UangMukaStatus.enum.SETTLED]: {
     label: "Selesai",
     color: "bg-green-100 text-green-800 border-green-300",
     description: "Sudah dipertanggungjawabkan",
   },
-  [UangMukaStatus.Enum.REJECTED]: {
+  [UangMukaStatus.enum.REJECTED]: {
     label: "Ditolak",
     color: "bg-red-100 text-red-800 border-red-300",
     description: "Pengajuan ditolak",
@@ -515,17 +515,17 @@ export const uangMukaStatusConfig = {
 // ========================
 
 export const metodePembayaranConfig = {
-  [MetodePembayaran.Enum.CASH]: {
+  [MetodePembayaran.enum.CASH]: {
     label: "Tunai",
     description: "Pembayaran secara tunai",
     icon: "💰",
   },
-  [MetodePembayaran.Enum.BANK_TRANSFER]: {
+  [MetodePembayaran.enum.BANK_TRANSFER]: {
     label: "Transfer Bank",
     description: "Transfer melalui bank",
     icon: "🏦",
   },
-  [MetodePembayaran.Enum.E_WALLET]: {
+  [MetodePembayaran.enum.E_WALLET]: {
     label: "E-Wallet",
     description: "Pembayaran digital",
     icon: "📱",

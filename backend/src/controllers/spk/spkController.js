@@ -5,7 +5,7 @@ import { getNextSpkCode } from "../../utils/generateCode.js";
 // const prisma = new PrismaClient();
 
 export const getSpkByEmail = async (req, res) => {
-  const { email } = req.query;
+  const { email, includeClosed } = req.query;
 
   // Validasi: email wajib ada
   if (!email || typeof email !== "string") {
@@ -15,18 +15,29 @@ export const getSpkByEmail = async (req, res) => {
   }
 
   try {
-    // Cari semua SPK yang memiliki setidaknya satu detail dengan karyawan.email = email
-    const spkList = await prisma.sPK.findMany({
-      where: {
-        spkStatus: false,
-        details: {
-          some: {
-            karyawan: {
-              email: email, // ← ini yang dicari!
-            },
+    // Cari semua SPK aktif (spkStatusClose: false) yang ditugaskan ke karyawan ini
+    const whereClause = {
+      details: {
+        some: {
+          karyawan: {
+            email: email, // ← ini yang dicari!
           },
         },
       },
+    };
+
+    // Secara default hanya tampilkan SPK yang aktif (belum di-close / belum 100%), status SPK Close jangan tampil di user-area
+    if (includeClosed !== "true") {
+      whereClause.spkStatusClose = false;
+      whereClause.spkStatus = false;
+      whereClause.OR = [
+        { progress: { lt: 100 } },
+        { progress: null }
+      ];
+    }
+
+    const spkList = await prisma.sPK.findMany({
+      where: whereClause,
       include: {
         createdBy: true,
         salesOrder: {

@@ -373,14 +373,37 @@ const ReportProgressTab = ({
                 const missingCoords = finalPhotos.some(p => p.latitude === undefined || p.longitude === undefined);
                 if (missingCoords) {
                     try {
+                        if (typeof window !== "undefined" && !window.isSecureContext) {
+                            throw { code: 99, message: "Koneksi tidak aman (harus menggunakan HTTPS agar browser mengizinkan GPS)" };
+                        }
+
                         toast.info("Meminta Akses GPS...", { description: "Tolong izinkan akses lokasi (GPS) untuk menyimpan foto." });
-                        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        
+                        // Coba pertama: High Accuracy (GPS Satelit)
+                        // Jika timeout atau unavailable (misal di dalam ruangan), fallback ke mode standar (BTS/WiFi)
+                        const getPosition = (options: PositionOptions) =>
+                            new Promise<GeolocationPosition>((resolve, reject) => {
+                                navigator.geolocation.getCurrentPosition(resolve, reject, options);
+                            });
+
+                        let position: GeolocationPosition;
+                        try {
+                            position = await getPosition({
                                 enableHighAccuracy: true,
                                 timeout: 10000,
-                                maximumAge: 0
+                                maximumAge: 10000
                             });
-                        });
+                        } catch (highAccErr: any) {
+                            // Jika izin ditolak (code 1), langsung throw
+                            if (highAccErr?.code === 1) throw highAccErr;
+                            
+                            // Jika timeout/unavailable, coba mode low accuracy dengan timeout lebih longgar
+                            position = await getPosition({
+                                enableHighAccuracy: false,
+                                timeout: 15000,
+                                maximumAge: 60000
+                            });
+                        }
 
                         finalPhotos = finalPhotos.map(p => ({
                             ...p,
@@ -391,10 +414,25 @@ const ReportProgressTab = ({
                         // Update state UI juga
                         setFormData(prev => ({ ...prev, photos: finalPhotos }));
                         toast.success("Lokasi GPS didapatkan!");
-                    } catch (geoErr) {
-                        toast.error("Gagal Menyimpan Laporan: Izin Lokasi Ditolak", {
-                            description: "Sistem membutuhkan akses lokasi (GPS) Anda saat ini untuk bukti laporan lapangan. Tolong aktifkan GPS dan izinkan browser mengakses lokasi."
-                        });
+                    } catch (geoErr: any) {
+                        let title = "Gagal Menyimpan Laporan: Akses Lokasi";
+                        let description = "Sistem membutuhkan akses lokasi (GPS) Anda saat ini untuk bukti laporan lapangan.";
+
+                        if (geoErr?.code === 99 || (typeof window !== "undefined" && !window.isSecureContext)) {
+                            title = "Koneksi Belum HTTPS";
+                            description = "Browser HP memblokir GPS karena web belum diakses via HTTPS (koneksi aman). Hubungi admin.";
+                        } else if (geoErr?.code === 1) { // PERMISSION_DENIED
+                            title = "Gagal Menyimpan Laporan: Izin Lokasi Ditolak";
+                            description = "Izin lokasi diblokir oleh browser Chrome atau setelan HP. Klik ikon setelan di samping alamat web di Chrome, lalu pilih 'Izinkan' untuk Lokasi.";
+                        } else if (geoErr?.code === 2) { // POSITION_UNAVAILABLE
+                            title = "Sinyal GPS Tidak Terdeteksi";
+                            description = "Perangkat tidak dapat menentukan posisi. Pastikan GPS HP aktif dan sinyal tidak terhalang gedung/ruang tertutup.";
+                        } else if (geoErr?.code === 3) { // TIMEOUT
+                            title = "Pencarian GPS Timeout";
+                            description = "Waktu pencarian satelit GPS habis. Pastikan mode Akurasi Lokasi di HP aktif, lalu coba simpan kembali.";
+                        }
+
+                        toast.error(title, { description, duration: 8000 });
                         setUploading(false);
                         return;
                     }

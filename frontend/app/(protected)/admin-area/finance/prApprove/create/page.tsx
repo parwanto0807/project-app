@@ -38,9 +38,9 @@ export default function UMCreatePageAdmin() {
         error: submitError,
     } = useCreateUangMuka();
 
-    // Redirect jika bukan admin
+    // Redirect jika bukan admin atau super
     useEffect(() => {
-        if (!userLoading && user?.role !== "admin") {
+        if (!userLoading && user?.role !== "admin" && user?.role !== "super") {
             router.push("/unauthorized");
         }
     }, [user, userLoading, router]);

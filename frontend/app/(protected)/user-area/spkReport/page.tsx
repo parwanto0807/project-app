@@ -27,6 +27,10 @@ interface SPK {
     salesOrderId: string;
     teamId: string;
     createdById: string;
+    progress?: number;
+    progressComment?: string | null;
+    spkStatus?: boolean;
+    spkStatusClose?: boolean;
 
     createdBy: {
         id: string;

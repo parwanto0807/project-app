@@ -5,10 +5,16 @@ import { api } from "@/lib/http";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export async function getSpkByEmail(email: string) {
+export async function getSpkByEmail(email: string, includeClosed: boolean = false) {
   try {
+    const url = new URL(`${API_URL}/api/spk/getSpkByEmail`);
+    url.searchParams.set("email", email);
+    if (includeClosed) {
+      url.searchParams.set("includeClosed", "true");
+    }
+
     const response = await fetch(
-      `${API_URL}/api/spk/getSpkByEmail?email=${encodeURIComponent(email)}`,
+      url.toString(),
       {
         credentials: "include", // ✅ INI HARUS DITAMBAHKAN
       }

@@ -33,6 +33,10 @@ export interface SPKDataApi {
   salesOrderId: string;
   teamId: string;
   createdById: string;
+  progress?: number;
+  progressComment?: string | null;
+  spkStatus?: boolean;
+  spkStatusClose?: boolean;
 
   createdBy: {
     id: string;
@@ -122,6 +126,8 @@ interface SPKData {
   assignedTo: string;
   teamName: string;
   email: string;
+  spkStatus?: boolean;
+  spkStatusClose?: boolean;
   items: {
     id: string;
     name: string;
@@ -198,6 +204,8 @@ const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
     const email = item.team?.teamKaryawan?.karyawan?.email || 'Email belum ditentukan';
     const deadline = item.spkDate ? new Date(item.spkDate).toISOString() : new Date().toISOString();
 
+    const dbProgress = typeof item.progress === 'number' ? item.progress : 0;
+
     // Group detail per sales order item sekali (O(n) total), bukan filter
     // berulang untuk setiap item (O(n²)).
     const detailsByItem = new Map<string, SPKDataApi['details']>();
@@ -212,6 +220,7 @@ const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
     const items = (item.salesOrder?.items ?? []).map(itemSales => {
       const relatedDetails = detailsByItem.get(itemSales.id) ?? [];
       const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
+      const itemProgress = hasDoneDetail ? 100 : (dbProgress === 100 ? 100 : 0);
 
       return {
         id: itemSales.id,
@@ -219,14 +228,15 @@ const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
         description: itemSales.description || undefined,
         qty: itemSales.qty,
         uom: itemSales.uom || undefined,
-        status: (hasDoneDetail ? 'DONE' : 'PENDING') as 'PENDING' | 'DONE',
-        progress: hasDoneDetail ? 100 : 0,
+        status: (itemProgress === 100 ? 'DONE' : 'PENDING') as 'PENDING' | 'DONE',
+        progress: itemProgress,
       };
     });
 
     const totalItems = items.length;
     const totalProgress = items.reduce((sum, item) => sum + item.progress, 0);
-    const progress = totalItems > 0 ? Math.round(totalProgress / totalItems) : 0;
+    const calculatedProgress = totalItems > 0 ? Math.round(totalProgress / totalItems) : 0;
+    const progress = dbProgress > 0 ? dbProgress : calculatedProgress;
 
     let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
     if (progress === 100) status = 'COMPLETED';
@@ -245,6 +255,8 @@ const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
       deadline,
       assignedTo,
       items,
+      spkStatus: item.spkStatus,
+      spkStatusClose: item.spkStatusClose,
     };
   });
 };
@@ -277,7 +289,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   const fetchReports = useCallback(async (signal?: AbortSignal) => {
     setLoadingReports(true);
     try {
-      const data = await fetchSPKReports({ ...filters, openOnly: true }, { signal });
+      const data = await fetchSPKReports(filters, { signal });
       if (signal?.aborted) return;
 
       const sorted = [...data].sort((a, b) => {
@@ -324,18 +336,32 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   }, [fetchReports]);
 
   const filteredUserSpk = useMemo(() => {
-    if (role === 'admin' || role === 'super' || role === 'pic' || role === 'user') return userSpk;
-    return userSpk.filter(spk => spk.email === userEmail);
+    let list = userSpk;
+    if (role !== 'admin' && role !== 'super' && role !== 'pic' && role !== 'user') {
+      list = userSpk.filter(spk => spk.email === userEmail);
+    }
+    // Khusus di user-area (role === 'user'): status SPK Close (spkStatusClose, spkStatus, atau 100%) jangan ditampilkan
+    if (role === 'user') {
+      list = list.filter(spk => {
+        const isClosed = spk.spkStatusClose === true || spk.spkStatus === true || (spk.progress ?? 0) >= 100;
+        return !isClosed;
+      });
+    }
+    return list;
   }, [userSpk, role, userEmail]);
 
   const getSPKFieldProgress = useCallback((spk: SPKData): number => {
     const itemProgressMap = spkItemProgress[spk.spkNumber];
-    if (!itemProgressMap || spk.items.length === 0) return 0;
-    const totalProgress = spk.items.reduce(
-      (sum, item) => sum + (itemProgressMap[item.id] ?? 0),
-      0
-    );
-    return Math.round(totalProgress / spk.items.length);
+    if (itemProgressMap && spk.items.length > 0) {
+      const totalProgress = spk.items.reduce(
+        (sum, item) => sum + (itemProgressMap[item.id] ?? 0),
+        0
+      );
+      const avg = Math.round(totalProgress / spk.items.length);
+      if (avg > 0) return avg;
+    }
+    // Fallback ke progress resmi SPK di DB (agar SPK yang sudah selesai 100% tidak pernah tertampil 0%)
+    return spk.progress ?? 0;
   }, [spkItemProgress]);
 
   // Statistik dihitung sekali per perubahan data, bukan setiap render.
@@ -392,14 +418,18 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {filteredUserSpk.length}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Total SPK</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {completedCount}
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {role === 'user' ? 'SPK Berjalan' : 'Total SPK'}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Selesai</div>
                 </div>
+                {role !== 'user' && (
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {completedCount}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Selesai</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
